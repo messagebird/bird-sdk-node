@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": { "@messagebird/sdk": ["../src/index.ts"] }
+  },
+  "include": ["**/*.ts"],
+  "exclude": []
+}

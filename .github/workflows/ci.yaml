@@ -1,0 +1,32 @@
+# CI for the bird-sdk-node release mirror. This file is the proof that the
+# exported tree installs, builds, and tests with NO Bird monorepo context — it
+# runs on a GitHub-hosted runner against the checked-in mirror content only.
+#
+# Source of truth: clients/sdk-typescript/.mirror/ in the Bird monorepo. Do not
+# edit on the mirror; changes are synced from the monorepo.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run lint
+      - run: pnpm run test

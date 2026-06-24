@@ -17,8 +17,9 @@ export const WebhookAttemptListSchema = {
 export const WebhookEventTypeSchema = {
   type: "string",
   minLength: 1,
-  description: "Known webhook event type.",
-  enum: [
+  description:
+    "Webhook event type. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+  "x-extensible-enum": [
     "domain.failed",
     "domain.verified",
     "email.accepted",
@@ -35,7 +36,21 @@ export const WebhookEventTypeSchema = {
     "email.rejected",
     "email.unsubscribed",
     "email_suppression.created",
+    "sms.accepted",
+    "sms.delivered",
+    "sms.expired",
+    "sms.failed",
+    "sms.rejected",
+    "sms.sent",
+    "sms.undelivered",
   ],
+} as const;
+
+export const WebhookEventIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^whe_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "whe_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const WebhookAttemptSchema = {
@@ -59,11 +74,16 @@ export const WebhookAttemptSchema = {
       example: "msgatt_3FdaB1NkOmM6m8AxhgEYTJgqHU3",
     },
     event_id: {
-      type: ["string", "null"],
-      pattern: "^whe_[0-9a-hjkmnp-tv-z]{26}$",
       description:
         "Bird's source event ID, stable across retries of the same event. Null only for older attempts recorded before event IDs were available.",
-      example: "whe_01krdgeqcxet5s7t44vh8rt9mg",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/WebhookEventID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     event_type: {
       $ref: "#/components/schemas/WebhookEventType",
@@ -171,9 +191,498 @@ export const WebhookTestResponseSchema = {
     },
     error: {
       type: "string",
+      minLength: 1,
       description:
         "A short explanation of why the event could not be delivered. Present only when your endpoint could not be reached.",
       example: "connection refused",
+    },
+  },
+} as const;
+
+export const EventSMSUndeliveredDataSchema = {
+  type: "object",
+  description: "Payload of the sms.undelivered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/SMSError",
+          description: "Why the message was not delivered.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const SMSErrorCodeSchema = {
+  type: "string",
+  minLength: 1,
+  enum: [
+    "invalid_destination",
+    "unreachable",
+    "blocked_by_carrier",
+    "blocked_by_recipient",
+    "landline_unreachable",
+    "content_rejected",
+    "sender_unregistered",
+    "recipient_opted_out",
+    "provider_unavailable",
+    "unknown",
+  ],
+  description:
+    "Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `unknown` — an unmapped failure.\n",
+} as const;
+
+export const SMSErrorSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code", "description", "occurred_at"],
+  description:
+    "Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/SMSErrorCode",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable explanation of the failure.",
+      example: "Carrier filtered as spam",
+    },
+    carrier_error_code: {
+      type: ["string", "null"],
+      description:
+        "Raw carrier-supplied error code, when available, for low-level debugging.",
+      example: "30007",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      description: "When the failure occurred.",
+    },
+  },
+} as const;
+
+export const SMSTagSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "value"],
+  description:
+    "Structured key/value tag attached to an SMS message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.\nTag count and per-tag size are capped to keep per-send tag payloads small — see SMSMessageSendRequest for the array maximum.\n",
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 32,
+      pattern: "^[A-Za-z0-9_-]+$",
+      description:
+        "Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.\n",
+      example: "campaign",
+    },
+    value: {
+      type: "string",
+      minLength: 1,
+      maxLength: 64,
+      pattern: "^[A-Za-z0-9_-]+$",
+      description:
+        "Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.\n",
+      example: "signup",
+    },
+  },
+} as const;
+
+export const WorkspaceIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ws_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const SMSMessageIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^sms_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "sms_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventSMSBaseSchema = {
+  type: "object",
+  "x-mixin": true,
+  description: "Identity fields shared by every SMS lifecycle event payload.",
+  required: ["sms_id", "workspace_id", "to", "from", "tags", "metadata"],
+  properties: {
+    sms_id: {
+      $ref: "#/components/schemas/SMSMessageID",
+      description: "ID of the SMS message.",
+      "x-go-type": "domain.SMSMessageID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "ID of the workspace.",
+      "x-go-type": "domain.WorkspaceID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    to: {
+      type: "string",
+      minLength: 1,
+      description: "Recipient phone number in E.164 format.",
+      example: "+15551234567",
+    },
+    from: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.",
+      example: "+15557654321",
+    },
+    tags: {
+      type: ["array", "null"],
+      items: {
+        $ref: "#/components/schemas/SMSTag",
+      },
+      description:
+        "Tags provided on the send request, echoed on every event for the message so you can route and correlate without an extra lookup. Null when the message carried no tags.\n",
+    },
+    metadata: {
+      type: ["object", "null"],
+      additionalProperties: true,
+      description:
+        "The metadata object provided on the send request, echoed on every event for the message so you can correlate events with your own records. Null when the message carried no metadata.\n",
+      example: {
+        order_id: "ord_123",
+      },
+    },
+  },
+} as const;
+
+export const EventSMSUndeliveredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The carrier reported a non-permanent failure to deliver the message.",
+  "x-event-type-id": "sms.undelivered",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.undelivered"],
+      description: "Event type.",
+      example: "sms.undelivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the non-delivery was recorded.",
+      example: "2026-05-21T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSUndeliveredData",
+    },
+  },
+} as const;
+
+export const EventSMSSentDataSchema = {
+  type: "object",
+  description: "Payload of the sms.sent event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["carrier", "mcc_mnc"],
+      properties: {
+        carrier: {
+          type: ["string", "null"],
+          description:
+            "Carrier that handled the message, or null when not known.",
+          example: "Verizon",
+        },
+        mcc_mnc: {
+          type: ["string", "null"],
+          description:
+            "Mobile country code and mobile network code of the carrier, or null when not known.",
+          example: "311480",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSSentSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Bird handed the message to the carrier for delivery.",
+  "x-event-type-id": "sms.sent",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.sent"],
+      description: "Event type.",
+      example: "sms.sent",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the message was handed to the carrier.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSSentData",
+    },
+  },
+} as const;
+
+export const EventSMSRejectedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.rejected event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/SMSError",
+          description:
+            "Why the message was rejected before reaching the carrier.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSRejectedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).",
+  "x-event-type-id": "sms.rejected",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.rejected"],
+      description: "Event type.",
+      example: "sms.rejected",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the rejection was recorded.",
+      example: "2026-05-21T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSRejectedData",
+    },
+  },
+} as const;
+
+export const EventSMSFailedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.failed event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/SMSError",
+          description: "Why the message terminally failed.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSFailedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The message terminally failed and will not be delivered.",
+  "x-event-type-id": "sms.failed",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.failed"],
+      description: "Event type.",
+      example: "sms.failed",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the failure was recorded.",
+      example: "2026-05-21T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSFailedData",
+    },
+  },
+} as const;
+
+export const EventSMSExpiredDataSchema = {
+  type: "object",
+  description: "Payload of the sms.expired event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+  ],
+} as const;
+
+export const EventSMSExpiredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The message's validity period elapsed before it could be delivered.",
+  "x-event-type-id": "sms.expired",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.expired"],
+      description: "Event type.",
+      example: "sms.expired",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the message expired.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSExpiredData",
+    },
+  },
+} as const;
+
+export const EventSMSDeliveredDataSchema = {
+  type: "object",
+  description: "Payload of the sms.delivered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["carrier", "mcc_mnc"],
+      properties: {
+        carrier: {
+          type: ["string", "null"],
+          description:
+            "Carrier that delivered the message, or null when not known.",
+          example: "Verizon",
+        },
+        mcc_mnc: {
+          type: ["string", "null"],
+          description:
+            "Mobile country code and mobile network code of the carrier, or null when not known.",
+          example: "311480",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSDeliveredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The carrier confirmed delivery of the message to the recipient handset.",
+  "x-event-type-id": "sms.delivered",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.delivered"],
+      description: "Event type.",
+      example: "sms.delivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the carrier confirmed delivery.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSDeliveredData",
+    },
+  },
+} as const;
+
+export const EventSMSAcceptedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.accepted event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+  ],
+} as const;
+
+export const EventSMSAcceptedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bird accepted the SMS send request and queued it for processing.",
+  "x-event-type-id": "sms.accepted",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.accepted"],
+      description: "Event type.",
+      example: "sms.accepted",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time Bird accepted the request.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSAcceptedData",
     },
   },
 } as const;
@@ -254,13 +763,6 @@ export const RecipientRoleSchema = {
   enum: ["to", "cc", "bcc"],
   description: "Envelope position of a recipient on an outbound email event.",
   example: "to",
-} as const;
-
-export const WorkspaceIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^ws_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const RecipientIDSchema = {
@@ -440,6 +942,13 @@ export const EventEmailRejectedSchema = {
   },
 } as const;
 
+export const InboundEmailMessageIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^rem_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "rem_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const EventEmailReceivedDataSchema = {
   type: "object",
   additionalProperties: false,
@@ -449,15 +958,19 @@ export const EventEmailReceivedDataSchema = {
     "workspace_id",
     "message_id",
     "from",
+    "to",
     "subject",
   ],
   properties: {
     inbound_message_id: {
-      type: "string",
-      minLength: 1,
+      $ref: "#/components/schemas/InboundEmailMessageID",
       description:
-        "ID of the received email (rem_ prefix). Use it with GET /v1/email/inbound-messages/{id} to fetch the body.",
-      example: "rem_01krdgeqcxet5s7t44vh8rt9mg",
+        "ID of the received email. Use it with GET /v1/email/inbound-messages/{id} to fetch the body, raw content, and attachments.",
+      "x-go-type": "domain.InboundEmailMessageID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
@@ -481,11 +994,46 @@ export const EventEmailReceivedDataSchema = {
       description: "Envelope-from address.",
       example: "alice@example.com",
     },
+    to: {
+      type: "array",
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description: "Recipient addresses the message was sent to.",
+      example: ["support@acme.com"],
+    },
     subject: {
-      type: "string",
-      minLength: 1,
-      description: "Subject line as received.",
+      type: ["string", "null"],
+      description:
+        "Subject line as received, or null when the message had no subject.",
       example: "Welcome to Bird",
+    },
+    in_reply_to: {
+      type: ["string", "null"],
+      description:
+        "In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.",
+      example: "<previous-message@example.com>",
+    },
+    spf_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether SPF passed for the sender, or null when the result did not carry an SPF verdict.",
+    },
+    dkim_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DKIM passed for the sender, or null when the result did not carry a DKIM verdict.",
+    },
+    dmarc_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DMARC passed for the sender, or null when the result did not carry a DMARC verdict.",
+    },
+    spam_score: {
+      type: ["number", "null"],
+      description:
+        "Spam score for the message. Always null at present; reserved for a future content-scoring capability.",
     },
   },
 } as const;
@@ -494,7 +1042,7 @@ export const EventEmailReceivedSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "Bird received and parsed an inbound email. The payload includes message metadata, extracted text, and threading headers (not the raw body). Additional fields — cc/bcc recipients, attachment metadata, and authentication results — will be added in a future release.",
+    "Bird received and parsed an inbound email. The payload carries the message's identifiers, sender and recipients, subject, threading reference, and authentication results — enough to route and triage without a fetch. Fetch the body, full headers, and attachments with GET /v1/email/inbound-messages/{id}.",
   "x-event-type-id": "email.received",
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
@@ -1200,6 +1748,27 @@ export const WebhookEventSchema = {
     {
       $ref: "#/components/schemas/EventEmailSuppressionCreated",
     },
+    {
+      $ref: "#/components/schemas/EventSMSAccepted",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSExpired",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSFailed",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSRejected",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSSent",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSUndelivered",
+    },
   ],
   discriminator: {
     propertyName: "type",
@@ -1223,6 +1792,13 @@ export const WebhookEventSchema = {
       "email.unsubscribed": "#/components/schemas/EventEmailUnsubscribed",
       "email_suppression.created":
         "#/components/schemas/EventEmailSuppressionCreated",
+      "sms.accepted": "#/components/schemas/EventSMSAccepted",
+      "sms.delivered": "#/components/schemas/EventSMSDelivered",
+      "sms.expired": "#/components/schemas/EventSMSExpired",
+      "sms.failed": "#/components/schemas/EventSMSFailed",
+      "sms.rejected": "#/components/schemas/EventSMSRejected",
+      "sms.sent": "#/components/schemas/EventSMSSent",
+      "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
     },
   },
 } as const;
@@ -1591,18 +2167,28 @@ export const SuppressionSchema = {
         'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences.\n',
     },
     source_email_id: {
-      type: ["string", "null"],
-      pattern: "^em_[0-9a-hjkmnp-tv-z]{26}$",
       description:
         "ID of the email that triggered suppression. Null for manual additions.",
-      example: "em_01krdgeqcxet5s7t44vh8rt9mg",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     source_recipient_id: {
-      type: ["string", "null"],
-      pattern: "^er_[0-9a-hjkmnp-tv-z]{26}$",
       description:
         "ID of the recipient event that triggered suppression. Null for manual additions.",
-      example: "er_01krdgeqcxet5s7t44vh8rt9mg",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/RecipientID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     created_at: {
       type: "string",
@@ -1652,6 +2238,28 @@ export const EmailEventListSchema = {
   ],
 } as const;
 
+export const EmailEventTypeSchema = {
+  type: "string",
+  minLength: 1,
+  description:
+    "Type of an event in a message's per-recipient delivery timeline. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+  "x-extensible-enum": [
+    "email.accepted",
+    "email.bounced",
+    "email.clicked",
+    "email.complained",
+    "email.deferred",
+    "email.delivered",
+    "email.list_unsubscribed",
+    "email.opened",
+    "email.out_of_band_bounce",
+    "email.processed",
+    "email.rejected",
+    "email.unsubscribed",
+  ],
+  example: "email.delivered",
+} as const;
+
 export const EmailEventSchema = {
   type: "object",
   additionalProperties: false,
@@ -1666,11 +2274,9 @@ export const EmailEventSchema = {
       example: "ev_01krdgeqcxet5s7t44vh8rt9mg",
     },
     type: {
-      type: "string",
-      minLength: 1,
+      $ref: "#/components/schemas/EmailEventType",
       description:
-        "Event type. One of: `email.accepted`, `email.processed`, `email.deferred`, `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, `email.complained`, `email.rejected`, `email.opened`, `email.clicked`, `email.unsubscribed`, `email.list_unsubscribed`.\n`email.processed` means Bird has processed the message and queued it for delivery.\n",
-      example: "email.delivered",
+        "Event type. `email.processed` means Bird has processed the message and queued it for delivery.\n",
     },
     occurred_at: {
       type: "string",
@@ -1943,7 +2549,7 @@ export const EmailMessageBatchRequestSchema = {
   minItems: 1,
   maxItems: 100,
   description:
-    "Batch of email message send requests. All items are validated before any are queued.",
+    "Batch of email message send requests. All items are validated before any are queued. Attachments are allowed on individual messages. Each message must stay within the 20 MB estimated generated message-size cap. The serialized JSON request body for the batch has a hard 20 MB cap.\n",
 } as const;
 
 export const EmailAttachmentSchema = {
@@ -1951,7 +2557,7 @@ export const EmailAttachmentSchema = {
   additionalProperties: false,
   required: ["filename", "content"],
   description:
-    "File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.\nInline images for `<img src=\"cid:...\"/>` references in the HTML body use the `content_id` field together with `content`.\nTotal message size (body + inline images + all attachments) is capped at **20 MB on the wire (post-base64)**. Sends above this limit are rejected. As a rule of thumb, raw file content should stay under ~15 MB to leave headroom after base64 encoding.\nRecipient-side delivery reality: most consumer inboxes cap at 20–25 MB (Gmail 25 MB, Outlook desktop 20 MB, Exchange corporate often 10 MB). Sends close to Bird's 20 MB cap may be accepted by Bird but bounce at the recipient's mail server.\nSends with attachments cannot use `POST /v1/emails/batch`; use the single-send endpoint instead. Certain executable / script content types are rejected at validation time.\n",
+    "File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.\nInline images for `<img src=\"cid:...\"/>` references in the HTML body use the `content_id` field together with `content`.\nBird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.\nRecipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.\nBatch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.\n",
   properties: {
     filename: {
       type: "string",
@@ -1965,13 +2571,13 @@ export const EmailAttachmentSchema = {
       format: "byte",
       minLength: 1,
       description:
-        "Base64-encoded attachment bytes. Required. Counts against the 20 MB per-send wire cap.\n",
+        "Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
     },
     path: {
       type: "string",
       format: "uri",
       description:
-        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts against the 20 MB per-send wire cap.\n",
+        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
     },
     content_type: {
       type: "string",
@@ -2102,8 +2708,10 @@ export const EmailMessageSendRequestSchema = {
     },
     headers: {
       type: "object",
+      maxProperties: 25,
       additionalProperties: {
         type: "string",
+        maxLength: 998,
       },
       description: "Custom email headers as key-value pairs.",
     },
@@ -2132,7 +2740,7 @@ export const EmailMessageSendRequestSchema = {
       default: true,
       description: "Whether to track click events for this message.",
     },
-    ip_pool: {
+    ip_pool_id: {
       type: "string",
       pattern: "^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$",
       description:
@@ -2157,7 +2765,7 @@ export const EmailMessageSendRequestSchema = {
       },
       maxItems: 20,
       description:
-        "File attachments. Total message size (body + inline images + all attachments) capped at 20 MB post-base64. Raw file content should stay under ~15 MB to leave room after encoding. Sends with attachments cannot use `POST /v1/emails/batch`; use the single-send endpoint. See the EmailAttachment schema for the full field contract.\n",
+        "File attachments. Bird rejects sends whose estimated generated message size exceeds 20 MB. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. Keep total raw attachment content at or below 15 MB for reliable headroom. In batch sends, this per-message cap still applies and the serialized JSON request body for the whole batch has a hard 20 MB cap. See the EmailAttachment schema for the full field contract.\n",
     },
     scheduled_at: {
       type: "string",
@@ -2231,19 +2839,24 @@ export const EmailMessageListSchema = {
   ],
 } as const;
 
+export const EmailAttachmentIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ea_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ea_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const EmailAttachmentRefSchema = {
   type: "object",
   additionalProperties: false,
   required: ["filename", "size"],
   description:
-    "Attachment metadata returned on API reads. The original content is not echoed back — only the metadata needed for display and audit. To fetch the raw attachment content (when storage is enabled), use `GET /v1/email/messages/{email_id}/attachments/{attachment_id}` — endpoint reserved for a future content-retention product.\n",
+    "Attachment metadata returned on API reads. The original content is not echoed back inline — only the metadata needed for display and audit. To download the raw attachment bytes (while content storage is enabled and within the retention window), use `GET /v1/email/messages/{message_id}/attachments/{attachment_id}`, which returns the file with its own content type and a Content-Disposition filename.\n",
   properties: {
     id: {
-      type: "string",
-      minLength: 1,
-      pattern: "^ea_[0-9a-hjkmnp-tv-z]{26}$",
+      readOnly: true,
       description: "Attachment ID, stable per email send.",
-      example: "ea_01krdgeqcxet5s7t44vh8rt9mg",
+      $ref: "#/components/schemas/EmailAttachmentID",
     },
     filename: {
       type: "string",
@@ -2418,7 +3031,7 @@ export const EmailMessageSchema = {
       readOnly: true,
       default: 0,
       description:
-        "Number of recipients rejected before delivery. See the per-recipient `rejection_reason` field on `GET /v1/emails/{id}/recipients` for the specific cause (suppression match, transmission failure, generation failure, or policy refusal).\n",
+        "Number of recipients rejected before delivery. See the per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` for the specific cause (suppression match, transmission failure, generation failure, or policy refusal).\n",
     },
     processing_latency_ms: {
       type: ["integer", "null"],
@@ -2498,10 +3111,16 @@ export const EmailMessageSchema = {
         "Thread this message belongs to. Null until threading is enabled.",
     },
     in_reply_to_message_id: {
-      type: ["string", "null"],
       readOnly: true,
-      pattern: "^em_[0-9a-hjkmnp-tv-z]{26}$",
       description: "The message this one is a reply to, if any.",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     delivered_at: {
       type: ["string", "null"],
@@ -2697,11 +3316,16 @@ export const WebhookAttemptWritableSchema = {
   ],
   properties: {
     event_id: {
-      type: ["string", "null"],
-      pattern: "^whe_[0-9a-hjkmnp-tv-z]{26}$",
       description:
         "Bird's source event ID, stable across retries of the same event. Null only for older attempts recorded before event IDs were available.",
-      example: "whe_01krdgeqcxet5s7t44vh8rt9mg",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/WebhookEventID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     event_type: {
       $ref: "#/components/schemas/WebhookEventType",
@@ -2737,6 +3361,337 @@ export const WebhookAttemptWritableSchema = {
       minimum: 0,
       description: "Round-trip duration in milliseconds.",
       example: 87,
+    },
+  },
+} as const;
+
+export const WebhookTestResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status", "response_status_code", "response_duration_ms"],
+  properties: {
+    status: {
+      type: "string",
+      minLength: 1,
+      enum: ["delivered", "failed"],
+      description:
+        "Whether your endpoint accepted the test event. `delivered` means it returned a 2xx status; `failed` means it returned a non-2xx status or could not be reached.",
+    },
+    response_status_code: {
+      type: ["integer", "null"],
+      description:
+        "HTTP status returned by your endpoint. Null when no response was received (timeout, connection error, DNS failure).",
+      example: 200,
+    },
+    response_body: {
+      type: "string",
+      description:
+        "Response body returned by your endpoint, truncated when oversized. Empty when no body was returned.",
+      example: "OK",
+    },
+    response_duration_ms: {
+      type: "integer",
+      minimum: 0,
+      description: "Round-trip delivery latency in milliseconds.",
+      example: 142,
+    },
+    event_payload: {
+      description:
+        "The event body Bird delivered to the endpoint. Set on successful test delivery only.",
+      $ref: "#/components/schemas/WebhookEventWritable",
+    },
+    error: {
+      type: "string",
+      minLength: 1,
+      description:
+        "A short explanation of why the event could not be delivered. Present only when your endpoint could not be reached.",
+      example: "connection refused",
+    },
+  },
+} as const;
+
+export const EventSMSUndeliveredDataWritableSchema = {
+  type: "object",
+  description: "Payload of the sms.undelivered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/SMSErrorWritable",
+          description: "Why the message was not delivered.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const SMSErrorWritableSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code", "description", "occurred_at"],
+  description:
+    "Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/SMSErrorCode",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable explanation of the failure.",
+      example: "Carrier filtered as spam",
+    },
+    carrier_error_code: {
+      type: ["string", "null"],
+      description:
+        "Raw carrier-supplied error code, when available, for low-level debugging.",
+      example: "30007",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      description: "When the failure occurred.",
+    },
+  },
+} as const;
+
+export const EventSMSUndeliveredWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The carrier reported a non-permanent failure to deliver the message.",
+  "x-event-type-id": "sms.undelivered",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.undelivered"],
+      description: "Event type.",
+      example: "sms.undelivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the non-delivery was recorded.",
+      example: "2026-05-21T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSUndeliveredDataWritable",
+    },
+  },
+} as const;
+
+export const EventSMSRejectedDataWritableSchema = {
+  type: "object",
+  description: "Payload of the sms.rejected event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/SMSErrorWritable",
+          description:
+            "Why the message was rejected before reaching the carrier.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSRejectedWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).",
+  "x-event-type-id": "sms.rejected",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.rejected"],
+      description: "Event type.",
+      example: "sms.rejected",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the rejection was recorded.",
+      example: "2026-05-21T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSRejectedDataWritable",
+    },
+  },
+} as const;
+
+export const EventSMSFailedDataWritableSchema = {
+  type: "object",
+  description: "Payload of the sms.failed event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/SMSErrorWritable",
+          description: "Why the message terminally failed.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSFailedWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The message terminally failed and will not be delivered.",
+  "x-event-type-id": "sms.failed",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.failed"],
+      description: "Event type.",
+      example: "sms.failed",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the failure was recorded.",
+      example: "2026-05-21T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSFailedDataWritable",
+    },
+  },
+} as const;
+
+export const WebhookEventWritableSchema = {
+  description:
+    "Discriminated union of every webhook event the Bird platform emits.\nEach variant is the full delivery body: `type` names the event, `timestamp` is when the event occurred, and `data` carries the event-specific payload. The `type` property selects the variant — SDKs that consume this schema (openapi-typescript, oapi-codegen) generate a narrowed union keyed on `type`, so customer code can switch on the event id and access the variant-specific payload fields without casting.\nDelivery metadata (the event id and per-attempt signature headers) rides in HTTP headers per Standard Webhooks and is handled by the SDK's webhook verification helper, which returns one of these variants.\n",
+  oneOf: [
+    {
+      $ref: "#/components/schemas/EventDomainFailed",
+    },
+    {
+      $ref: "#/components/schemas/EventDomainVerified",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailAccepted",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailBounced",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailClicked",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailComplained",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailDeferred",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailListUnsubscribed",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailOpened",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailOutOfBandBounce",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailProcessed",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailReceived",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailRejected",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailUnsubscribed",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailSuppressionCreated",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSAccepted",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSExpired",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSFailedWritable",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSRejectedWritable",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSSent",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSUndeliveredWritable",
+    },
+  ],
+  discriminator: {
+    propertyName: "type",
+    mapping: {
+      "domain.failed": "#/components/schemas/EventDomainFailed",
+      "domain.verified": "#/components/schemas/EventDomainVerified",
+      "email.accepted": "#/components/schemas/EventEmailAccepted",
+      "email.bounced": "#/components/schemas/EventEmailBounced",
+      "email.clicked": "#/components/schemas/EventEmailClicked",
+      "email.complained": "#/components/schemas/EventEmailComplained",
+      "email.deferred": "#/components/schemas/EventEmailDeferred",
+      "email.delivered": "#/components/schemas/EventEmailDelivered",
+      "email.list_unsubscribed":
+        "#/components/schemas/EventEmailListUnsubscribed",
+      "email.opened": "#/components/schemas/EventEmailOpened",
+      "email.out_of_band_bounce":
+        "#/components/schemas/EventEmailOutOfBandBounce",
+      "email.processed": "#/components/schemas/EventEmailProcessed",
+      "email.received": "#/components/schemas/EventEmailReceived",
+      "email.rejected": "#/components/schemas/EventEmailRejected",
+      "email.unsubscribed": "#/components/schemas/EventEmailUnsubscribed",
+      "email_suppression.created":
+        "#/components/schemas/EventEmailSuppressionCreated",
+      "sms.accepted": "#/components/schemas/EventSMSAccepted",
+      "sms.delivered": "#/components/schemas/EventSMSDelivered",
+      "sms.expired": "#/components/schemas/EventSMSExpired",
+      "sms.failed": "#/components/schemas/EventSMSFailedWritable",
+      "sms.rejected": "#/components/schemas/EventSMSRejectedWritable",
+      "sms.sent": "#/components/schemas/EventSMSSent",
+      "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
     },
   },
 } as const;
@@ -2868,18 +3823,28 @@ export const SuppressionWritableSchema = {
         'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences.\n',
     },
     source_email_id: {
-      type: ["string", "null"],
-      pattern: "^em_[0-9a-hjkmnp-tv-z]{26}$",
       description:
         "ID of the email that triggered suppression. Null for manual additions.",
-      example: "em_01krdgeqcxet5s7t44vh8rt9mg",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     source_recipient_id: {
-      type: ["string", "null"],
-      pattern: "^er_[0-9a-hjkmnp-tv-z]{26}$",
       description:
         "ID of the recipient event that triggered suppression. Null for manual additions.",
-      example: "er_01krdgeqcxet5s7t44vh8rt9mg",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/RecipientID",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const;
@@ -2912,11 +3877,9 @@ export const EmailEventWritableSchema = {
   required: ["type", "occurred_at", "recipient_id"],
   properties: {
     type: {
-      type: "string",
-      minLength: 1,
+      $ref: "#/components/schemas/EmailEventType",
       description:
-        "Event type. One of: `email.accepted`, `email.processed`, `email.deferred`, `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, `email.complained`, `email.rejected`, `email.opened`, `email.clicked`, `email.unsubscribed`, `email.list_unsubscribed`.\n`email.processed` means Bird has processed the message and queued it for delivery.\n",
-      example: "email.delivered",
+        "Event type. `email.processed` means Bird has processed the message and queued it for delivery.\n",
     },
     occurred_at: {
       type: "string",
@@ -3101,6 +4064,44 @@ export const EmailMessageListWritableSchema = {
   ],
 } as const;
 
+export const EmailAttachmentRefWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["filename", "size"],
+  description:
+    "Attachment metadata returned on API reads. The original content is not echoed back inline — only the metadata needed for display and audit. To download the raw attachment bytes (while content storage is enabled and within the retention window), use `GET /v1/email/messages/{message_id}/attachments/{attachment_id}`, which returns the file with its own content type and a Content-Disposition filename.\n",
+  properties: {
+    filename: {
+      type: "string",
+      minLength: 1,
+      description: "Filename as shown to the recipient.",
+      example: "invoice.pdf",
+    },
+    content_type: {
+      type: "string",
+      description: "Resolved MIME type at send time.",
+      example: "application/pdf",
+    },
+    size: {
+      type: "integer",
+      minimum: 0,
+      description: "Decoded size in bytes.",
+      example: 215432,
+    },
+    inline: {
+      type: "boolean",
+      description:
+        "True when the attachment was sent inline via a `content_id` reference in the HTML body, false for regular file attachments.\n",
+      example: false,
+    },
+    content_id: {
+      type: ["string", "null"],
+      description:
+        "The Content-ID set at send time, when the attachment was inline.",
+    },
+  },
+} as const;
+
 export const EmailMessageWritableSchema = {
   type: "object",
   additionalProperties: false,
@@ -3180,7 +4181,7 @@ export const EmailMessageWritableSchema = {
     attachments: {
       type: "array",
       items: {
-        $ref: "#/components/schemas/EmailAttachmentRef",
+        $ref: "#/components/schemas/EmailAttachmentRefWritable",
       },
       description:
         "Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; use the future content-retrieval endpoint when storage is enabled.",

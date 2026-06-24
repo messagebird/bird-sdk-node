@@ -4,6 +4,8 @@ import { BirdClient } from "@messagebird/sdk";
 import { BirdRateLimitError, BirdValidationError, BirdAPIError } from "@messagebird/sdk";
 
 declare const bird: BirdClient;
+declare const rawBody: string;
+declare const headers: Record<string, string>;
 
 export async function _ex_0() {
 const bird = new BirdClient({
@@ -73,4 +75,28 @@ const msg = await bird.email.send({
   html: "<p>My first Bird email.</p>",
 });
 console.log(msg.id, msg.status); // "em_…", "accepted"
+}
+
+export async function _ex_7() {
+const batch = await bird.email.sendBatch([
+  {
+    from: { email: "onboarding@messagebird.dev", name: "Bird" },
+    to: ["alice@example.com"],
+    subject: "Your receipt",
+    html: "<p>Thanks, Alice.</p>",
+  },
+  {
+    from: { email: "onboarding@messagebird.dev", name: "Bird" },
+    to: ["bob@example.com"],
+    subject: "Your receipt",
+    html: "<p>Thanks, Bob.</p>",
+  },
+]);
+for (const item of batch.data) console.log(item.id, item.status);
+}
+
+export async function _ex_8() {
+// Pass the RAW request body; set the secret via new BirdClient({ webhooks: { secret } }).
+const event = bird.webhooks.unwrap(rawBody, headers);
+console.log(event.type); // discriminated union — narrow on event.type
 }

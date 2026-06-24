@@ -13,25 +13,11 @@ export type WebhookAttemptList = {
 };
 
 /**
- * Known webhook event type.
+ * Webhook event type. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.
  */
-export type WebhookEventType =
-  | "domain.failed"
-  | "domain.verified"
-  | "email.accepted"
-  | "email.bounced"
-  | "email.clicked"
-  | "email.complained"
-  | "email.deferred"
-  | "email.delivered"
-  | "email.list_unsubscribed"
-  | "email.opened"
-  | "email.out_of_band_bounce"
-  | "email.processed"
-  | "email.received"
-  | "email.rejected"
-  | "email.unsubscribed"
-  | "email_suppression.created";
+export type WebhookEventType = string;
+
+export type WebhookEventId = string;
 
 export type WebhookAttempt = {
   /**
@@ -41,7 +27,7 @@ export type WebhookAttempt = {
   /**
    * Bird's source event ID, stable across retries of the same event. Null only for older attempts recorded before event IDs were available.
    */
-  event_id?: string | null;
+  event_id?: WebhookEventId | null;
   event_type: WebhookEventType;
   /**
    * Current state of the delivery attempt. `pending` covers in-flight and sending attempts; `failed` is reserved for terminal failures.
@@ -108,6 +94,270 @@ export type WebhookTestResponse = {
 };
 
 /**
+ * Payload of the sms.undelivered event.
+ */
+export type EventSmsUndeliveredData = EventSmsBase & {
+  /**
+   * Why the message was not delivered.
+   */
+  error: SmsError;
+};
+
+/**
+ * Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `unknown` — an unmapped failure.
+ *
+ */
+export type SmsErrorCode =
+  | "invalid_destination"
+  | "unreachable"
+  | "blocked_by_carrier"
+  | "blocked_by_recipient"
+  | "landline_unreachable"
+  | "content_rejected"
+  | "sender_unregistered"
+  | "recipient_opted_out"
+  | "provider_unavailable"
+  | "unknown";
+
+/**
+ * Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.
+ */
+export type SmsError = {
+  code: SmsErrorCode;
+  /**
+   * Human-readable explanation of the failure.
+   */
+  description: string;
+  /**
+   * Raw carrier-supplied error code, when available, for low-level debugging.
+   */
+  carrier_error_code?: string | null;
+  /**
+   * When the failure occurred.
+   */
+  occurred_at: string;
+} | null;
+
+/**
+ * Structured key/value tag attached to an SMS message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.
+ * Tag count and per-tag size are capped to keep per-send tag payloads small — see SMSMessageSendRequest for the array maximum.
+ *
+ */
+export type SmsTag = {
+  /**
+   * Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+   *
+   */
+  name: string;
+  /**
+   * Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+   *
+   */
+  value: string;
+};
+
+export type WorkspaceId = string;
+
+export type SmsMessageId = string;
+
+/**
+ * Identity fields shared by every SMS lifecycle event payload.
+ */
+export type EventSmsBase = {
+  /**
+   * ID of the SMS message.
+   */
+  sms_id: SmsMessageId;
+  /**
+   * ID of the workspace.
+   */
+  workspace_id: WorkspaceId;
+  /**
+   * Recipient phone number in E.164 format.
+   */
+  to: string;
+  /**
+   * Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.
+   */
+  from: string;
+  /**
+   * Tags provided on the send request, echoed on every event for the message so you can route and correlate without an extra lookup. Null when the message carried no tags.
+   *
+   */
+  tags: Array<SmsTag> | null;
+  /**
+   * The metadata object provided on the send request, echoed on every event for the message so you can correlate events with your own records. Null when the message carried no metadata.
+   *
+   */
+  metadata: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * The carrier reported a non-permanent failure to deliver the message.
+ */
+export type EventSmsUndelivered = {
+  /**
+   * Event type.
+   */
+  type: "sms.undelivered";
+  /**
+   * Time the non-delivery was recorded.
+   */
+  timestamp: string;
+  data: EventSmsUndeliveredData;
+};
+
+/**
+ * Payload of the sms.sent event.
+ */
+export type EventSmsSentData = EventSmsBase & {
+  /**
+   * Carrier that handled the message, or null when not known.
+   */
+  carrier: string | null;
+  /**
+   * Mobile country code and mobile network code of the carrier, or null when not known.
+   */
+  mcc_mnc: string | null;
+};
+
+/**
+ * Bird handed the message to the carrier for delivery.
+ */
+export type EventSmsSent = {
+  /**
+   * Event type.
+   */
+  type: "sms.sent";
+  /**
+   * Time the message was handed to the carrier.
+   */
+  timestamp: string;
+  data: EventSmsSentData;
+};
+
+/**
+ * Payload of the sms.rejected event.
+ */
+export type EventSmsRejectedData = EventSmsBase & {
+  /**
+   * Why the message was rejected before reaching the carrier.
+   */
+  error: SmsError;
+};
+
+/**
+ * Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).
+ */
+export type EventSmsRejected = {
+  /**
+   * Event type.
+   */
+  type: "sms.rejected";
+  /**
+   * Time the rejection was recorded.
+   */
+  timestamp: string;
+  data: EventSmsRejectedData;
+};
+
+/**
+ * Payload of the sms.failed event.
+ */
+export type EventSmsFailedData = EventSmsBase & {
+  /**
+   * Why the message terminally failed.
+   */
+  error: SmsError;
+};
+
+/**
+ * The message terminally failed and will not be delivered.
+ */
+export type EventSmsFailed = {
+  /**
+   * Event type.
+   */
+  type: "sms.failed";
+  /**
+   * Time the failure was recorded.
+   */
+  timestamp: string;
+  data: EventSmsFailedData;
+};
+
+/**
+ * Payload of the sms.expired event.
+ */
+export type EventSmsExpiredData = EventSmsBase;
+
+/**
+ * The message's validity period elapsed before it could be delivered.
+ */
+export type EventSmsExpired = {
+  /**
+   * Event type.
+   */
+  type: "sms.expired";
+  /**
+   * Time the message expired.
+   */
+  timestamp: string;
+  data: EventSmsExpiredData;
+};
+
+/**
+ * Payload of the sms.delivered event.
+ */
+export type EventSmsDeliveredData = EventSmsBase & {
+  /**
+   * Carrier that delivered the message, or null when not known.
+   */
+  carrier: string | null;
+  /**
+   * Mobile country code and mobile network code of the carrier, or null when not known.
+   */
+  mcc_mnc: string | null;
+};
+
+/**
+ * The carrier confirmed delivery of the message to the recipient handset.
+ */
+export type EventSmsDelivered = {
+  /**
+   * Event type.
+   */
+  type: "sms.delivered";
+  /**
+   * Time the carrier confirmed delivery.
+   */
+  timestamp: string;
+  data: EventSmsDeliveredData;
+};
+
+/**
+ * Payload of the sms.accepted event.
+ */
+export type EventSmsAcceptedData = EventSmsBase;
+
+/**
+ * Bird accepted the SMS send request and queued it for processing.
+ */
+export type EventSmsAccepted = {
+  /**
+   * Event type.
+   */
+  type: "sms.accepted";
+  /**
+   * Time Bird accepted the request.
+   */
+  timestamp: string;
+  data: EventSmsAcceptedData;
+};
+
+/**
  * An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce). Payload schema not yet finalized.
  */
 export type EventEmailSuppressionCreated = {
@@ -154,8 +404,6 @@ export type EmailTag = {
  * Envelope position of a recipient on an outbound email event.
  */
 export type RecipientRole = "to" | "cc" | "bcc";
-
-export type WorkspaceId = string;
 
 export type RecipientId = string;
 
@@ -247,14 +495,16 @@ export type EventEmailRejected = {
   data: EventEmailRejectedData;
 };
 
+export type InboundEmailMessageId = string;
+
 /**
  * Payload of the email.received event.
  */
 export type EventEmailReceivedData = {
   /**
-   * ID of the received email (rem_ prefix). Use it with GET /v1/email/inbound-messages/{id} to fetch the body.
+   * ID of the received email. Use it with GET /v1/email/inbound-messages/{id} to fetch the body, raw content, and attachments.
    */
-  inbound_message_id: string;
+  inbound_message_id: InboundEmailMessageId;
   /**
    * ID of the workspace.
    */
@@ -268,13 +518,37 @@ export type EventEmailReceivedData = {
    */
   from: string;
   /**
-   * Subject line as received.
+   * Recipient addresses the message was sent to.
    */
-  subject: string;
+  to: Array<string>;
+  /**
+   * Subject line as received, or null when the message had no subject.
+   */
+  subject: string | null;
+  /**
+   * In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.
+   */
+  in_reply_to?: string | null;
+  /**
+   * Whether SPF passed for the sender, or null when the result did not carry an SPF verdict.
+   */
+  spf_pass?: boolean | null;
+  /**
+   * Whether DKIM passed for the sender, or null when the result did not carry a DKIM verdict.
+   */
+  dkim_pass?: boolean | null;
+  /**
+   * Whether DMARC passed for the sender, or null when the result did not carry a DMARC verdict.
+   */
+  dmarc_pass?: boolean | null;
+  /**
+   * Spam score for the message. Always null at present; reserved for a future content-scoring capability.
+   */
+  spam_score?: number | null;
 };
 
 /**
- * Bird received and parsed an inbound email. The payload includes message metadata, extracted text, and threading headers (not the raw body). Additional fields — cc/bcc recipients, attachment metadata, and authentication results — will be added in a future release.
+ * Bird received and parsed an inbound email. The payload carries the message's identifiers, sender and recipients, subject, threading reference, and authentication results — enough to route and triage without a fetch. Fetch the body, full headers, and attachments with GET /v1/email/inbound-messages/{id}.
  */
 export type EventEmailReceived = {
   /**
@@ -673,7 +947,28 @@ export type WebhookEvent =
     } & EventEmailUnsubscribed)
   | ({
       type: "email_suppression.created";
-    } & EventEmailSuppressionCreated);
+    } & EventEmailSuppressionCreated)
+  | ({
+      type: "sms.accepted";
+    } & EventSmsAccepted)
+  | ({
+      type: "sms.delivered";
+    } & EventSmsDelivered)
+  | ({
+      type: "sms.expired";
+    } & EventSmsExpired)
+  | ({
+      type: "sms.failed";
+    } & EventSmsFailed)
+  | ({
+      type: "sms.rejected";
+    } & EventSmsRejected)
+  | ({
+      type: "sms.sent";
+    } & EventSmsSent)
+  | ({
+      type: "sms.undelivered";
+    } & EventSmsUndelivered);
 
 export type WebhookTestRequest = {
   /**
@@ -819,11 +1114,11 @@ export type Suppression = {
   /**
    * ID of the email that triggered suppression. Null for manual additions.
    */
-  source_email_id?: string | null;
+  source_email_id?: EmailId | null;
   /**
    * ID of the recipient event that triggered suppression. Null for manual additions.
    */
-  source_recipient_id?: string | null;
+  source_recipient_id?: RecipientId | null;
   readonly created_at: string;
 };
 
@@ -848,17 +1143,21 @@ export type EmailEventList = {
   data: Array<EmailEvent>;
 } & ListEnvelope;
 
+/**
+ * Type of an event in a message's per-recipient delivery timeline. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.
+ */
+export type EmailEventType = string;
+
 export type EmailEvent = {
   /**
    * Event ID.
    */
   readonly id: string;
   /**
-   * Event type. One of: `email.accepted`, `email.processed`, `email.deferred`, `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, `email.complained`, `email.rejected`, `email.opened`, `email.clicked`, `email.unsubscribed`, `email.list_unsubscribed`.
-   * `email.processed` means Bird has processed the message and queued it for delivery.
+   * Event type. `email.processed` means Bird has processed the message and queued it for delivery.
    *
    */
-  type: string;
+  type: EmailEventType;
   /**
    * When this event occurred.
    */
@@ -1032,16 +1331,17 @@ export type EmailMessageBatchItem = {
 };
 
 /**
- * Batch of email message send requests. All items are validated before any are queued.
+ * Batch of email message send requests. All items are validated before any are queued. Attachments are allowed on individual messages. Each message must stay within the 20 MB estimated generated message-size cap. The serialized JSON request body for the batch has a hard 20 MB cap.
+ *
  */
 export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
 
 /**
  * File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.
  * Inline images for `<img src="cid:..."/>` references in the HTML body use the `content_id` field together with `content`.
- * Total message size (body + inline images + all attachments) is capped at **20 MB on the wire (post-base64)**. Sends above this limit are rejected. As a rule of thumb, raw file content should stay under ~15 MB to leave headroom after base64 encoding.
- * Recipient-side delivery reality: most consumer inboxes cap at 20–25 MB (Gmail 25 MB, Outlook desktop 20 MB, Exchange corporate often 10 MB). Sends close to Bird's 20 MB cap may be accepted by Bird but bounce at the recipient's mail server.
- * Sends with attachments cannot use `POST /v1/emails/batch`; use the single-send endpoint instead. Certain executable / script content types are rejected at validation time.
+ * Bird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.
+ * Recipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.
+ * Batch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.
  *
  */
 export type EmailAttachment = {
@@ -1050,12 +1350,12 @@ export type EmailAttachment = {
    */
   filename: string;
   /**
-   * Base64-encoded attachment bytes. Required. Counts against the 20 MB per-send wire cap.
+   * Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
    *
    */
   content: string;
   /**
-   * Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts against the 20 MB per-send wire cap.
+   * Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
    *
    */
   path?: string;
@@ -1155,7 +1455,7 @@ export type EmailMessageSendRequest = {
    * ID of the IP pool to send from (`ipp_` prefix), or `ipp_shared` to route through the shared pool explicitly. Omit to use your organization's default pool. An unknown pool, or a pool with no dedicated IPs available to send from, is rejected with a `422`.
    *
    */
-  ip_pool?: string;
+  ip_pool_id?: string;
   /**
    * Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: transactional.
    *
@@ -1166,7 +1466,7 @@ export type EmailMessageSendRequest = {
    */
   in_reply_to_message_id?: EmailId;
   /**
-   * File attachments. Total message size (body + inline images + all attachments) capped at 20 MB post-base64. Raw file content should stay under ~15 MB to leave room after encoding. Sends with attachments cannot use `POST /v1/emails/batch`; use the single-send endpoint. See the EmailAttachment schema for the full field contract.
+   * File attachments. Bird rejects sends whose estimated generated message size exceeds 20 MB. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. Keep total raw attachment content at or below 15 MB for reliable headroom. In batch sends, this per-message cap still applies and the serialized JSON request body for the whole batch has a hard 20 MB cap. See the EmailAttachment schema for the full field contract.
    *
    */
   attachments?: Array<EmailAttachment>;
@@ -1192,15 +1492,17 @@ export type EmailMessageList = {
   data: Array<EmailMessage>;
 } & ListEnvelope;
 
+export type EmailAttachmentId = string;
+
 /**
- * Attachment metadata returned on API reads. The original content is not echoed back — only the metadata needed for display and audit. To fetch the raw attachment content (when storage is enabled), use `GET /v1/email/messages/{email_id}/attachments/{attachment_id}` — endpoint reserved for a future content-retention product.
+ * Attachment metadata returned on API reads. The original content is not echoed back inline — only the metadata needed for display and audit. To download the raw attachment bytes (while content storage is enabled and within the retention window), use `GET /v1/email/messages/{message_id}/attachments/{attachment_id}`, which returns the file with its own content type and a Content-Disposition filename.
  *
  */
 export type EmailAttachmentRef = {
   /**
    * Attachment ID, stable per email send.
    */
-  id?: string;
+  readonly id?: EmailAttachmentId;
   /**
    * Filename as shown to the recipient.
    */
@@ -1296,7 +1598,7 @@ export type EmailMessage = {
    */
   readonly deferred_count: number;
   /**
-   * Number of recipients rejected before delivery. See the per-recipient `rejection_reason` field on `GET /v1/emails/{id}/recipients` for the specific cause (suppression match, transmission failure, generation failure, or policy refusal).
+   * Number of recipients rejected before delivery. See the per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` for the specific cause (suppression match, transmission failure, generation failure, or policy refusal).
    *
    */
   readonly rejected_count: number;
@@ -1356,7 +1658,7 @@ export type EmailMessage = {
   /**
    * The message this one is a reply to, if any.
    */
-  readonly in_reply_to_message_id?: string | null;
+  readonly in_reply_to_message_id?: EmailId | null;
   /**
    * When all recipients reached a terminal delivered state, or null if not yet fully delivered.
    */
@@ -1464,7 +1766,7 @@ export type WebhookAttemptWritable = {
   /**
    * Bird's source event ID, stable across retries of the same event. Null only for older attempts recorded before event IDs were available.
    */
-  event_id?: string | null;
+  event_id?: WebhookEventId | null;
   event_type: WebhookEventType;
   /**
    * Current state of the delivery attempt. `pending` covers in-flight and sending attempts; `failed` is reserved for terminal failures.
@@ -1487,6 +1789,204 @@ export type WebhookAttemptWritable = {
    */
   response_duration_ms: number;
 };
+
+export type WebhookTestResponseWritable = {
+  /**
+   * Whether your endpoint accepted the test event. `delivered` means it returned a 2xx status; `failed` means it returned a non-2xx status or could not be reached.
+   */
+  status: "delivered" | "failed";
+  /**
+   * HTTP status returned by your endpoint. Null when no response was received (timeout, connection error, DNS failure).
+   */
+  response_status_code: number | null;
+  /**
+   * Response body returned by your endpoint, truncated when oversized. Empty when no body was returned.
+   */
+  response_body?: string;
+  /**
+   * Round-trip delivery latency in milliseconds.
+   */
+  response_duration_ms: number;
+  /**
+   * The event body Bird delivered to the endpoint. Set on successful test delivery only.
+   */
+  event_payload?: WebhookEventWritable;
+  /**
+   * A short explanation of why the event could not be delivered. Present only when your endpoint could not be reached.
+   */
+  error?: string;
+};
+
+/**
+ * Payload of the sms.undelivered event.
+ */
+export type EventSmsUndeliveredDataWritable = EventSmsBase & {
+  /**
+   * Why the message was not delivered.
+   */
+  error: SmsErrorWritable;
+};
+
+/**
+ * Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.
+ */
+export type SmsErrorWritable = {
+  code: SmsErrorCode;
+  /**
+   * Human-readable explanation of the failure.
+   */
+  description: string;
+  /**
+   * Raw carrier-supplied error code, when available, for low-level debugging.
+   */
+  carrier_error_code?: string | null;
+  /**
+   * When the failure occurred.
+   */
+  occurred_at: string;
+} | null;
+
+/**
+ * The carrier reported a non-permanent failure to deliver the message.
+ */
+export type EventSmsUndeliveredWritable = {
+  /**
+   * Event type.
+   */
+  type: "sms.undelivered";
+  /**
+   * Time the non-delivery was recorded.
+   */
+  timestamp: string;
+  data: EventSmsUndeliveredDataWritable;
+};
+
+/**
+ * Payload of the sms.rejected event.
+ */
+export type EventSmsRejectedDataWritable = EventSmsBase & {
+  /**
+   * Why the message was rejected before reaching the carrier.
+   */
+  error: SmsErrorWritable;
+};
+
+/**
+ * Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).
+ */
+export type EventSmsRejectedWritable = {
+  /**
+   * Event type.
+   */
+  type: "sms.rejected";
+  /**
+   * Time the rejection was recorded.
+   */
+  timestamp: string;
+  data: EventSmsRejectedDataWritable;
+};
+
+/**
+ * Payload of the sms.failed event.
+ */
+export type EventSmsFailedDataWritable = EventSmsBase & {
+  /**
+   * Why the message terminally failed.
+   */
+  error: SmsErrorWritable;
+};
+
+/**
+ * The message terminally failed and will not be delivered.
+ */
+export type EventSmsFailedWritable = {
+  /**
+   * Event type.
+   */
+  type: "sms.failed";
+  /**
+   * Time the failure was recorded.
+   */
+  timestamp: string;
+  data: EventSmsFailedDataWritable;
+};
+
+/**
+ * Discriminated union of every webhook event the Bird platform emits.
+ * Each variant is the full delivery body: `type` names the event, `timestamp` is when the event occurred, and `data` carries the event-specific payload. The `type` property selects the variant — SDKs that consume this schema (openapi-typescript, oapi-codegen) generate a narrowed union keyed on `type`, so customer code can switch on the event id and access the variant-specific payload fields without casting.
+ * Delivery metadata (the event id and per-attempt signature headers) rides in HTTP headers per Standard Webhooks and is handled by the SDK's webhook verification helper, which returns one of these variants.
+ *
+ */
+export type WebhookEventWritable =
+  | ({
+      type: "domain.failed";
+    } & EventDomainFailed)
+  | ({
+      type: "domain.verified";
+    } & EventDomainVerified)
+  | ({
+      type: "email.accepted";
+    } & EventEmailAccepted)
+  | ({
+      type: "email.bounced";
+    } & EventEmailBounced)
+  | ({
+      type: "email.clicked";
+    } & EventEmailClicked)
+  | ({
+      type: "email.complained";
+    } & EventEmailComplained)
+  | ({
+      type: "email.deferred";
+    } & EventEmailDeferred)
+  | ({
+      type: "email.delivered";
+    } & EventEmailDelivered)
+  | ({
+      type: "email.list_unsubscribed";
+    } & EventEmailListUnsubscribed)
+  | ({
+      type: "email.opened";
+    } & EventEmailOpened)
+  | ({
+      type: "email.out_of_band_bounce";
+    } & EventEmailOutOfBandBounce)
+  | ({
+      type: "email.processed";
+    } & EventEmailProcessed)
+  | ({
+      type: "email.received";
+    } & EventEmailReceived)
+  | ({
+      type: "email.rejected";
+    } & EventEmailRejected)
+  | ({
+      type: "email.unsubscribed";
+    } & EventEmailUnsubscribed)
+  | ({
+      type: "email_suppression.created";
+    } & EventEmailSuppressionCreated)
+  | ({
+      type: "sms.accepted";
+    } & EventSmsAccepted)
+  | ({
+      type: "sms.delivered";
+    } & EventSmsDelivered)
+  | ({
+      type: "sms.expired";
+    } & EventSmsExpired)
+  | ({
+      type: "sms.failed";
+    } & EventSmsFailedWritable)
+  | ({
+      type: "sms.rejected";
+    } & EventSmsRejectedWritable)
+  | ({
+      type: "sms.sent";
+    } & EventSmsSent)
+  | ({
+      type: "sms.undelivered";
+    } & EventSmsUndeliveredWritable);
 
 export type WebhookEndpointCreatedWritable = WebhookEndpointWritable & {
   /**
@@ -1530,11 +2030,11 @@ export type SuppressionWritable = {
   /**
    * ID of the email that triggered suppression. Null for manual additions.
    */
-  source_email_id?: string | null;
+  source_email_id?: EmailId | null;
   /**
    * ID of the recipient event that triggered suppression. Null for manual additions.
    */
-  source_recipient_id?: string | null;
+  source_recipient_id?: RecipientId | null;
 };
 
 export type EmailEventListWritable = {
@@ -1546,11 +2046,10 @@ export type EmailEventListWritable = {
 
 export type EmailEventWritable = {
   /**
-   * Event type. One of: `email.accepted`, `email.processed`, `email.deferred`, `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, `email.complained`, `email.rejected`, `email.opened`, `email.clicked`, `email.unsubscribed`, `email.list_unsubscribed`.
-   * `email.processed` means Bird has processed the message and queued it for delivery.
+   * Event type. `email.processed` means Bird has processed the message and queued it for delivery.
    *
    */
-  type: string;
+  type: EmailEventType;
   /**
    * When this event occurred.
    */
@@ -1663,6 +2162,34 @@ export type EmailMessageListWritable = {
   data: Array<EmailMessageWritable>;
 } & ListEnvelope;
 
+/**
+ * Attachment metadata returned on API reads. The original content is not echoed back inline — only the metadata needed for display and audit. To download the raw attachment bytes (while content storage is enabled and within the retention window), use `GET /v1/email/messages/{message_id}/attachments/{attachment_id}`, which returns the file with its own content type and a Content-Disposition filename.
+ *
+ */
+export type EmailAttachmentRefWritable = {
+  /**
+   * Filename as shown to the recipient.
+   */
+  filename: string;
+  /**
+   * Resolved MIME type at send time.
+   */
+  content_type?: string;
+  /**
+   * Decoded size in bytes.
+   */
+  size: number;
+  /**
+   * True when the attachment was sent inline via a `content_id` reference in the HTML body, false for regular file attachments.
+   *
+   */
+  inline?: boolean;
+  /**
+   * The Content-ID set at send time, when the attachment was inline.
+   */
+  content_id?: string | null;
+};
+
 export type EmailMessageWritable = {
   /**
    * Sender address. `name` is present when a display name was provided on the send.
@@ -1706,7 +2233,7 @@ export type EmailMessageWritable = {
   /**
    * Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; use the future content-retrieval endpoint when storage is enabled.
    */
-  attachments?: Array<EmailAttachmentRef>;
+  attachments?: Array<EmailAttachmentRefWritable>;
   /**
    * Whether open tracking is enabled for this send.
    */
@@ -1898,6 +2425,10 @@ export type CreateEmailMessageErrors = {
    */
   403: Error;
   /**
+   * Request body or message size exceeds the allowed limit
+   */
+  413: Error;
+  /**
    * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
    *
    */
@@ -1924,6 +2455,77 @@ export type CreateEmailMessageResponses = {
 
 export type CreateEmailMessageResponse =
   CreateEmailMessageResponses[keyof CreateEmailMessageResponses];
+
+export type CreateEmailMessageBatchData = {
+  body: EmailMessageBatchRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/email/batches";
+};
+
+export type CreateEmailMessageBatchErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient balance
+   */
+  402: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Request body or message size exceeds the allowed limit
+   */
+  413: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateEmailMessageBatchError =
+  CreateEmailMessageBatchErrors[keyof CreateEmailMessageBatchErrors];
+
+export type CreateEmailMessageBatchResponses = {
+  /**
+   * Batch accepted for asynchronous delivery.
+   */
+  202: EmailMessageBatchResponse;
+};
+
+export type CreateEmailMessageBatchResponse =
+  CreateEmailMessageBatchResponses[keyof CreateEmailMessageBatchResponses];
 
 export type GetEmailMessageData = {
   body?: never;

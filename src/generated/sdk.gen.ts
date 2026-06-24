@@ -3,6 +3,9 @@
 import type { Client, Options as Options2, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  CreateEmailMessageBatchData,
+  CreateEmailMessageBatchErrors,
+  CreateEmailMessageBatchResponses,
   CreateEmailMessageData,
   CreateEmailMessageErrors,
   CreateEmailMessageResponses,
@@ -82,6 +85,36 @@ export const createEmailMessage = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/email/messages",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Send a batch of messages
+ *
+ * Accepts up to 100 independent email messages and queues them for delivery. All items are validated before any are queued — if one fails validation, the entire batch is rejected. Field-level validation failures and business-rule failures (such as domain_not_verified or all_recipients_suppressed) both return 422. Attachments are allowed per message. Each message must stay within the 20 MB estimated generated message-size cap. The serialized JSON request body for the batch has a hard 20 MB cap.
+ *
+ */
+export const createEmailMessageBatch = <ThrowOnError extends boolean = false>(
+  options: Options<CreateEmailMessageBatchData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateEmailMessageBatchResponses,
+    CreateEmailMessageBatchErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/batches",
     ...options,
     headers: {
       "Content-Type": "application/json",

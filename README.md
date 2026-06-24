@@ -2,6 +2,8 @@
 
 The official TypeScript SDK for the [Bird](https://bird.com) API — fully typed, edge-ready, ESM.
 
+📚 **Documentation:** https://bird.com/docs/sdks/typescript
+
 ## Requirements
 
 - **Node.js 20.3+** or a modern edge runtime (Cloudflare Workers, Vercel Edge, Deno). The SDK uses only web-standard APIs (`fetch`, `AbortSignal`, Web Crypto) and ships no Node built-ins.

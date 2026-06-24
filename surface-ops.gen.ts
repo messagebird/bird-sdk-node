@@ -3,6 +3,7 @@
 // generated from backend/openapi/surfaces.yaml.
 export const surfaceOps = [
   "POST /v1/email/messages",
+  "POST /v1/email/batches",
   "GET /v1/email/messages/{message_id}",
   "GET /v1/email/messages",
 ];

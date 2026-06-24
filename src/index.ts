@@ -1,4 +1,8 @@
-export { BirdClient, type BirdClientOptions, type BirdRequest } from "./client.js";
+export {
+  BirdClient,
+  type BirdClientOptions,
+  type BirdRequest,
+} from "./client.js";
 export {
   // base + transport
   BirdError,
@@ -35,6 +39,8 @@ export type { BirdResponse } from "./core/http.js";
 export type {
   EmailMessage,
   EmailSendParams,
+  EmailSendBatchParams,
+  EmailSendBatchResult,
   EmailListQuery,
   EmailChannelDefaults,
 } from "./resources/email.js";
@@ -43,3 +49,5 @@ export type {
   WebhookHeaders,
   WebhookOptions,
 } from "./resources/webhooks.js";
+export { WebhookEventType } from "./event-types.gen.js";
+export type { WebhookEventTypeValue } from "./event-types.gen.js";

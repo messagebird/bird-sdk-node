@@ -38,6 +38,11 @@ export class WebhooksResource {
    * types are returned as-is (handle them in a `default` case) so a newer server
    * event can't break an older SDK.
    *
+   * @example One call verifies the signature and returns the typed event
+   * // Pass the RAW request body; set the secret via new BirdClient({ webhooks: { secret } }).
+   * const event = bird.webhooks.unwrap(rawBody, headers);
+   * console.log(event.type); // discriminated union — narrow on event.type
+   *
    * @example Verify and dispatch — pass the raw request body, never the parsed JSON
    * // new BirdClient({ apiKey, webhooks: { secret } })
    * try {
@@ -58,7 +63,11 @@ export class WebhooksResource {
    *   } else throw err;
    * }
    */
-  unwrap(payload: string, headers: WebhookHeaders, options?: WebhookOptions): BirdWebhookEvent {
+  unwrap(
+    payload: string,
+    headers: WebhookHeaders,
+    options?: WebhookOptions,
+  ): BirdWebhookEvent {
     const secret = options?.secret ?? this.#secret;
     if (!secret) {
       throw new Error(
@@ -71,7 +80,9 @@ export class WebhooksResource {
       verified = wh.verify(payload, toHeaderRecord(headers));
     } catch (err) {
       throw new BirdWebhookVerificationError(
-        err instanceof Error ? err.message : "Webhook signature verification failed",
+        err instanceof Error
+          ? err.message
+          : "Webhook signature verification failed",
       );
     }
     // `verify` returns `unknown`; the payload is authenticated and the wire

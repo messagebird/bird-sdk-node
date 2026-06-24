@@ -14,7 +14,7 @@ export async function welcomeEmail(
 ): Promise<HttpResponseInit> {
   const { email } = (await request.json()) as { email: string };
   await bird.email.send({
-    from: 'onboarding@bird.dev',
+    from: 'onboarding@messagebird.dev',
     to: [email],
     subject: 'Welcome to Bird',
     html: '<p>You are in.</p>',

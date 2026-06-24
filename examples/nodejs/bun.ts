@@ -7,7 +7,7 @@ Bun.serve({
     if (req.method === 'POST' && new URL(req.url).pathname === '/welcome') {
       const { email } = await req.json();
       await bird.email.send({
-        from: 'onboarding@bird.dev',
+        from: 'onboarding@messagebird.dev',
         to: [email],
         subject: 'Welcome to Bird',
         html: '<p>You are in.</p>',

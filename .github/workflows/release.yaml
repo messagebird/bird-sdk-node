@@ -1,0 +1,83 @@
+# Publishes @messagebird/sdk to npm when a vX.Y.Z tag is pushed to this mirror.
+#
+# Source of truth: clients/sdk-typescript/.mirror/ in the Bird monorepo — do NOT
+# edit on the mirror; changes are synced from the monorepo by
+# scripts/dev/sdk-release.sh.
+#
+# Auth is npm trusted publishing (OIDC) — there is no NPM_TOKEN. It requires a
+# trusted publisher configured on npmjs.com for @messagebird/sdk pointing at
+# this repository and this workflow file (release.yaml). Provenance is attached
+# so the npm page shows a verified "built from this repo" badge.
+#
+# workflow_dispatch runs a dry-run (build + pack validation, no publish) so the
+# pipeline can be exercised without cutting a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and pack-validate only; do not publish"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # OIDC for npm trusted publishing + provenance
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run build
+      # npm trusted publishing (OIDC) needs npm >= 11.5.1; node 20 ships npm 10.
+      - run: npm install -g npm@latest
+
+      - name: Publish (dry-run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: npm publish --provenance --access public --dry-run
+
+      # Skip if the registry already has this version, so re-running after a
+      # later step failed (smoke, GitHub Release) doesn't error on a re-publish.
+      - name: Publish to npm
+        if: github.event_name == 'push' || !inputs.dry_run
+        run: |
+          ver="$(npm pkg get version | tr -d '"')"
+          if npm view "@messagebird/sdk@${ver}" version >/dev/null 2>&1; then
+            echo "npm already has @messagebird/sdk@${ver} — skipping (idempotent)"
+          else
+            npm publish --provenance --access public
+          fi
+
+      # Only on a tag push, where GITHUB_REF_NAME is the vX.Y.Z just published.
+      - name: Smoke test (install from npm)
+        if: github.event_name == 'push'
+        run: ./scripts/smoke.sh "${GITHUB_REF_NAME#v}"
+
+      - name: GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Skip if the release already exists, so a re-run doesn't 422.
+        # --notes-from-tag reuses the annotated tag's message (this version's
+        # CHANGELOG section, set by scripts/dev/sdk-release.sh).
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --notes-from-tag --verify-tag

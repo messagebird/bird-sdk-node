@@ -7,9 +7,9 @@ interface Env {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const bird = new BirdClient({ apiKey: env.BIRD_API_KEY });
-    const { email } = await request.json<{ email: string }>();
+    const { email } = await request.json();
     await bird.email.send({
-      from: 'onboarding@bird.dev',
+      from: 'onboarding@messagebird.dev',
       to: [email],
       subject: 'Welcome to Bird',
       html: '<p>You are in.</p>',

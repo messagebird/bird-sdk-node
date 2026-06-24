@@ -8,7 +8,7 @@ const app = new Hono();
 app.post('/welcome', async (c) => {
   const { email } = await c.req.json();
   await bird.email.send({
-    from: 'onboarding@bird.dev',
+    from: 'onboarding@messagebird.dev',
     to: [email],
     subject: 'Welcome to Bird',
     html: '<p>You are in.</p>',

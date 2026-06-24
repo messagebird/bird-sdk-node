@@ -6,7 +6,7 @@ const bird = new BirdClient({ apiKey: process.env.BIRD_API_KEY! });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   await bird.email.send({
-    from: 'onboarding@bird.dev',
+    from: 'onboarding@messagebird.dev',
     to: [req.body.email],
     subject: 'Welcome to Bird',
     html: '<p>You are in.</p>',

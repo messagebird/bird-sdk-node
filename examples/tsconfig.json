@@ -4,12 +4,9 @@
     "rootDir": "..",
     "noEmit": true,
     "baseUrl": ".",
-    "paths": { "@messagebird/sdk": ["../src/index.ts"] }
+    "paths": { "@messagebird/sdk": ["../src/index.ts"] },
+    "experimentalDecorators": true,
+    "types": ["bun-types"]
   },
-  "include": ["**/*.ts"],
-  // nodejs/ and serverless/ are real framework integration examples shipped for
-  // readers; they import web frameworks we don't type-check here, so they're
-  // excluded from the compile. The SDK call shape is guarded by the canonical
-  // examples + examples.gen.ts.
-  "exclude": ["nodejs", "serverless"]
+  "include": ["**/*.ts"]
 }

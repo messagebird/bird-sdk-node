@@ -8,7 +8,7 @@ app.use(express.json());
 
 app.post('/welcome', async (req, res) => {
   await bird.email.send({
-    from: 'onboarding@bird.dev',
+    from: 'onboarding@messagebird.dev',
     to: [req.body.email],
     subject: 'Welcome to Bird',
     html: '<p>You are in.</p>',

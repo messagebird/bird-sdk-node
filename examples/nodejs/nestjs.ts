@@ -9,7 +9,7 @@ export class EmailController {
   @Post('welcome')
   async welcome(@Body('email') email: string) {
     await bird.email.send({
-      from: 'onboarding@bird.dev',
+      from: 'onboarding@messagebird.dev',
       to: [email],
       subject: 'Welcome to Bird',
       html: '<p>You are in.</p>',

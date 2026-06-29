@@ -21,6 +21,8 @@ export type {
   CreateEmailMessageErrors,
   CreateEmailMessageResponse,
   CreateEmailMessageResponses,
+  DocsSearchResponse,
+  DocsSearchResult,
   EmailAddress,
   EmailAddressInput,
   EmailAttachment,

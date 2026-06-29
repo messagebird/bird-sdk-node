@@ -1011,8 +1011,8 @@ export type WebhookEndpointCreated = WebhookEndpoint & {
 };
 
 export type Timestamps = {
-  readonly created_at?: string;
-  readonly updated_at?: string;
+  readonly created_at: string;
+  readonly updated_at: string;
 };
 
 export type WebhookEndpointId = string;
@@ -1278,6 +1278,25 @@ export type EmailRecipient = {
     | "generation_failure"
     | "policy_rejection"
     | null;
+  /**
+   * Bounce classification for `bounced` and `deferred` rows, or null when the recipient has not bounced or the receiving server's response has not been classified. `hard` is a permanent failure (invalid address or non-existent domain). `soft` is a transient failure (mailbox full, server temporarily unavailable). `block` indicates the receiving mail server blocked the sending IP for reputation reasons. `admin` indicates an administrative refusal (relaying denied, blocklisted domain). `undetermined` is used when the receiving server's response is ambiguous.
+   *
+   */
+  readonly bounce_type?:
+    | "hard"
+    | "soft"
+    | "undetermined"
+    | "admin"
+    | "block"
+    | null;
+  /**
+   * SMTP reply code returned by the receiving mail server for `bounced` and `deferred` rows, or null when none was provided.
+   */
+  readonly bounce_code?: string | null;
+  /**
+   * Human-readable reason the receiving mail server gave for the bounce or deferral, or null when none was provided.
+   */
+  readonly bounce_description?: string | null;
   /**
    * When Bird processed the message and queued it for delivery to the recipient's mail server, or null if not yet processed.
    */
@@ -1685,6 +1704,60 @@ export type WorkspaceEmailSettings = {
    * Whether the content of outgoing email — the HTML and text body and any attachments — is retained so it can be retrieved later through the message content endpoint. When disabled, only message metadata is kept.
    */
   storage_enabled: boolean;
+};
+
+export type DocsSearchResponse = {
+  /**
+   * The search query that produced these results.
+   */
+  readonly query: string;
+  /**
+   * The documentation locale the results were drawn from.
+   */
+  readonly locale: string;
+  /**
+   * Matching documentation sections, ordered by descending relevance.
+   */
+  readonly results: Array<DocsSearchResult>;
+};
+
+export type DocsSearchResult = {
+  /**
+   * Title of the documentation page this result belongs to.
+   */
+  readonly title: string;
+  /**
+   * Heading of the matching section within the page.
+   */
+  readonly section: string;
+  /**
+   * Relative path to the matching section, including the heading anchor.
+   */
+  readonly url: string;
+  /**
+   * Relative path to the page, without the section anchor. Results from the same page share it, so it can be used to group them.
+   */
+  readonly doc_url: string;
+  /**
+   * Absolute URL that returns the page's full content as Markdown. Fetch it to read the whole page.
+   */
+  readonly markdown_url: string;
+  /**
+   * Short excerpt of the matching content, with the query terms in context. Always returned.
+   */
+  readonly snippet?: string;
+  /**
+   * The passages of the section that match the query, longer than the snippet. Returned only when contents is highlights.
+   */
+  readonly highlights?: Array<string>;
+  /**
+   * Approximate token count of the full page returned by markdown_url, to budget reading it. Results from the same page share it.
+   */
+  readonly token_estimate: number;
+  /**
+   * Relevance score. Higher is more relevant; results are ordered by descending score.
+   */
+  readonly score: number;
 };
 
 export type Error = {

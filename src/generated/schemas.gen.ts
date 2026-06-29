@@ -1893,15 +1893,18 @@ export const WebhookEndpointCreatedSchema = {
 export const TimestampsSchema = {
   type: "object",
   "x-mixin": true,
+  required: ["created_at", "updated_at"],
   properties: {
     created_at: {
       type: "string",
       format: "date-time",
+      minLength: 1,
       readOnly: true,
     },
     updated_at: {
       type: "string",
       format: "date-time",
+      minLength: 1,
       readOnly: true,
     },
   },
@@ -2434,6 +2437,15 @@ export const EmailRecipientSchema = {
         "complained",
         "rejected",
       ],
+      "x-enum-varnames": [
+        "EmailRecipientStatusAccepted",
+        "EmailRecipientStatusProcessed",
+        "EmailRecipientStatusDeferred",
+        "EmailRecipientStatusDelivered",
+        "EmailRecipientStatusBounced",
+        "EmailRecipientStatusComplained",
+        "EmailRecipientStatusRejected",
+      ],
       description:
         "Delivery status for this recipient. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server.\n",
     },
@@ -2449,6 +2461,27 @@ export const EmailRecipientSchema = {
       ],
       description:
         "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n- `recipient_suppressed`: the recipient is on the workspace suppression list. Bird\n  did not attempt delivery.\n- `transmission_failed`: the message could not be transmitted for delivery. - `generation_failure`: the message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: the message was refused by sending policy.\n",
+    },
+    bounce_type: {
+      type: ["string", "null"],
+      readOnly: true,
+      enum: ["hard", "soft", "undetermined", "admin", "block", null],
+      description:
+        "Bounce classification for `bounced` and `deferred` rows, or null when the recipient has not bounced or the receiving server's response has not been classified. `hard` is a permanent failure (invalid address or non-existent domain). `soft` is a transient failure (mailbox full, server temporarily unavailable). `block` indicates the receiving mail server blocked the sending IP for reputation reasons. `admin` indicates an administrative refusal (relaying denied, blocklisted domain). `undetermined` is used when the receiving server's response is ambiguous.\n",
+    },
+    bounce_code: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "SMTP reply code returned by the receiving mail server for `bounced` and `deferred` rows, or null when none was provided.",
+      example: "550",
+    },
+    bounce_description: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Human-readable reason the receiving mail server gave for the bounce or deferral, or null when none was provided.",
+      example: "5.1.1 Unknown user",
     },
     processed_at: {
       type: ["string", "null"],
@@ -3176,6 +3209,111 @@ export const WorkspaceEmailSettingsSchema = {
       description:
         "Whether the content of outgoing email — the HTML and text body and any attachments — is retained so it can be retrieved later through the message content endpoint. When disabled, only message metadata is kept.",
       example: true,
+    },
+  },
+} as const;
+
+export const DocsSearchResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["query", "locale", "results"],
+  properties: {
+    query: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The search query that produced these results.",
+    },
+    locale: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The documentation locale the results were drawn from.",
+    },
+    results: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Matching documentation sections, ordered by descending relevance.",
+      items: {
+        $ref: "#/components/schemas/DocsSearchResult",
+      },
+    },
+  },
+} as const;
+
+export const DocsSearchResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "title",
+    "section",
+    "url",
+    "doc_url",
+    "markdown_url",
+    "token_estimate",
+    "score",
+  ],
+  properties: {
+    title: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Title of the documentation page this result belongs to.",
+    },
+    section: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Heading of the matching section within the page.",
+    },
+    url: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Relative path to the matching section, including the heading anchor.",
+    },
+    doc_url: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Relative path to the page, without the section anchor. Results from the same page share it, so it can be used to group them.",
+    },
+    markdown_url: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Absolute URL that returns the page's full content as Markdown. Fetch it to read the whole page.",
+    },
+    snippet: {
+      type: "string",
+      readOnly: true,
+      description:
+        "Short excerpt of the matching content, with the query terms in context. Always returned.",
+    },
+    highlights: {
+      type: "array",
+      readOnly: true,
+      description:
+        "The passages of the section that match the query, longer than the snippet. Returned only when contents is highlights.",
+      items: {
+        type: "string",
+      },
+    },
+    token_estimate: {
+      type: "integer",
+      readOnly: true,
+      description:
+        "Approximate token count of the full page returned by markdown_url, to budget reading it. Results from the same page share it.",
+    },
+    score: {
+      type: "number",
+      readOnly: true,
+      description:
+        "Relevance score. Higher is more relevant; results are ordered by descending score.",
     },
   },
 } as const;

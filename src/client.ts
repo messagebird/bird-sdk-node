@@ -158,6 +158,11 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       ...opts.defaultHeaders,
       Authorization: `Bearer ${opts.apiKey}`,
       "User-Agent": `bird-sdk-js/${__SDK_VERSION__}`,
+      // X-Bird-* client-identity headers (ADR-0067): the API attributes the SDK
+      // surface from these, not the User-Agent. Edge-safe, so no os/arch/runtime
+      // (those need Node globals this SDK must not touch); surface + version only.
+      "X-Bird-Surface": "sdk-js",
+      "X-Bird-Version": __SDK_VERSION__,
     };
     this.#client = createClient(
       createConfig({

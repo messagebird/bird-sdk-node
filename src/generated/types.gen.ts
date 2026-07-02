@@ -1684,28 +1684,6 @@ export type EmailMessage = {
   readonly delivered_at?: string | null;
 };
 
-export type WorkspaceSettingsUpdate = {
-  email?: WorkspaceEmailSettingsUpdate;
-};
-
-export type WorkspaceEmailSettingsUpdate = {
-  /**
-   * Whether the content of outgoing email — the HTML and text body and any attachments — is retained so it can be retrieved later through the message content endpoint. When disabled, only message metadata is kept.
-   */
-  storage_enabled?: boolean;
-};
-
-export type WorkspaceSettings = {
-  email: WorkspaceEmailSettings;
-};
-
-export type WorkspaceEmailSettings = {
-  /**
-   * Whether the content of outgoing email — the HTML and text body and any attachments — is retained so it can be retrieved later through the message content endpoint. When disabled, only message metadata is kept.
-   */
-  storage_enabled: boolean;
-};
-
 export type DocsSearchResponse = {
   /**
    * The search query that produced these results.

@@ -3165,54 +3165,6 @@ export const EmailMessageSchema = {
   },
 } as const;
 
-export const WorkspaceSettingsUpdateSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    email: {
-      $ref: "#/components/schemas/WorkspaceEmailSettingsUpdate",
-    },
-  },
-} as const;
-
-export const WorkspaceEmailSettingsUpdateSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    storage_enabled: {
-      type: "boolean",
-      description:
-        "Whether the content of outgoing email — the HTML and text body and any attachments — is retained so it can be retrieved later through the message content endpoint. When disabled, only message metadata is kept.",
-      example: true,
-    },
-  },
-} as const;
-
-export const WorkspaceSettingsSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["email"],
-  properties: {
-    email: {
-      $ref: "#/components/schemas/WorkspaceEmailSettings",
-    },
-  },
-} as const;
-
-export const WorkspaceEmailSettingsSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["storage_enabled"],
-  properties: {
-    storage_enabled: {
-      type: "boolean",
-      description:
-        "Whether the content of outgoing email — the HTML and text body and any attachments — is retained so it can be retrieved later through the message content endpoint. When disabled, only message metadata is kept.",
-      example: true,
-    },
-  },
-} as const;
-
 export const DocsSearchResponseSchema = {
   type: "object",
   additionalProperties: false,

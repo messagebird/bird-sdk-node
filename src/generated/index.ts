@@ -163,9 +163,5 @@ export type {
   WebhookTestRequest,
   WebhookTestResponse,
   WebhookTestResponseWritable,
-  WorkspaceEmailSettings,
-  WorkspaceEmailSettingsUpdate,
   WorkspaceId,
-  WorkspaceSettings,
-  WorkspaceSettingsUpdate,
 } from "./types.gen";

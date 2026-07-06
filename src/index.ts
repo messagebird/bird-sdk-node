@@ -26,6 +26,7 @@ export {
   BirdRateLimitError,
   BirdWebhookVerificationError,
   type ErrorDetail,
+  type ErrorNextAction,
 } from "./errors.js";
 export { regionFromApiKey, baseUrlForRegion } from "./region.js";
 export type {

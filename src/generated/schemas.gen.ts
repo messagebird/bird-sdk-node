@@ -24,6 +24,7 @@ export const WebhookEventTypeSchema = {
     "domain.verified",
     "email.accepted",
     "email.bounced",
+    "email.canceled",
     "email.clicked",
     "email.complained",
     "email.deferred",
@@ -34,6 +35,7 @@ export const WebhookEventTypeSchema = {
     "email.processed",
     "email.received",
     "email.rejected",
+    "email.scheduled",
     "email.unsubscribed",
     "email_suppression.created",
     "sms.accepted",
@@ -880,6 +882,103 @@ export const EventEmailUnsubscribedSchema = {
   },
 } as const;
 
+export const EventEmailScheduledDataSchema = {
+  type: "object",
+  description: "Payload of the email.scheduled event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventEmailMessageBase",
+    },
+    {
+      type: "object",
+      required: ["scheduled_at"],
+      properties: {
+        scheduled_at: {
+          type: "string",
+          minLength: 1,
+          format: "date-time",
+          description: "When the message is scheduled to send.",
+          example: {},
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventEmailMessageBaseSchema = {
+  type: "object",
+  "x-mixin": true,
+  description:
+    "Identity fields shared by the message-level email lifecycle events (scheduled, canceled), which are not tied to a single recipient.",
+  required: ["email_id", "workspace_id", "tags", "metadata"],
+  properties: {
+    email_id: {
+      $ref: "#/components/schemas/EmailID",
+      description: "ID of the email send.",
+      "x-go-type": "domain.EmailID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "ID of the workspace.",
+      "x-go-type": "domain.WorkspaceID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    tags: {
+      type: ["array", "null"],
+      items: {
+        $ref: "#/components/schemas/EmailTag",
+      },
+      description:
+        "Tags provided on the send request, echoed on the event so you can route and correlate without an extra lookup. Null when the send carried no tags.\n",
+    },
+    metadata: {
+      type: ["object", "null"],
+      additionalProperties: true,
+      description:
+        "The metadata object provided on the send request, echoed on the event so you can correlate events with your own records. Null when the send carried no metadata.\n",
+      example: {
+        order_id: "ord_123",
+      },
+    },
+  },
+} as const;
+
+export const EventEmailScheduledSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bird accepted a send scheduled for a future time. Fires once per message when the schedule is created, not per recipient.",
+  "x-event-type-id": "email.scheduled",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email.scheduled"],
+      description: "Event type.",
+      example: "email.scheduled",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the send was scheduled.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailScheduledData",
+    },
+  },
+} as const;
+
 export const EmailRejectionReasonSchema = {
   type: "string",
   minLength: 1,
@@ -888,9 +987,12 @@ export const EmailRejectionReasonSchema = {
     "transmission_failed",
     "generation_failure",
     "policy_rejection",
+    "domain_unverified",
+    "quota_exceeded",
+    "recipient_not_allowed",
   ],
   description:
-    "Why an email was rejected before delivery.\n`recipient_suppressed` means the recipient is on the workspace suppression list, so Bird did not attempt delivery. `transmission_failed` means the message could not be transmitted for delivery. `generation_failure` means the message could not be built for delivery (a template or content issue). `policy_rejection` means the message was refused by sending policy.\n",
+    "Why an email was rejected before delivery.\n`recipient_suppressed` means the recipient is on the workspace suppression list, so Bird did not attempt delivery. `transmission_failed` means the message could not be transmitted for delivery. `generation_failure` means the message could not be built for delivery (a template or content issue). `policy_rejection` means the message was refused by sending policy. `domain_unverified` means the sending domain was not verified. `quota_exceeded` means the organization's send quota was reached. `recipient_not_allowed` means a recipient was not permitted for this send (for shared onboarding-domain sends, recipients must be verified workspace members).\n",
   example: "recipient_suppressed",
 } as const;
 
@@ -1513,6 +1615,45 @@ export const EventEmailClickedSchema = {
   },
 } as const;
 
+export const EventEmailCanceledDataSchema = {
+  type: "object",
+  description: "Payload of the email.canceled event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventEmailMessageBase",
+    },
+  ],
+} as const;
+
+export const EventEmailCanceledSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A scheduled send was canceled before it fired. Fires once per message, not per recipient.",
+  "x-event-type-id": "email.canceled",
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email.canceled"],
+      description: "Event type.",
+      example: "email.canceled",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the scheduled send was canceled.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailCanceledData",
+    },
+  },
+} as const;
+
 export const EventEmailBouncedDataSchema = {
   type: "object",
   description: "Payload of the email.bounced event.",
@@ -1713,6 +1854,9 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventEmailBounced",
     },
     {
+      $ref: "#/components/schemas/EventEmailCanceled",
+    },
+    {
       $ref: "#/components/schemas/EventEmailClicked",
     },
     {
@@ -1741,6 +1885,9 @@ export const WebhookEventSchema = {
     },
     {
       $ref: "#/components/schemas/EventEmailRejected",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailScheduled",
     },
     {
       $ref: "#/components/schemas/EventEmailUnsubscribed",
@@ -1777,6 +1924,7 @@ export const WebhookEventSchema = {
       "domain.verified": "#/components/schemas/EventDomainVerified",
       "email.accepted": "#/components/schemas/EventEmailAccepted",
       "email.bounced": "#/components/schemas/EventEmailBounced",
+      "email.canceled": "#/components/schemas/EventEmailCanceled",
       "email.clicked": "#/components/schemas/EventEmailClicked",
       "email.complained": "#/components/schemas/EventEmailComplained",
       "email.deferred": "#/components/schemas/EventEmailDeferred",
@@ -1789,6 +1937,7 @@ export const WebhookEventSchema = {
       "email.processed": "#/components/schemas/EventEmailProcessed",
       "email.received": "#/components/schemas/EventEmailReceived",
       "email.rejected": "#/components/schemas/EventEmailRejected",
+      "email.scheduled": "#/components/schemas/EventEmailScheduled",
       "email.unsubscribed": "#/components/schemas/EventEmailUnsubscribed",
       "email_suppression.created":
         "#/components/schemas/EventEmailSuppressionCreated",
@@ -2322,6 +2471,9 @@ export const EmailEventSchema = {
         "transmission_failed",
         "generation_failure",
         "policy_rejection",
+        "domain_unverified",
+        "quota_exceeded",
+        "recipient_not_allowed",
         null,
       ],
       description:
@@ -2457,10 +2609,13 @@ export const EmailRecipientSchema = {
         "transmission_failed",
         "generation_failure",
         "policy_rejection",
+        "domain_unverified",
+        "quota_exceeded",
+        "recipient_not_allowed",
         null,
       ],
       description:
-        "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n- `recipient_suppressed`: the recipient is on the workspace suppression list. Bird\n  did not attempt delivery.\n- `transmission_failed`: the message could not be transmitted for delivery. - `generation_failure`: the message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: the message was refused by sending policy.\n",
+        "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n- `recipient_suppressed`: the recipient is on the workspace suppression list. Bird\n  did not attempt delivery.\n- `transmission_failed`: the message could not be transmitted for delivery. - `generation_failure`: the message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: the message was refused by sending policy. - `domain_unverified`: the sending domain was not verified. - `quota_exceeded`: the organization's send quota was reached. - `recipient_not_allowed`: a recipient was not permitted for this send (for shared\n  onboarding-domain sends, recipients must be verified workspace members).\n",
     },
     bounce_type: {
       type: ["string", "null"],
@@ -3006,6 +3161,7 @@ export const EmailMessageSchema = {
       minLength: 1,
       readOnly: true,
       enum: [
+        "scheduled",
         "accepted",
         "processed",
         "deferred",
@@ -3014,9 +3170,10 @@ export const EmailMessageSchema = {
         "bounced",
         "complained",
         "rejected",
+        "canceled",
       ],
       description:
-        "Aggregate delivery status derived from recipient states. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server.\n",
+        "Aggregate delivery status derived from recipient states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server. `canceled` means a scheduled message was canceled before it was sent.\n",
     },
     accepted_count: {
       type: "integer",
@@ -3162,6 +3319,13 @@ export const EmailMessageSchema = {
       description:
         "When all recipients reached a terminal delivered state, or null if not yet fully delivered.",
     },
+    scheduled_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When this message is scheduled to send, for a send created with a future send time. Null for an immediate send. Stays set after the scheduled send fires.",
+    },
   },
 } as const;
 
@@ -3281,6 +3445,31 @@ export const ErrorSchema = {
   },
 } as const;
 
+export const ErrorNextActionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["operation"],
+  properties: {
+    operation: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The operationId of a follow-up operation that resolves this error. Call it, then retry the original request.",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      description: "Short human-readable label for the recovery step.",
+    },
+    scope: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The permission scope the recovery operation requires, when it is scoped. Omitted for operations that need no scope.",
+    },
+  },
+} as const;
+
 export const ErrorDetailSchema = {
   type: "object",
   additionalProperties: false,
@@ -3375,6 +3564,20 @@ export const ErrorBodySchema = {
         "Per-field validation errors. Present only on validation_error responses.",
       items: {
         $ref: "#/components/schemas/ErrorDetail",
+      },
+    },
+    remediation: {
+      type: "string",
+      minLength: 1,
+      description:
+        "A human-readable next step to resolve this error. Present when a recovery is known.",
+    },
+    next: {
+      type: "array",
+      description:
+        "Operations that resolve this error, in the order to try them. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.",
+      items: {
+        $ref: "#/components/schemas/ErrorNextAction",
       },
     },
   },
@@ -3696,6 +3899,9 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventEmailBounced",
     },
     {
+      $ref: "#/components/schemas/EventEmailCanceled",
+    },
+    {
       $ref: "#/components/schemas/EventEmailClicked",
     },
     {
@@ -3724,6 +3930,9 @@ export const WebhookEventWritableSchema = {
     },
     {
       $ref: "#/components/schemas/EventEmailRejected",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailScheduled",
     },
     {
       $ref: "#/components/schemas/EventEmailUnsubscribed",
@@ -3760,6 +3969,7 @@ export const WebhookEventWritableSchema = {
       "domain.verified": "#/components/schemas/EventDomainVerified",
       "email.accepted": "#/components/schemas/EventEmailAccepted",
       "email.bounced": "#/components/schemas/EventEmailBounced",
+      "email.canceled": "#/components/schemas/EventEmailCanceled",
       "email.clicked": "#/components/schemas/EventEmailClicked",
       "email.complained": "#/components/schemas/EventEmailComplained",
       "email.deferred": "#/components/schemas/EventEmailDeferred",
@@ -3772,6 +3982,7 @@ export const WebhookEventWritableSchema = {
       "email.processed": "#/components/schemas/EventEmailProcessed",
       "email.received": "#/components/schemas/EventEmailReceived",
       "email.rejected": "#/components/schemas/EventEmailRejected",
+      "email.scheduled": "#/components/schemas/EventEmailScheduled",
       "email.unsubscribed": "#/components/schemas/EventEmailUnsubscribed",
       "email_suppression.created":
         "#/components/schemas/EventEmailSuppressionCreated",
@@ -4012,6 +4223,9 @@ export const EmailEventWritableSchema = {
         "transmission_failed",
         "generation_failure",
         "policy_rejection",
+        "domain_unverified",
+        "quota_exceeded",
+        "recipient_not_allowed",
         null,
       ],
       description:

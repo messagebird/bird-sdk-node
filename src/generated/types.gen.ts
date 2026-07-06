@@ -463,15 +463,69 @@ export type EventEmailUnsubscribed = {
 };
 
 /**
+ * Payload of the email.scheduled event.
+ */
+export type EventEmailScheduledData = EventEmailMessageBase & {
+  /**
+   * When the message is scheduled to send.
+   */
+  scheduled_at: string;
+};
+
+/**
+ * Identity fields shared by the message-level email lifecycle events (scheduled, canceled), which are not tied to a single recipient.
+ */
+export type EventEmailMessageBase = {
+  /**
+   * ID of the email send.
+   */
+  email_id: EmailId;
+  /**
+   * ID of the workspace.
+   */
+  workspace_id: WorkspaceId;
+  /**
+   * Tags provided on the send request, echoed on the event so you can route and correlate without an extra lookup. Null when the send carried no tags.
+   *
+   */
+  tags: Array<EmailTag> | null;
+  /**
+   * The metadata object provided on the send request, echoed on the event so you can correlate events with your own records. Null when the send carried no metadata.
+   *
+   */
+  metadata: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * Bird accepted a send scheduled for a future time. Fires once per message when the schedule is created, not per recipient.
+ */
+export type EventEmailScheduled = {
+  /**
+   * Event type.
+   */
+  type: "email.scheduled";
+  /**
+   * Time the send was scheduled.
+   */
+  timestamp: string;
+  data: EventEmailScheduledData;
+};
+
+/**
  * Why an email was rejected before delivery.
- * `recipient_suppressed` means the recipient is on the workspace suppression list, so Bird did not attempt delivery. `transmission_failed` means the message could not be transmitted for delivery. `generation_failure` means the message could not be built for delivery (a template or content issue). `policy_rejection` means the message was refused by sending policy.
+ * `recipient_suppressed` means the recipient is on the workspace suppression list, so Bird did not attempt delivery. `transmission_failed` means the message could not be transmitted for delivery. `generation_failure` means the message could not be built for delivery (a template or content issue). `policy_rejection` means the message was refused by sending policy. `domain_unverified` means the sending domain was not verified. `quota_exceeded` means the organization's send quota was reached. `recipient_not_allowed` means a recipient was not permitted for this send (for shared onboarding-domain sends, recipients must be verified workspace members).
  *
  */
 export type EmailRejectionReason =
   | "recipient_suppressed"
   | "transmission_failed"
   | "generation_failure"
-  | "policy_rejection";
+  | "policy_rejection"
+  | "domain_unverified"
+  | "quota_exceeded"
+  | "recipient_not_allowed";
 
 /**
  * Payload of the email.rejected event.
@@ -795,6 +849,26 @@ export type EventEmailClicked = {
 };
 
 /**
+ * Payload of the email.canceled event.
+ */
+export type EventEmailCanceledData = EventEmailMessageBase;
+
+/**
+ * A scheduled send was canceled before it fired. Fires once per message, not per recipient.
+ */
+export type EventEmailCanceled = {
+  /**
+   * Event type.
+   */
+  type: "email.canceled";
+  /**
+   * Time the scheduled send was canceled.
+   */
+  timestamp: string;
+  data: EventEmailCanceledData;
+};
+
+/**
  * Payload of the email.bounced event.
  */
 export type EventEmailBouncedData = EventEmailBase & {
@@ -913,6 +987,9 @@ export type WebhookEvent =
       type: "email.bounced";
     } & EventEmailBounced)
   | ({
+      type: "email.canceled";
+    } & EventEmailCanceled)
+  | ({
       type: "email.clicked";
     } & EventEmailClicked)
   | ({
@@ -942,6 +1019,9 @@ export type WebhookEvent =
   | ({
       type: "email.rejected";
     } & EventEmailRejected)
+  | ({
+      type: "email.scheduled";
+    } & EventEmailScheduled)
   | ({
       type: "email.unsubscribed";
     } & EventEmailUnsubscribed)
@@ -1194,6 +1274,9 @@ export type EmailEvent = {
     | "transmission_failed"
     | "generation_failure"
     | "policy_rejection"
+    | "domain_unverified"
+    | "quota_exceeded"
+    | "recipient_not_allowed"
     | null;
   /**
    * The IP address Bird used to send this message. Useful when investigating deliverability issues that correlate with specific IPs. Present on `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, and `email.deferred` events.
@@ -1269,7 +1352,8 @@ export type EmailRecipient = {
    * did not attempt delivery.
    * - `transmission_failed`: the message could not be transmitted for delivery. - `generation_failure`: the message could not be built for delivery (template or
    * content issue).
-   * - `policy_rejection`: the message was refused by sending policy.
+   * - `policy_rejection`: the message was refused by sending policy. - `domain_unverified`: the sending domain was not verified. - `quota_exceeded`: the organization's send quota was reached. - `recipient_not_allowed`: a recipient was not permitted for this send (for shared
+   * onboarding-domain sends, recipients must be verified workspace members).
    *
    */
   readonly rejection_reason?:
@@ -1277,6 +1361,9 @@ export type EmailRecipient = {
     | "transmission_failed"
     | "generation_failure"
     | "policy_rejection"
+    | "domain_unverified"
+    | "quota_exceeded"
+    | "recipient_not_allowed"
     | null;
   /**
    * Bounce classification for `bounced` and `deferred` rows, or null when the recipient has not bounced or the receiving server's response has not been classified. `hard` is a permanent failure (invalid address or non-existent domain). `soft` is a transient failure (mailbox full, server temporarily unavailable). `block` indicates the receiving mail server blocked the sending IP for reputation reasons. `admin` indicates an administrative refusal (relaying denied, blocklisted domain). `undetermined` is used when the receiving server's response is ambiguous.
@@ -1580,10 +1667,11 @@ export type EmailMessage = {
    */
   reply_to?: Array<EmailAddress> | null;
   /**
-   * Aggregate delivery status derived from recipient states. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server.
+   * Aggregate delivery status derived from recipient states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server. `canceled` means a scheduled message was canceled before it was sent.
    *
    */
   readonly status:
+    | "scheduled"
     | "accepted"
     | "processed"
     | "deferred"
@@ -1591,7 +1679,8 @@ export type EmailMessage = {
     | "partial_failure"
     | "bounced"
     | "complained"
-    | "rejected";
+    | "rejected"
+    | "canceled";
   /**
    * Number of recipients currently in the `accepted` state — Bird has the send and is preparing to deliver.
    */
@@ -1682,6 +1771,10 @@ export type EmailMessage = {
    * When all recipients reached a terminal delivered state, or null if not yet fully delivered.
    */
   readonly delivered_at?: string | null;
+  /**
+   * When this message is scheduled to send, for a send created with a future send time. Null for an immediate send. Stays set after the scheduled send fires.
+   */
+  readonly scheduled_at?: string | null;
 };
 
 export type DocsSearchResponse = {
@@ -1740,6 +1833,21 @@ export type DocsSearchResult = {
 
 export type Error = {
   error: ErrorBody;
+};
+
+export type ErrorNextAction = {
+  /**
+   * The operationId of a follow-up operation that resolves this error. Call it, then retry the original request.
+   */
+  operation: string;
+  /**
+   * Short human-readable label for the recovery step.
+   */
+  description?: string;
+  /**
+   * The permission scope the recovery operation requires, when it is scoped. Omitted for operations that need no scope.
+   */
+  scope?: string;
 };
 
 export type ErrorDetail = {
@@ -1807,6 +1915,14 @@ export type ErrorBody = {
    * Per-field validation errors. Present only on validation_error responses.
    */
   details?: Array<ErrorDetail>;
+  /**
+   * A human-readable next step to resolve this error. Present when a recovery is known.
+   */
+  remediation?: string;
+  /**
+   * Operations that resolve this error, in the order to try them. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+   */
+  next?: Array<ErrorNextAction>;
 };
 
 export type WebhookAttemptListWritable = {
@@ -1982,6 +2098,9 @@ export type WebhookEventWritable =
       type: "email.bounced";
     } & EventEmailBounced)
   | ({
+      type: "email.canceled";
+    } & EventEmailCanceled)
+  | ({
       type: "email.clicked";
     } & EventEmailClicked)
   | ({
@@ -2011,6 +2130,9 @@ export type WebhookEventWritable =
   | ({
       type: "email.rejected";
     } & EventEmailRejected)
+  | ({
+      type: "email.scheduled";
+    } & EventEmailScheduled)
   | ({
       type: "email.unsubscribed";
     } & EventEmailUnsubscribed)
@@ -2137,6 +2259,9 @@ export type EmailEventWritable = {
     | "transmission_failed"
     | "generation_failure"
     | "policy_rejection"
+    | "domain_unverified"
+    | "quota_exceeded"
+    | "recipient_not_allowed"
     | null;
   /**
    * The IP address Bird used to send this message. Useful when investigating deliverability issues that correlate with specific IPs. Present on `email.delivered`, `email.bounced`, `email.out_of_band_bounce`, and `email.deferred` events.
@@ -2373,6 +2498,7 @@ export type ListEmailMessagesData = {
      * Filter by aggregate delivery status.
      */
     status?:
+      | "scheduled"
       | "accepted"
       | "processed"
       | "deferred"
@@ -2380,7 +2506,8 @@ export type ListEmailMessagesData = {
       | "partial_failure"
       | "bounced"
       | "complained"
-      | "rejected";
+      | "rejected"
+      | "canceled";
     /**
      * Filter by tag. Accepts `name` to match any send carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). For filtering on arbitrary `metadata` fields, use the metadata path-filter parameters instead.
      *

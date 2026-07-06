@@ -56,6 +56,16 @@ export interface ErrorDetail {
   message: string;
 }
 
+/** One recovery step: an operation to call to resolve the error (ADR-0073). */
+export interface ErrorNextAction {
+  /** operationId of the follow-up operation that resolves this error. */
+  operation: string;
+  /** Short human-readable label for the recovery step. */
+  description?: string;
+  /** Permission scope the recovery operation requires, when it is scoped. */
+  scope?: string;
+}
+
 /** Constructor fields shared by every API error, mapped from the wire body. */
 export interface BirdAPIErrorFields {
   statusCode: number;
@@ -74,6 +84,10 @@ export interface BirdAPIErrorFields {
   param?: string;
   /** Verbatim code from a downstream system (SMTP reply, payment decline). */
   vendorCode?: string;
+  /** Human recovery line for this error, when a recovery is known (ADR-0073). */
+  remediation?: string;
+  /** Operations that resolve this error, in the order to try them (ADR-0073). */
+  next?: ErrorNextAction[];
 }
 
 /** The server returned an error body. Base for every `type`-specific class. */
@@ -86,6 +100,8 @@ export class BirdAPIError extends BirdError {
   readonly requestId: string;
   readonly param?: string;
   readonly vendorCode?: string;
+  readonly remediation?: string;
+  readonly next?: ErrorNextAction[];
 
   constructor(fields: BirdAPIErrorFields) {
     super(fields.message);
@@ -98,6 +114,8 @@ export class BirdAPIError extends BirdError {
     this.requestId = fields.requestId;
     this.param = fields.param;
     this.vendorCode = fields.vendorCode;
+    this.remediation = fields.remediation;
+    this.next = fields.next;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -247,6 +265,8 @@ interface WireErrorBody {
   param?: string;
   vendor_code?: string;
   details?: ErrorDetail[];
+  remediation?: string;
+  next?: ErrorNextAction[];
 }
 
 /**
@@ -327,6 +347,8 @@ export function mapResponseToError(
     requestId: b.request_id ?? headers?.get("X-Request-Id") ?? "",
     param: b.param,
     vendorCode: b.vendor_code,
+    remediation: b.remediation,
+    next: b.next ?? [], // normalize a null/absent wire `next` to [] so callers can always iterate
   };
 
   switch (fields.type) {

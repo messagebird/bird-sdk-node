@@ -10,6 +10,7 @@ import {
   BirdRateLimitError,
   BirdValidationError,
 } from "../src/errors.js";
+import { ErrorBodySchema } from "../src/generated/schemas.gen.js";
 
 function headers(init?: Record<string, string>): Headers {
   return new Headers(init);
@@ -36,7 +37,11 @@ describe("mapResponseToError", () => {
   });
 
   it("attaches retryAfter on rate_limit_error from the Retry-After header", () => {
-    const err = mapResponseToError(429, { type: "rate_limit_error", message: "slow down" }, headers({ "Retry-After": "60" }));
+    const err = mapResponseToError(
+      429,
+      { type: "rate_limit_error", message: "slow down" },
+      headers({ "Retry-After": "60" }),
+    );
     expect(err).toBeInstanceOf(BirdRateLimitError);
     expect((err as BirdRateLimitError).retryAfter).toBe(60);
   });
@@ -53,7 +58,9 @@ describe("mapResponseToError", () => {
   });
 
   it("maps conflict_error → BirdConflictError", () => {
-    expect(mapResponseToError(409, { type: "conflict_error" })).toBeInstanceOf(BirdConflictError);
+    expect(mapResponseToError(409, { type: "conflict_error" })).toBeInstanceOf(
+      BirdConflictError,
+    );
   });
 
   it("falls back on status when the body carries no type (non-JSON error)", () => {
@@ -63,19 +70,80 @@ describe("mapResponseToError", () => {
   });
 
   it("infers precondition_error for a bare 412/428 (no body type)", () => {
-    expect(mapResponseToError(412, undefined, headers())).toBeInstanceOf(BirdPreconditionError);
-    expect(mapResponseToError(428, undefined, headers())).toBeInstanceOf(BirdPreconditionError);
+    expect(mapResponseToError(412, undefined, headers())).toBeInstanceOf(
+      BirdPreconditionError,
+    );
+    expect(mapResponseToError(428, undefined, headers())).toBeInstanceOf(
+      BirdPreconditionError,
+    );
   });
 
   it("reads requestId from X-Request-Id when the body omits it", () => {
-    const err = mapResponseToError(500, { type: "internal_error" }, headers({ "X-Request-Id": "req_hdr" }));
+    const err = mapResponseToError(
+      500,
+      { type: "internal_error" },
+      headers({ "X-Request-Id": "req_hdr" }),
+    );
     expect(err.requestId).toBe("req_hdr");
   });
 
   it("returns the BirdAPIError base for an unknown type", () => {
-    const err = mapResponseToError(418, { type: "teapot_error", message: "no coffee" });
+    const err = mapResponseToError(418, {
+      type: "teapot_error",
+      message: "no coffee",
+    });
     expect(err).toBeInstanceOf(BirdAPIError);
     expect(err.constructor.name).toBe("BirdAPIError");
+  });
+
+  it("surfaces remediation and next from the wire (ADR-0073)", () => {
+    const next = [
+      {
+        operation: "assignDedicatedIp",
+        description: "Assign a dedicated IP",
+        scope: "email:write",
+      },
+    ];
+    const err = mapResponseToError(422, {
+      type: "validation_error",
+      code: "E11005",
+      message: "empty pool",
+      remediation: "Assign a dedicated IP to the pool, then retry.",
+      next,
+      details: [],
+    }) as BirdValidationError;
+    expect(err.remediation).toBe(
+      "Assign a dedicated IP to the pool, then retry.",
+    );
+    expect(err.next).toEqual(next);
+  });
+});
+
+// The SDK error facade is hand-maintained (no generator emits it), so this is the
+// guard: every ErrorBody wire field must be surfaced on the facade. A new wire
+// field (e.g. a future recovery field) fails here until it is mapped in errors.ts.
+describe("ErrorBody wire → facade coverage (drift guard)", () => {
+  const wireToFacade: Record<string, string> = {
+    type: "type",
+    code: "code",
+    name: "errorName",
+    message: "message",
+    param: "param",
+    doc_url: "docUrl",
+    request_id: "requestId",
+    vendor_code: "vendorCode",
+    details: "details",
+    remediation: "remediation",
+    next: "next",
+  };
+
+  it("maps every ErrorBody wire property to a facade field", () => {
+    for (const key of Object.keys(ErrorBodySchema.properties)) {
+      expect(
+        wireToFacade,
+        `wire field '${key}' is unmapped in errors.ts`,
+      ).toHaveProperty(key);
+    }
   });
 });
 
@@ -100,7 +168,11 @@ describe("parseRetryAfter", () => {
   });
 
   it("a negative Retry-After leaves retryAfter unset on the rate-limit error", () => {
-    const err = mapResponseToError(429, { type: "rate_limit_error" }, headers({ "Retry-After": "-5" }));
+    const err = mapResponseToError(
+      429,
+      { type: "rate_limit_error" },
+      headers({ "Retry-After": "-5" }),
+    );
     expect((err as BirdRateLimitError).retryAfter).toBeUndefined();
   });
 });

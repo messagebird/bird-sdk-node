@@ -9,12 +9,54 @@ import type {
   CreateEmailMessageData,
   CreateEmailMessageErrors,
   CreateEmailMessageResponses,
+  CreateEmailTemplateData,
+  CreateEmailTemplateErrors,
+  CreateEmailTemplateResponses,
+  CreateSmsMessageBatchData,
+  CreateSmsMessageBatchErrors,
+  CreateSmsMessageBatchResponses,
+  CreateSmsMessageData,
+  CreateSmsMessageErrors,
+  CreateSmsMessageResponses,
+  DeleteEmailTemplateData,
+  DeleteEmailTemplateErrors,
+  DeleteEmailTemplateResponses,
   GetEmailMessageData,
   GetEmailMessageErrors,
   GetEmailMessageResponses,
+  GetEmailTemplateData,
+  GetEmailTemplateErrors,
+  GetEmailTemplateResponses,
+  GetEmailTemplateVersionData,
+  GetEmailTemplateVersionErrors,
+  GetEmailTemplateVersionResponses,
+  GetSmsMessageData,
+  GetSmsMessageErrors,
+  GetSmsMessageResponses,
+  GetSmsTemplateData,
+  GetSmsTemplateErrors,
+  GetSmsTemplateResponses,
   ListEmailMessagesData,
   ListEmailMessagesErrors,
   ListEmailMessagesResponses,
+  ListEmailTemplatesData,
+  ListEmailTemplatesErrors,
+  ListEmailTemplatesResponses,
+  ListEmailTemplateVersionsData,
+  ListEmailTemplateVersionsErrors,
+  ListEmailTemplateVersionsResponses,
+  ListSmsMessagesData,
+  ListSmsMessagesErrors,
+  ListSmsMessagesResponses,
+  ListSmsTemplatesData,
+  ListSmsTemplatesErrors,
+  ListSmsTemplatesResponses,
+  PublishEmailTemplateData,
+  PublishEmailTemplateErrors,
+  PublishEmailTemplateResponses,
+  UpdateEmailTemplateData,
+  UpdateEmailTemplateErrors,
+  UpdateEmailTemplateResponses,
 } from "./types.gen";
 
 export type Options<
@@ -145,5 +187,381 @@ export const getEmailMessage = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/email/messages/{message_id}",
+    ...options,
+  });
+
+/**
+ * List SMS messages
+ *
+ * Returns a paginated list of SMS messages in the workspace, newest first.
+ */
+export const listSmsMessages = <ThrowOnError extends boolean = false>(
+  options?: Options<ListSmsMessagesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListSmsMessagesResponses,
+    ListSmsMessagesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/sms/messages",
+    ...options,
+  });
+
+/**
+ * Send an SMS message
+ *
+ * Sends a single SMS message to one recipient. The 202 response is returned only after the message is durably accepted for delivery; actual delivery happens asynchronously, and you track it with the get-message and list-events endpoints or with webhooks. `category` is required and controls opt-out (STOP) policy, quiet hours, and per-country compliance. A body exceeding the 12-segment cap is rejected with a 422, as are field-level validation failures and sends that cannot be afforded by the workspace balance.
+ *
+ */
+export const createSmsMessage = <ThrowOnError extends boolean = false>(
+  options: Options<CreateSmsMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateSmsMessageResponses,
+    CreateSmsMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/sms/messages",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Send a batch of SMS messages
+ *
+ * Accepts up to 100 independent SMS messages and queues them for delivery. Each message is an independent send with its own ID, status, and cost. All items are validated before any are queued — if one fails validation, the entire batch is rejected. Field-level validation failures, the 12-segment body cap, and insufficient workspace balance all return 422 (or 402 for balance).
+ *
+ */
+export const createSmsMessageBatch = <ThrowOnError extends boolean = false>(
+  options: Options<CreateSmsMessageBatchData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateSmsMessageBatchResponses,
+    CreateSmsMessageBatchErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/sms/batches",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get an SMS message
+ *
+ * Returns a single SMS message with its current status, segment breakdown, cost, and failure detail if it failed.
+ */
+export const getSmsMessage = <ThrowOnError extends boolean = false>(
+  options: Options<GetSmsMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetSmsMessageResponses,
+    GetSmsMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/sms/messages/{message_id}",
+    ...options,
+  });
+
+/**
+ * List SMS templates
+ *
+ * Returns the SMS templates available to your workspace, including Bird's built-in templates. Filter by scope, category, or language.
+ *
+ */
+export const listSmsTemplates = <ThrowOnError extends boolean = false>(
+  options?: Options<ListSmsTemplatesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListSmsTemplatesResponses,
+    ListSmsTemplatesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/sms/templates",
+    ...options,
+  });
+
+/**
+ * Get an SMS template
+ *
+ * Returns a single SMS template by its alias or id.
+ */
+export const getSmsTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<GetSmsTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetSmsTemplateResponses,
+    GetSmsTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/sms/templates/{template_ref}",
+    ...options,
+  });
+
+/**
+ * List email templates
+ *
+ * Returns a paginated list of the workspace's email templates, newest first. Filter by category, source, or a case-insensitive name prefix.
+ *
+ */
+export const listEmailTemplates = <ThrowOnError extends boolean = false>(
+  options?: Options<ListEmailTemplatesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListEmailTemplatesResponses,
+    ListEmailTemplatesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates",
+    ...options,
+  });
+
+/**
+ * Create an email template
+ *
+ * Creates a template and its initial editable draft. The body carries the template's name, category, authoring format (`source`), and the draft's content (`subject`, `html`, `text`). A name already used in the workspace returns a conflict.
+ *
+ */
+export const createEmailTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<CreateEmailTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateEmailTemplateResponses,
+    CreateEmailTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete an email template
+ *
+ * Deletes the template and all its versions. The name becomes available for reuse within the workspace.
+ *
+ */
+export const deleteEmailTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteEmailTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteEmailTemplateResponses,
+    DeleteEmailTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates/{template_id}",
+    ...options,
+  });
+
+/**
+ * Get an email template
+ *
+ * Returns a single email template with its current draft content (subject, HTML, and plain text), the draft revision, and its draft and published version ids.
+ *
+ */
+export const getEmailTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<GetEmailTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetEmailTemplateResponses,
+    GetEmailTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates/{template_id}",
+    ...options,
+  });
+
+/**
+ * Update an email template
+ *
+ * Updates a template's metadata and its draft content. Only the fields you send are changed. Send the draft `revision` you last read; if it is stale (someone else edited the draft first) the request returns a conflict so you can reload and retry.
+ *
+ */
+export const updateEmailTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateEmailTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateEmailTemplateResponses,
+    UpdateEmailTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates/{template_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List email template versions
+ *
+ * Returns every version of the template — the current draft plus all published versions — newest first.
+ *
+ */
+export const listEmailTemplateVersions = <ThrowOnError extends boolean = false>(
+  options: Options<ListEmailTemplateVersionsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListEmailTemplateVersionsResponses,
+    ListEmailTemplateVersionsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates/{template_id}/versions",
+    ...options,
+  });
+
+/**
+ * Get an email template version
+ *
+ * Returns a single version of an email template.
+ */
+export const getEmailTemplateVersion = <ThrowOnError extends boolean = false>(
+  options: Options<GetEmailTemplateVersionData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetEmailTemplateVersionResponses,
+    GetEmailTemplateVersionErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates/{template_id}/versions/{version_id}",
+    ...options,
+  });
+
+/**
+ * Publish an email template
+ *
+ * Publishes the template's current draft as a new immutable, numbered version and makes it the live version used by sends. The draft remains editable for future changes. The draft must have a subject and a body; an empty draft is rejected.
+ *
+ */
+export const publishEmailTemplate = <ThrowOnError extends boolean = false>(
+  options: Options<PublishEmailTemplateData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PublishEmailTemplateResponses,
+    PublishEmailTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/templates/{template_id}/publish",
     ...options,
   });

@@ -15,6 +15,9 @@ import {
   type RequestOptions,
 } from "./core/result.js";
 import { EmailResource, type EmailChannelDefaults } from "./resources/email.js";
+import { EmailTemplatesResource } from "./resources/emailTemplates.js";
+import { SmsResource } from "./resources/sms.js";
+import { SmsTemplatesResource } from "./resources/smsTemplates.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
@@ -147,6 +150,15 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** The email channel — `bird.email.send(...)`, `.get(...)`, `.list(...)`. */
   readonly email: EmailResource<EmailDefaultsOf<O>>;
 
+  /** Email templates — `bird.emailTemplates.create(...)`, `.list(...)`, `.publish(...)`, … */
+  readonly emailTemplates: EmailTemplatesResource;
+
+  /** The SMS channel — `bird.sms.send(...)`, `.get(...)`, `.list(...)`. */
+  readonly sms: SmsResource;
+
+  /** SMS templates — `bird.smsTemplates.list(...)`, `.get(...)`. */
+  readonly smsTemplates: SmsTemplatesResource;
+
   /** Webhooks — `bird.webhooks.unwrap(payload, headers)` verifies an inbound delivery. */
   readonly webhooks: WebhooksResource;
 
@@ -182,6 +194,9 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       this.#client,
       opts.email as EmailDefaultsOf<O>,
     );
+    this.emailTemplates = new EmailTemplatesResource(this.core, this.#client);
+    this.sms = new SmsResource(this.core, this.#client);
+    this.smsTemplates = new SmsTemplatesResource(this.core, this.#client);
     this.webhooks = new WebhooksResource(opts.webhooks);
   }
 

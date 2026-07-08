@@ -272,12 +272,12 @@ export const SMSErrorSchema = {
   },
 } as const;
 
-export const SMSTagSchema = {
+export const TagSchema = {
   type: "object",
   additionalProperties: false,
   required: ["name", "value"],
   description:
-    "Structured key/value tag attached to an SMS message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.\nTag count and per-tag size are capped to keep per-send tag payloads small — see SMSMessageSendRequest for the array maximum.\n",
+    "Structured key/value label attached to a message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.\nTag count and per-tag size are capped to keep per-send tag payloads small — see the send request for the array maximum. Tag names are unique within a send; supplying the same name twice is rejected.\n",
   properties: {
     name: {
       type: "string",
@@ -286,7 +286,7 @@ export const SMSTagSchema = {
       pattern: "^[A-Za-z0-9_-]+$",
       description:
         "Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.\n",
-      example: "campaign",
+      example: "category",
     },
     value: {
       type: "string",
@@ -295,7 +295,7 @@ export const SMSTagSchema = {
       pattern: "^[A-Za-z0-9_-]+$",
       description:
         "Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.\n",
-      example: "signup",
+      example: "welcome",
     },
   },
 } as const;
@@ -354,7 +354,7 @@ export const EventSMSBaseSchema = {
     tags: {
       type: ["array", "null"],
       items: {
-        $ref: "#/components/schemas/SMSTag",
+        $ref: "#/components/schemas/Tag",
       },
       description:
         "Tags provided on the send request, echoed on every event for the message so you can route and correlate without an extra lookup. Null when the message carried no tags.\n",
@@ -731,34 +731,6 @@ export const EventEmailUnsubscribedDataSchema = {
   ],
 } as const;
 
-export const EmailTagSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["name", "value"],
-  description:
-    "Structured key/value tag attached to an email send. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.\nTag count and per-tag size are capped to keep per-send tag payloads small — see EmailMessageSendRequest for the array maximum.\n",
-  properties: {
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 32,
-      pattern: "^[A-Za-z0-9_-]+$",
-      description:
-        "Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.\n",
-      example: "category",
-    },
-    value: {
-      type: "string",
-      minLength: 1,
-      maxLength: 64,
-      pattern: "^[A-Za-z0-9_-]+$",
-      description:
-        "Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.\n",
-      example: "welcome",
-    },
-  },
-} as const;
-
 export const RecipientRoleSchema = {
   type: "string",
   minLength: 1,
@@ -836,7 +808,7 @@ export const EventEmailBaseSchema = {
     tags: {
       type: ["array", "null"],
       items: {
-        $ref: "#/components/schemas/EmailTag",
+        $ref: "#/components/schemas/Tag",
       },
       description:
         "Tags provided on the send request, echoed on every event for the send so you can route and correlate without an extra lookup. Null when the send carried no tags.\n",
@@ -933,7 +905,7 @@ export const EventEmailMessageBaseSchema = {
     tags: {
       type: ["array", "null"],
       items: {
-        $ref: "#/components/schemas/EmailTag",
+        $ref: "#/components/schemas/Tag",
       },
       description:
         "Tags provided on the send request, echoed on the event so you can route and correlate without an extra lookup. Null when the send carried no tags.\n",
@@ -2207,6 +2179,867 @@ export const _ListEnvelopeWithTotalSchema = {
   ],
 } as const;
 
+export const InboundAttachmentListSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "Metadata for every attachment on the message. Empty when the message had no attachments.",
+      items: {
+        $ref: "#/components/schemas/InboundAttachment",
+      },
+    },
+  },
+} as const;
+
+export const InboundAttachmentIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^rea_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "rea_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const InboundAttachmentSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "filename", "content_type", "size"],
+  description:
+    "Metadata for a file attached to a received email. The raw bytes are fetched separately with `GET /v1/email/inbound-messages/{id}/attachments/{attachment_id}`.\n",
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/InboundAttachmentID",
+      description: "Attachment ID, stable within the received message.",
+    },
+    filename: {
+      type: ["string", "null"],
+      description:
+        "Filename from the attachment's Content-Disposition, or null when the sender did not name the part.",
+      example: "invoice.pdf",
+    },
+    content_type: {
+      type: ["string", "null"],
+      description:
+        "MIME type parsed from the attachment part, or null when absent.",
+      example: "application/pdf",
+    },
+    size: {
+      type: "integer",
+      minimum: 0,
+      description: "Size of the attachment in bytes.",
+      example: 215432,
+    },
+  },
+} as const;
+
+export const InboundEmailMessageBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The parsed body of a received email.",
+  required: ["html", "text"],
+  properties: {
+    html: {
+      type: ["string", "null"],
+      description:
+        "The HTML body of the message, or null when the message had no HTML part.",
+    },
+    text: {
+      type: ["string", "null"],
+      description:
+        "The plain-text body of the message, or null when the message had no text part.",
+    },
+  },
+} as const;
+
+export const InboundEmailMessageListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/InboundEmailMessage",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailAddressSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "An email address with an optional display name.",
+  required: ["email"],
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      description: "Email address.",
+      example: "jane@example.com",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 256,
+      pattern: "^[^\\r\\n]+$",
+      description: "Display name shown alongside the address in mail clients.",
+      example: "Jane Doe",
+    },
+  },
+} as const;
+
+export const InboundEmailMessageSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An email Bird received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.\n",
+  required: [
+    "id",
+    "from",
+    "to",
+    "cc",
+    "subject",
+    "message_id",
+    "in_reply_to",
+    "thread_id",
+    "spf_pass",
+    "dkim_pass",
+    "dmarc_pass",
+    "spam_score",
+    "attachments",
+    "received_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/InboundEmailMessageID",
+      description: "Received message ID.",
+    },
+    from: {
+      $ref: "#/components/schemas/EmailAddress",
+      description: "Sender address parsed from the message.",
+    },
+    to: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddress",
+      },
+      description: "Recipients on the message's To header.",
+    },
+    cc: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddress",
+      },
+      description: "Recipients on the message's Cc header.",
+    },
+    subject: {
+      type: ["string", "null"],
+      description:
+        "Subject line as received, or null when the message had no subject.",
+      example: "Re: Your receipt",
+    },
+    message_id: {
+      type: ["string", "null"],
+      description:
+        "RFC 5322 Message-ID header from the sender, or null when the sender did not include one.",
+      example: "<CAH+T8d5...@mail.gmail.com>",
+    },
+    in_reply_to: {
+      type: ["string", "null"],
+      description:
+        "In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.",
+      example: "<previous-message@example.com>",
+    },
+    references: {
+      type: "array",
+      items: {
+        type: "string",
+      },
+      description:
+        "References header — the chain of Message-IDs in this conversation, oldest first. Absent when the message had no References header.",
+    },
+    thread_id: {
+      type: ["string", "null"],
+      description:
+        "Conversation this message belongs to. Always null until threading is available.",
+    },
+    spf_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether SPF passed for the sender, parsed from the message's authentication results. Null when the result did not carry an SPF verdict.",
+    },
+    dkim_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DKIM passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DKIM verdict.",
+    },
+    dmarc_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DMARC passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DMARC verdict.",
+    },
+    spam_score: {
+      type: ["number", "null"],
+      description:
+        "Spam score for the message. Always null at present; reserved for a future content-scoring capability.",
+    },
+    attachments: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/InboundAttachment",
+      },
+      description:
+        "Metadata for each attachment found on the message. Empty when the message had no attachments.",
+    },
+    received_at: {
+      type: "string",
+      format: "date-time",
+      readOnly: true,
+      description: "When Bird received the message.",
+    },
+  },
+} as const;
+
+export const InboundAddressUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Fields to update on an inbound address.",
+  properties: {
+    label: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description: "Your own label for this address. Pass null to clear it.",
+      example: "Support mailbox",
+    },
+  },
+  example: {
+    label: "Sales mailbox",
+  },
+} as const;
+
+export const InboundAddressCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for minting a new inbound address.",
+  properties: {
+    label: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "Your own label for this address, typically the source mailbox it maps to.",
+      example: "Support mailbox",
+    },
+  },
+  example: {
+    label: "Support mailbox",
+  },
+} as const;
+
+export const InboundAddressListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/InboundAddress",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const InboundAddressIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ina_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ina_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const InboundAddressSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A Bird-minted email address that receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address and Bird parses every message it receives into a received email.\n",
+  required: ["id", "address", "label", "created_at", "updated_at"],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/InboundAddressID",
+      description: "Inbound address ID.",
+    },
+    address: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      readOnly: true,
+      description:
+        "The address to forward your mailbox to. Minted by Bird when the inbound address is created.",
+      example: "a1b2c3@inbound.eu.bird.com",
+    },
+    label: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Your own label for this address, typically the source mailbox it maps to. Null when unset.",
+      example: "Support mailbox",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the inbound address was created.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the inbound address was last updated.",
+    },
+  },
+} as const;
+
+export const EmailTemplateVersionListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description: "All versions of the template, newest first.",
+      items: {
+        $ref: "#/components/schemas/EmailTemplateVersion",
+      },
+    },
+  },
+} as const;
+
+export const TemplateVariableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A single variable slot a template fills in from the values supplied when sending. Shared across channels (SMS, email) so template introspection reads the same everywhere.\n",
+  required: ["key", "type", "required", "constraint"],
+  properties: {
+    key: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The parameters key this slot is filled with.",
+    },
+    type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      "x-extensible-enum": [
+        "code",
+        "ttl",
+        "count",
+        "ref",
+        "date",
+        "date_time",
+        "amount",
+        "currency",
+        "text",
+      ],
+      description:
+        "The value type this slot accepts. Open enum — treat any unrecognized value as a future type rather than an error. SMS templates use the typed slots (`code`, `amount`, …); email templates use `text`.\n",
+    },
+    required: {
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Whether the slot must be supplied when sending. Advisory for email templates, where a missing value renders as empty rather than rejecting the send.\n",
+    },
+    constraint: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "A human-readable description of the accepted values.",
+    },
+  },
+} as const;
+
+export const EmailTemplateIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^emt_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "emt_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailTemplateVersionIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^emv_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "emv_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailTemplateVersionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "template_id",
+    "status",
+    "revision",
+    "variables",
+    "created_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      description: "Template version ID.",
+      $ref: "#/components/schemas/EmailTemplateVersionID",
+    },
+    template_id: {
+      readOnly: true,
+      description: "The template this version belongs to.",
+      $ref: "#/components/schemas/EmailTemplateID",
+    },
+    version_number: {
+      type: ["integer", "null"],
+      minimum: 1,
+      readOnly: true,
+      description:
+        "Sequential published-version number (1, 2, 3…). Null while the version is a draft.",
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      enum: ["draft", "published"],
+      readOnly: true,
+      description: "Lifecycle status of this version.",
+    },
+    revision: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "The version's revision counter.",
+    },
+    variables: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/TemplateVariable",
+      },
+      description:
+        "The variable slots this version's content fills in from the values you supply when sending.",
+    },
+    created_at: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      readOnly: true,
+      description: "When this version was created.",
+    },
+    published_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When this version was published, or null if it has not been published.",
+    },
+  },
+} as const;
+
+export const EmailTemplateUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Partial update of a template's metadata and its draft content. Only the fields you send are changed; the rest are left as-is. Include the draft `revision` you last read so concurrent edits are detected.\n",
+  required: ["revision"],
+  properties: {
+    revision: {
+      type: "integer",
+      minimum: 0,
+      description:
+        "The draft revision you last read (from the template's `revision` field). A stale value returns a conflict so you can reload and retry.\n",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description: "New template name. Must stay unique within the workspace.",
+    },
+    alias: {
+      type: ["string", "null"],
+      minLength: 1,
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      description:
+        "New workspace-unique slug handle for send-by-template. Send null to clear it. Lowercase letters, numbers, and hyphens.\n",
+    },
+    description: {
+      type: ["string", "null"],
+      description:
+        "New description of the template's purpose. Send null to clear it.",
+    },
+    subject: {
+      type: ["string", "null"],
+      description:
+        "New email subject line for the draft. Send null to clear it.",
+    },
+    html: {
+      type: "string",
+      description:
+        "New HTML body — the source markup for the template's format.",
+    },
+    text: {
+      type: ["string", "null"],
+      description: "New plain-text body for the draft. Send null to clear it.",
+    },
+    brand_kit_id: {
+      description: "Brand kit to apply to the draft.",
+      $ref: "#/components/schemas/BrandKitID",
+    },
+  },
+} as const;
+
+export const BrandKitIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^bk_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "bk_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailTemplateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "workspace_id",
+    "name",
+    "scope",
+    "category",
+    "source",
+    "variables",
+    "draft_version_id",
+    "revision",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      description: "Template ID.",
+      $ref: "#/components/schemas/EmailTemplateID",
+    },
+    workspace_id: {
+      readOnly: true,
+      description: "Workspace that owns the template.",
+      $ref: "#/components/schemas/WorkspaceID",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable template name, unique within the workspace.",
+    },
+    alias: {
+      type: ["string", "null"],
+      description:
+        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+    },
+    description: {
+      type: ["string", "null"],
+      description:
+        "Optional description of the template's purpose. Null when unset.",
+    },
+    scope: {
+      $ref: "#/components/schemas/TemplateScope",
+    },
+    category: {
+      $ref: "#/components/schemas/EmailTemplateCategory",
+    },
+    source: {
+      $ref: "#/components/schemas/EmailTemplateSource",
+    },
+    variables: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/TemplateVariable",
+      },
+      description:
+        "The variable slots this template's current draft fills in from the values you supply when sending.",
+    },
+    draft_version_id: {
+      readOnly: true,
+      description: "The current editable draft version.",
+      $ref: "#/components/schemas/EmailTemplateVersionID",
+    },
+    published_version_id: {
+      readOnly: true,
+      description:
+        "The currently published version, or null if the template has never been published.",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateVersionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    revision: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description:
+        "The draft's revision counter. Send it back on the next update to detect concurrent edits.",
+    },
+    subject: {
+      type: ["string", "null"],
+      description: "The draft's email subject line. Null when unset.",
+    },
+    html: {
+      type: ["string", "null"],
+      description: "The draft's HTML body. Null when unset.",
+    },
+    text: {
+      type: ["string", "null"],
+      description: "The draft's plain-text body. Null when unset.",
+    },
+    brand_kit_id: {
+      readOnly: true,
+      description: "The brand kit applied to the draft, or null if none.",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/BrandKitID",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created_at: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      readOnly: true,
+      description: "When the template was created.",
+    },
+    updated_at: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      readOnly: true,
+      description: "When the template was last modified.",
+    },
+  },
+} as const;
+
+export const EmailTemplateSourceSchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["liquid", "handlebars", "html"],
+  description:
+    "The authoring format the template is written in. Fixed at creation.",
+} as const;
+
+export const EmailTemplateCategorySchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["transactional", "marketing"],
+  description: "Whether the template is transactional or marketing email.",
+} as const;
+
+export const TemplateScopeSchema = {
+  type: "string",
+  minLength: 1,
+  readOnly: true,
+  enum: ["system", "workspace"],
+  description:
+    "Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).",
+} as const;
+
+export const EmailTemplateCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Parameters for creating an email template and its initial draft.",
+  required: ["name", "category", "source"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description: "Human-readable template name, unique within the workspace.",
+      example: "Welcome email",
+    },
+    alias: {
+      type: "string",
+      minLength: 1,
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      description:
+        "Optional workspace-unique slug handle for the template — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.\n",
+      example: "welcome-email",
+    },
+    description: {
+      type: "string",
+      description: "Optional description of the template's purpose.",
+      example: "Sent to new customers after signup.",
+    },
+    category: {
+      $ref: "#/components/schemas/EmailTemplateCategory",
+    },
+    source: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateSource",
+        },
+      ],
+      description:
+        "The authoring format the template is written in, fixed at creation. `liquid` currently supports variable substitution only (e.g. `{{ first_name }}`); filters, tags, and control flow are not yet supported — fuller Liquid support is coming soon.\n",
+    },
+    subject: {
+      type: "string",
+      description: "The email subject line for the initial draft.",
+      example: "Welcome to Acme, {{ first_name }}!",
+    },
+    html: {
+      type: "string",
+      description: "The HTML body — the source markup for the chosen format.",
+      example: "<h1>Hi {{ first_name }}</h1>",
+    },
+    text: {
+      type: "string",
+      description: "The optional plain-text body.",
+    },
+    brand_kit_id: {
+      description: "Optional brand kit to apply to the draft.",
+      $ref: "#/components/schemas/BrandKitID",
+    },
+  },
+} as const;
+
+export const EmailTemplateListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of email templates.",
+          items: {
+            $ref: "#/components/schemas/EmailTemplateSummary",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailTemplateSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "workspace_id",
+    "name",
+    "scope",
+    "category",
+    "source",
+    "draft_version_id",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      description: "Template ID.",
+      $ref: "#/components/schemas/EmailTemplateID",
+    },
+    workspace_id: {
+      readOnly: true,
+      description: "Workspace that owns the template.",
+      $ref: "#/components/schemas/WorkspaceID",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable template name, unique within the workspace.",
+    },
+    alias: {
+      type: ["string", "null"],
+      description:
+        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+    },
+    description: {
+      type: ["string", "null"],
+      description:
+        "Optional description of the template's purpose. Null when unset.",
+    },
+    scope: {
+      $ref: "#/components/schemas/TemplateScope",
+    },
+    category: {
+      $ref: "#/components/schemas/EmailTemplateCategory",
+    },
+    source: {
+      $ref: "#/components/schemas/EmailTemplateSource",
+    },
+    draft_version_id: {
+      readOnly: true,
+      description: "The current editable draft version.",
+      $ref: "#/components/schemas/EmailTemplateVersionID",
+    },
+    published_version_id: {
+      readOnly: true,
+      description:
+        "The currently published version, or null if never published.",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateVersionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created_at: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      readOnly: true,
+      description: "When the template was created.",
+    },
+    updated_at: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      readOnly: true,
+      description: "When the template was last modified.",
+    },
+  },
+} as const;
+
 export const SuppressionCreateSchema = {
   type: "object",
   additionalProperties: false,
@@ -2348,6 +3181,946 @@ export const SuppressionSchema = {
       readOnly: true,
     },
   },
+} as const;
+
+export const VerificationCheckResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["success", "verification"],
+  properties: {
+    success: {
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Whether the submitted passcode verified this verification. true means the passcode was correct and the verification is now complete; false means it was not verified — see reason. A verification that has already reached a final state is no longer checkable and returns 404.",
+    },
+    reason: {
+      type: ["string", "null"],
+      "x-extensible-enum": ["incorrect_code", "expired", "attempts_exhausted"],
+      readOnly: true,
+      description:
+        "Why the check did not succeed, or null when success is true. incorrect_code means the passcode was wrong and attempts remain; expired means the time window elapsed; attempts_exhausted means too many incorrect attempts. Open enum — treat any unrecognized value as a future reason.",
+    },
+    verification: {
+      $ref: "#/components/schemas/Verification",
+    },
+    attempts_remaining: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "The number of check attempts left, or null once the verification is complete.",
+    },
+  },
+} as const;
+
+export const VerificationChannelSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["email", "sms"],
+  description:
+    "The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
+} as const;
+
+export const VerificationChannelEntrySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["channel"],
+  properties: {
+    channel: {
+      $ref: "#/components/schemas/VerificationChannel",
+    },
+  },
+} as const;
+
+export const VerificationToSchema = {
+  type: "object",
+  additionalProperties: false,
+  minProperties: 1,
+  description:
+    "The recipient to verify. Provide an email_address, a phone_number, or both; at least one is required.",
+  properties: {
+    email_address: {
+      type: "string",
+      minLength: 1,
+      format: "email",
+      description: "The recipient's email address.",
+      example: "user@example.com",
+    },
+    phone_number: {
+      type: "string",
+      minLength: 1,
+      description: "The recipient's phone number in E.164 format.",
+      example: "+15551234567",
+    },
+  },
+} as const;
+
+export const VerificationIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^vrf_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "vrf_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const VerificationSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: [
+        "id",
+        "status",
+        "to",
+        "channels",
+        "expires_at",
+        "created_at",
+        "updated_at",
+      ],
+      properties: {
+        id: {
+          readOnly: true,
+          $ref: "#/components/schemas/VerificationID",
+        },
+        status: {
+          type: "string",
+          minLength: 1,
+          enum: [
+            "pending",
+            "verified",
+            "failed",
+            "expired",
+            "canceled",
+            "blocked",
+          ],
+          readOnly: true,
+          description:
+            "The verification's current state: pending (awaiting a valid passcode), verified, failed (too many incorrect attempts), or expired (the time window elapsed before a correct passcode).",
+        },
+        reason: {
+          type: ["string", "null"],
+          "x-extensible-enum": ["attempts_exhausted", "ttl_elapsed"],
+          readOnly: true,
+          description:
+            "Why the verification reached its final state, or null while pending or once verified. Open enum — treat any unrecognized value as a future reason.",
+        },
+        to: {
+          readOnly: true,
+          $ref: "#/components/schemas/VerificationTo",
+        },
+        channels: {
+          type: "array",
+          readOnly: true,
+          minItems: 1,
+          description:
+            "The ordered channels this verification uses to deliver the passcode. An email recipient is verified over email; a phone recipient is verified over SMS.",
+          items: {
+            $ref: "#/components/schemas/VerificationChannelEntry",
+          },
+        },
+        last_channel: {
+          type: ["string", "null"],
+          "x-extensible-enum": ["email", "sms"],
+          readOnly: true,
+          description:
+            "The channel the most recent passcode was sent on, or null before the first send. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
+        },
+        metadata: {
+          type: "object",
+          additionalProperties: true,
+          readOnly: true,
+          description:
+            "The key/value pairs attached when the verification was created.",
+        },
+        expires_at: {
+          type: "string",
+          format: "date-time",
+          readOnly: true,
+          description:
+            "When the verification expires if no correct passcode is submitted.",
+        },
+        verified_at: {
+          type: ["string", "null"],
+          format: "date-time",
+          readOnly: true,
+          description:
+            "When the verification was completed, or null if it is not yet verified.",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/Timestamps",
+    },
+  ],
+} as const;
+
+export const VerificationCheckRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["to", "code"],
+  properties: {
+    to: {
+      $ref: "#/components/schemas/VerificationTo",
+    },
+    code: {
+      type: "string",
+      minLength: 4,
+      maxLength: 12,
+      description: "The passcode the recipient received.",
+      example: "123456",
+    },
+  },
+} as const;
+
+export const VerificationCreateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["to"],
+  properties: {
+    to: {
+      $ref: "#/components/schemas/VerificationTo",
+    },
+    options: {
+      $ref: "#/components/schemas/VerificationOptions",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Optional key/value pairs to attach to the verification, for example a correlation id. Returned on the verification.",
+    },
+  },
+} as const;
+
+export const VerificationOptionsSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Per-request overrides applied to this verification only.",
+  properties: {
+    code_length: {
+      type: "integer",
+      minimum: 4,
+      maximum: 10,
+      description:
+        "Passcode length for this verification, overriding the configured length.",
+    },
+    channels: {
+      type: "array",
+      description:
+        "Reorder or narrow the delivery channels for this request. List channel names in the order to try them; a channel you omit is not used for this request, and a channel not already enabled for the recipient is ignored. Omit the field to use the configured order.",
+      items: {
+        $ref: "#/components/schemas/VerificationChannel",
+      },
+    },
+  },
+} as const;
+
+export const SMSTemplateListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "The templates available to your workspace. The catalogue is small and returned in full — this list is not paginated.",
+      items: {
+        $ref: "#/components/schemas/SMSTemplate",
+      },
+    },
+  },
+} as const;
+
+export const SMSTemplateVersionIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^smv_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "smv_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const SMSMessageCategorySchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["transactional", "marketing", "authentication", "service"],
+  description:
+    "Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance.",
+} as const;
+
+export const SMSTemplateIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^smt_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "smt_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const SMSTemplateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "name",
+    "alias",
+    "scope",
+    "category",
+    "body",
+    "variables",
+    "available_locales",
+    "status",
+    "draft_version_id",
+    "revision",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      description: "Unique identifier for the template.",
+      $ref: "#/components/schemas/SMSTemplateID",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Human-readable description of what the template is for.",
+      example: "One-time passcode verification",
+    },
+    alias: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The template's stable handle. Pass it (or the id) as the template reference when sending.",
+      example: "bird_otp_verification",
+    },
+    scope: {
+      $ref: "#/components/schemas/TemplateScope",
+    },
+    category: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/SMSMessageCategory",
+        },
+      ],
+      readOnly: true,
+      description:
+        "Content classification applied to messages sent from this template.",
+    },
+    body: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The template body in its default language, shown for preview.",
+      example: "Your verification code is {{ code }}.",
+    },
+    variables: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/TemplateVariable",
+      },
+      description:
+        "The typed slots this template fills in from the values you supply when sending.",
+    },
+    available_locales: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+      },
+      description:
+        "The languages this template is available in, as BCP-47 tags.",
+      example: ["en"],
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      enum: ["active", "draft", "pending", "approved", "rejected"],
+      description:
+        "The template's lifecycle state. Built-in templates are always `active`.",
+    },
+    draft_version_id: {
+      readOnly: true,
+      description:
+        "The current editable draft version. Always null today — SMS templates are not yet versioned; present for parity with email templates.",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/SMSTemplateVersionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    published_version_id: {
+      readOnly: true,
+      description:
+        "The currently published version, or null if the template has never been published. Always null today — SMS templates are not yet versioned; present for parity with email templates.",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/SMSTemplateVersionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    revision: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "The draft's revision counter. Always null today — SMS templates are not yet versioned; present for parity with email templates.",
+    },
+    created_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the template was created. Null for built-in templates.",
+    },
+    updated_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the template was last updated. Null for built-in templates.",
+    },
+  },
+} as const;
+
+export const SMSMessageBatchResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data", "summary"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/SMSMessage",
+      },
+      description: "One entry per message in the batch, in submission order.",
+    },
+    summary: {
+      $ref: "#/components/schemas/SMSBatchSummary",
+      description: "Aggregate result for the batch.",
+    },
+  },
+} as const;
+
+export const SMSBatchSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  required: ["accepted_count"],
+  description: "Aggregate result for an SMS batch.",
+  properties: {
+    accepted_count: {
+      type: "integer",
+      minimum: 0,
+      description: "Number of messages accepted in the batch.",
+    },
+  },
+} as const;
+
+export const SMSCostBreakdownSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  required: ["per_segment", "segments", "country_code", "carrier_surcharge"],
+  description:
+    "Per-component cost breakdown. Returned on single-message reads; omitted from list rows.",
+  properties: {
+    per_segment: {
+      type: "string",
+      minLength: 1,
+      description: "Per-segment price as a decimal string.",
+      example: "0.0079",
+    },
+    segments: {
+      type: "integer",
+      minimum: 1,
+      description: "Number of billable segments.",
+    },
+    country_code: {
+      type: "string",
+      minLength: 2,
+      maxLength: 2,
+      description:
+        "ISO 3166-1 alpha-2 destination country the price was resolved for.",
+      example: "US",
+    },
+    carrier_surcharge: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Carrier surcharge component as a decimal string (for example US 10DLC fees). `0.0000` when none applies.",
+      example: "0.0000",
+    },
+  },
+} as const;
+
+export const CurrencyCodeSchema = {
+  type: "string",
+  minLength: 3,
+  maxLength: 3,
+  pattern: "^[A-Z]{3}$",
+  description: "ISO 4217 three-letter currency code.",
+  example: "EUR",
+} as const;
+
+export const SMSCostSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  required: ["amount"],
+  description:
+    "Cost of the message. Null until the message has been priced; the cost is populated as the message is processed, not at the moment it is accepted.",
+  properties: {
+    currency_code: {
+      readOnly: true,
+      $ref: "#/components/schemas/CurrencyCode",
+      description:
+        "ISO 4217 currency code for the cost amount. Omitted when the cost is not denominated in a currency (for example a zero-priced internal send).",
+      example: "USD",
+    },
+    amount: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Total cost as a decimal string — the per-segment rate multiplied by the segment count, plus any surcharges.",
+      example: "0.0079",
+    },
+    breakdown: {
+      $ref: "#/components/schemas/SMSCostBreakdown",
+      description:
+        "Per-component cost breakdown. Returned on single-message reads; omitted from list rows.",
+    },
+  },
+} as const;
+
+export const SMSSegmentsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["count", "encoding", "characters"],
+  description:
+    "Segment breakdown for the message body. Segment count drives billing.",
+  properties: {
+    count: {
+      type: "integer",
+      minimum: 1,
+      readOnly: true,
+      description:
+        "Number of segments the body is split into. Each segment is a billable unit.",
+    },
+    encoding: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      enum: ["GSM_7BIT", "UCS2"],
+      description:
+        "Encoding used for the body. `GSM_7BIT` fits 160 characters in a single segment (153 per part when multi-segment); `UCS2` is used when the body contains any character outside the GSM 03.38 alphabet (emoji, CJK, some accented characters) and fits 70 characters in a single segment (67 per part when multi-segment).\n",
+    },
+    characters: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Character count of the body under the selected encoding.",
+    },
+  },
+} as const;
+
+export const SMSMessageStatusSchema = {
+  type: "string",
+  minLength: 1,
+  enum: [
+    "scheduled",
+    "accepted",
+    "sent",
+    "delivered",
+    "undelivered",
+    "failed",
+    "rejected",
+    "canceled",
+    "expired",
+    "received",
+  ],
+  description:
+    "Delivery status. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird accepted the request and it is awaiting handoff to the carrier network. `sent` means it was handed to the carrier and is awaiting a delivery receipt. `delivered` is confirmed delivery. `undelivered` is a non-permanent non-delivery (handset off, content blocked). `failed` is a terminal permanent failure. `rejected` means Bird refused it before reaching the carrier. `canceled` means a scheduled message was canceled before it was sent. `expired` means the validity period elapsed without a terminal receipt. `received` applies to inbound messages.\n",
+} as const;
+
+export const SMSMessageSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "direction",
+    "status",
+    "to",
+    "from",
+    "text",
+    "segments",
+    "created_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/SMSMessageID",
+      description: "Message ID.",
+    },
+    direction: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      enum: ["outbound", "inbound"],
+      description:
+        "Whether the message was sent from a Bird sender (`outbound`) or received from a subscriber (`inbound`).",
+    },
+    status: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/SMSMessageStatus",
+        },
+      ],
+      readOnly: true,
+    },
+    to: {
+      type: "string",
+      minLength: 1,
+      description: "Recipient phone number in E.164 format.",
+      example: "+15551234567",
+    },
+    from: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.",
+      example: "+15557654321",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      description: "Message body.",
+      example: "Your verification code is 123456.",
+    },
+    category: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/SMSMessageCategory",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Content classification supplied on the send. Null for inbound messages.",
+    },
+    segments: {
+      $ref: "#/components/schemas/SMSSegments",
+      description: "Segment breakdown for the body.",
+    },
+    cost: {
+      $ref: "#/components/schemas/SMSCost",
+      description:
+        "Cost of the message. Null until the message has been priced.",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      description:
+        "Structured `{name, value}` filter labels applied to this message.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON metadata stored on the message and echoed in webhook payloads.",
+    },
+    validity_period: {
+      type: "integer",
+      readOnly: true,
+      description:
+        "How long, in seconds, Bird keeps trying to deliver before the message transitions to `expired`.",
+    },
+    carrier: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Carrier that handled the message, when known. Populated once a delivery receipt identifies it.",
+      example: "Verizon",
+    },
+    mcc_mnc: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Mobile country code and mobile network code of the carrier, when known.",
+      example: "311480",
+    },
+    last_error: {
+      $ref: "#/components/schemas/SMSError",
+      description:
+        "Failure detail on a terminally failed or rejected message. Null otherwise.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "When the message was accepted (outbound) or received (inbound).",
+    },
+    sent_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the message was handed to the carrier. Null until then.",
+    },
+    delivered_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description: "When delivery was confirmed. Null until then.",
+    },
+  },
+} as const;
+
+export const SMSMessageBatchRequestSchema = {
+  type: "array",
+  items: {
+    $ref: "#/components/schemas/SMSMessageSendRequest",
+  },
+  minItems: 1,
+  maxItems: 100,
+  description:
+    "Batch of SMS message send requests. All items are validated before any are queued.",
+} as const;
+
+export const SMSTemplateSendSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A send-by-template reference. Identify the template by its `id` or its `alias` (supply exactly one), optionally pick a locale, and pass its variable values in `parameters`.\n",
+  oneOf: [
+    {
+      required: ["id"],
+    },
+    {
+      required: ["alias"],
+    },
+  ],
+  properties: {
+    id: {
+      description: "The template to send, by its id.",
+      $ref: "#/components/schemas/SMSTemplateID",
+    },
+    alias: {
+      type: "string",
+      minLength: 1,
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9_]*[a-z0-9])?$",
+      description:
+        "The template to send, by its alias handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.\n",
+      example: "bird_otp_verification_ttl",
+    },
+    locale: {
+      type: "string",
+      minLength: 2,
+      description:
+        "Language tag (BCP 47, for example `fr` or `pt-BR`) selecting the localized body. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.\n",
+      example: "fr",
+    },
+    parameters: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Values for the template's variables, keyed by variable name. The accepted keys and their formats are fixed per template — see the template's `variables` on the templates endpoint. Every required variable must be supplied, and no undeclared key may be present. Cap: 16 KB serialized.\n",
+      example: {
+        code: "493021",
+        ttl: "10",
+      },
+    },
+  },
+} as const;
+
+export const SMSMessageSendRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A message to send. Supply exactly one of `text` (free-text, which also requires `category`) or `template` (a stored template, whose category is derived). Supplying both, or neither, is rejected.\n",
+  required: ["to"],
+  anyOf: [
+    {
+      required: ["text"],
+    },
+    {
+      required: ["template"],
+    },
+  ],
+  dependentRequired: {
+    text: ["category"],
+  },
+  properties: {
+    to: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Recipient phone number in E.164 format (for example `+15551234567`). One recipient per message.",
+      example: "+15551234567",
+    },
+    from: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (up to 11 characters, for example `MyBrand`), or a short code (5–6 digits). When omitted, Bird selects an eligible sender for you.\n",
+      example: "+15557654321",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Free-text message body. Required unless `template` is supplied (the two are mutually exclusive). At least 1 character, up to a 12-segment cap (roughly 1836 GSM-7 or 804 UCS-2 characters). Bird does not truncate; a body exceeding 12 segments is rejected with a 422. The limit is on segment count, not characters, because GSM-7 and UCS-2 encodings differ in characters per segment.\n",
+      example: "Your verification code is 123456.",
+    },
+    category: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/SMSMessageCategory",
+        },
+      ],
+      description:
+        "Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance. Required on a free-text send; omit it on a template send, where the category is derived from the template.\n",
+    },
+    validity_period: {
+      type: "integer",
+      minimum: 60,
+      maximum: 172800,
+      description:
+        "Preview feature — how long, in seconds (60–172800), Bird keeps trying to deliver before the message transitions to `expired`. Currently unavailable; supplying this field returns `422 unsupported_feature`.\n",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering and analytics. Tags become first-class query dimensions: filter the list endpoint by tag name, slice analytics by tag, and surface in webhook payloads. Maximum 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`). For arbitrary structured context you do not need as a filter dimension, use `metadata` instead.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the message, returned on API reads, and echoed in webhook payloads. Maximum 2 KB serialized. Use metadata for per-send context like internal IDs and foreign keys. For low-cardinality filterable labels, use `tags` instead.\n",
+    },
+    media_urls: {
+      type: "array",
+      items: {
+        type: "string",
+      },
+      description:
+        "Preview feature — multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    messaging_profile_id: {
+      type: "string",
+      description:
+        "Preview feature — sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    scheduled_at: {
+      type: "string",
+      format: "date-time",
+      description:
+        "Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    template: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/SMSTemplateSend",
+        },
+      ],
+      description:
+        "Send using a stored template instead of free text. Mutually exclusive with `text`; the message category is derived from the template, so `from`, `category`, and `media_urls` are not accepted alongside it.\n",
+    },
+    broadcast_id: {
+      type: "string",
+      description:
+        "Preview feature — broadcast correlation. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    campaign_id: {
+      type: "string",
+      description:
+        "Preview feature — campaign correlation for analytics. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    audience_id: {
+      type: "string",
+      description:
+        "Preview feature — audience-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    contact_id: {
+      type: "string",
+      description:
+        "Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    topic_id: {
+      type: "string",
+      description:
+        "Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    max_price_per_segment: {
+      type: "number",
+      description:
+        "Preview feature — per-segment price ceiling. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    personalization: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Preview feature — per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+    },
+    track_clicks: {
+      type: "boolean",
+      description:
+        "Preview feature — link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 unsupported_feature`.",
+    },
+  },
+  example: {
+    to: "+15551234567",
+    from: "+15557654321",
+    text: "Your verification code is 123456.",
+    category: "authentication",
+    tags: [
+      {
+        name: "campaign",
+        value: "signup",
+      },
+    ],
+    metadata: {
+      user_id: "usr_12345",
+    },
+  },
+} as const;
+
+export const SMSMessageListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of message objects.",
+          items: {
+            $ref: "#/components/schemas/SMSMessage",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
 } as const;
 
 export const EmailMessageContentSchema = {
@@ -2738,6 +4511,36 @@ export const EmailMessageBatchRequestSchema = {
   maxItems: 100,
   description:
     "Batch of email message send requests. All items are validated before any are queued. Attachments are allowed on individual messages. Each message must stay within the 20 MB estimated generated message-size cap. The serialized JSON request body for the batch has a hard 20 MB cap.\n",
+  example: [
+    {
+      from: {
+        email: "hello@bird.com",
+        name: "Bird Support",
+      },
+      to: [
+        {
+          email: "jane@example.com",
+          name: "Jane Doe",
+        },
+      ],
+      subject: "Your receipt for order #1234",
+      text: "Thanks for your purchase! Your receipt is attached.",
+    },
+    {
+      from: {
+        email: "hello@bird.com",
+        name: "Bird Support",
+      },
+      to: [
+        {
+          email: "john@example.com",
+          name: "John Roe",
+        },
+      ],
+      subject: "Your receipt for order #1235",
+      text: "Thanks for your purchase! Your receipt is attached.",
+    },
+  ],
 } as const;
 
 export const EmailAttachmentSchema = {
@@ -2785,26 +4588,41 @@ export const EmailAttachmentSchema = {
   },
 } as const;
 
-export const EmailAddressSchema = {
+export const EmailTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
-  description: "An email address with an optional display name.",
-  required: ["email"],
-  properties: {
-    email: {
-      type: "string",
-      format: "email",
-      minLength: 5,
-      description: "Email address.",
-      example: "jane@example.com",
+  description:
+    "A send-by-template reference. Identify the template by its `id` or its `alias` (supply exactly one), and pass its variable values in `parameters`.\n",
+  oneOf: [
+    {
+      required: ["id"],
     },
-    name: {
+    {
+      required: ["alias"],
+    },
+  ],
+  properties: {
+    id: {
+      description: "The template to send, by its id.",
+      $ref: "#/components/schemas/EmailTemplateID",
+    },
+    alias: {
       type: "string",
       minLength: 1,
-      maxLength: 256,
-      pattern: "^[^\\r\\n]+$",
-      description: "Display name shown alongside the address in mail clients.",
-      example: "Jane Doe",
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      description:
+        "The template to send, by its alias handle (for example `welcome-email`).",
+      example: "welcome-email",
+    },
+    parameters: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Cap: 16 KB serialized.\n",
+      example: {
+        first_name: "Ada",
+      },
     },
   },
 } as const;
@@ -2832,7 +4650,7 @@ export const EmailAddressInputSchema = {
 export const EmailMessageSendRequestSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["from", "to", "subject"],
+  required: ["from", "to"],
   properties: {
     from: {
       $ref: "#/components/schemas/EmailAddressInput",
@@ -2871,7 +4689,8 @@ export const EmailMessageSendRequestSchema = {
       type: "string",
       minLength: 1,
       maxLength: 998,
-      description: "Message subject line.",
+      description:
+        "Message subject line. Required for inline sends; omit it when sending a `template` (the template supplies the subject).",
     },
     html: {
       type: "string",
@@ -2906,7 +4725,7 @@ export const EmailMessageSendRequestSchema = {
     tags: {
       type: "array",
       items: {
-        $ref: "#/components/schemas/EmailTag",
+        $ref: "#/components/schemas/Tag",
       },
       maxItems: 20,
       description:
@@ -2917,6 +4736,21 @@ export const EmailMessageSendRequestSchema = {
       description:
         "Arbitrary JSON object **stored, returned on API reads, and echoed in webhook payloads**. Path-queryable in analytics (e.g. filter on `metadata.order_id`) but not surfaced as a first-class dashboard filter dimension. Cap: 2 KB serialized. Use metadata for per-send context like internal IDs, foreign keys, and structured payloads you want round-tripped through events. For low-cardinality filterable labels, use `tags` instead.\n",
       additionalProperties: true,
+    },
+    parameters: {
+      type: "object",
+      description:
+        "Template variables used to personalize inline content. Tokens in the subject and body (e.g. `{{ first_name }}`) are replaced with these values at send time. Shared across all recipients of this send. A token with no matching key renders empty. Cap: 16 KB serialized. When sending a stored `template`, put the values in `template.parameters` instead.\n",
+      additionalProperties: true,
+    },
+    template: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateSend",
+        },
+      ],
+      description:
+        "Send a stored template instead of inline content. When set, omit `subject`/`html`/`text` — the template supplies them; personalize with `template.parameters`.\n",
     },
     track_opens: {
       type: "boolean",
@@ -3259,7 +5093,7 @@ export const EmailMessageSchema = {
     tags: {
       type: "array",
       items: {
-        $ref: "#/components/schemas/EmailTag",
+        $ref: "#/components/schemas/Tag",
       },
       description:
         "Structured `{name, value}` filter labels applied to this send. See EmailMessageSendRequest for the tags vs metadata distinction.",
@@ -3459,13 +5293,8 @@ export const ErrorNextActionSchema = {
     description: {
       type: "string",
       minLength: 1,
-      description: "Short human-readable label for the recovery step.",
-    },
-    scope: {
-      type: "string",
-      minLength: 1,
       description:
-        "The permission scope the recovery operation requires, when it is scoped. Omitted for operations that need no scope.",
+        "A short, human-readable label for the recovery step, suitable for display.",
     },
   },
 } as const;
@@ -4069,6 +5898,312 @@ export const WebhookEndpointListWritableSchema = {
   ],
 } as const;
 
+export const InboundAttachmentListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "Metadata for every attachment on the message. Empty when the message had no attachments.",
+      items: {
+        $ref: "#/components/schemas/InboundAttachmentWritable",
+      },
+    },
+  },
+} as const;
+
+export const InboundAttachmentWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["filename", "content_type", "size"],
+  description:
+    "Metadata for a file attached to a received email. The raw bytes are fetched separately with `GET /v1/email/inbound-messages/{id}/attachments/{attachment_id}`.\n",
+  properties: {
+    filename: {
+      type: ["string", "null"],
+      description:
+        "Filename from the attachment's Content-Disposition, or null when the sender did not name the part.",
+      example: "invoice.pdf",
+    },
+    content_type: {
+      type: ["string", "null"],
+      description:
+        "MIME type parsed from the attachment part, or null when absent.",
+      example: "application/pdf",
+    },
+    size: {
+      type: "integer",
+      minimum: 0,
+      description: "Size of the attachment in bytes.",
+      example: 215432,
+    },
+  },
+} as const;
+
+export const InboundEmailMessageListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/InboundEmailMessageWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const InboundEmailMessageWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An email Bird received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.\n",
+  required: [
+    "from",
+    "to",
+    "cc",
+    "subject",
+    "message_id",
+    "in_reply_to",
+    "thread_id",
+    "spf_pass",
+    "dkim_pass",
+    "dmarc_pass",
+    "spam_score",
+    "attachments",
+  ],
+  properties: {
+    from: {
+      $ref: "#/components/schemas/EmailAddress",
+      description: "Sender address parsed from the message.",
+    },
+    to: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddress",
+      },
+      description: "Recipients on the message's To header.",
+    },
+    cc: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddress",
+      },
+      description: "Recipients on the message's Cc header.",
+    },
+    subject: {
+      type: ["string", "null"],
+      description:
+        "Subject line as received, or null when the message had no subject.",
+      example: "Re: Your receipt",
+    },
+    message_id: {
+      type: ["string", "null"],
+      description:
+        "RFC 5322 Message-ID header from the sender, or null when the sender did not include one.",
+      example: "<CAH+T8d5...@mail.gmail.com>",
+    },
+    in_reply_to: {
+      type: ["string", "null"],
+      description:
+        "In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.",
+      example: "<previous-message@example.com>",
+    },
+    references: {
+      type: "array",
+      items: {
+        type: "string",
+      },
+      description:
+        "References header — the chain of Message-IDs in this conversation, oldest first. Absent when the message had no References header.",
+    },
+    thread_id: {
+      type: ["string", "null"],
+      description:
+        "Conversation this message belongs to. Always null until threading is available.",
+    },
+    spf_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether SPF passed for the sender, parsed from the message's authentication results. Null when the result did not carry an SPF verdict.",
+    },
+    dkim_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DKIM passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DKIM verdict.",
+    },
+    dmarc_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DMARC passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DMARC verdict.",
+    },
+    spam_score: {
+      type: ["number", "null"],
+      description:
+        "Spam score for the message. Always null at present; reserved for a future content-scoring capability.",
+    },
+    attachments: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/InboundAttachmentWritable",
+      },
+      description:
+        "Metadata for each attachment found on the message. Empty when the message had no attachments.",
+    },
+  },
+} as const;
+
+export const InboundAddressListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/InboundAddressWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const InboundAddressWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A Bird-minted email address that receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address and Bird parses every message it receives into a received email.\n",
+  required: ["label"],
+  properties: {
+    label: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Your own label for this address, typically the source mailbox it maps to. Null when unset.",
+      example: "Support mailbox",
+    },
+  },
+} as const;
+
+export const EmailTemplateVersionListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description: "All versions of the template, newest first.",
+    },
+  },
+} as const;
+
+export const EmailTemplateWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "category", "source"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable template name, unique within the workspace.",
+    },
+    alias: {
+      type: ["string", "null"],
+      description:
+        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+    },
+    description: {
+      type: ["string", "null"],
+      description:
+        "Optional description of the template's purpose. Null when unset.",
+    },
+    category: {
+      $ref: "#/components/schemas/EmailTemplateCategory",
+    },
+    source: {
+      $ref: "#/components/schemas/EmailTemplateSource",
+    },
+    subject: {
+      type: ["string", "null"],
+      description: "The draft's email subject line. Null when unset.",
+    },
+    html: {
+      type: ["string", "null"],
+      description: "The draft's HTML body. Null when unset.",
+    },
+    text: {
+      type: ["string", "null"],
+      description: "The draft's plain-text body. Null when unset.",
+    },
+  },
+} as const;
+
+export const EmailTemplateListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of email templates.",
+          items: {
+            $ref: "#/components/schemas/EmailTemplateSummaryWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailTemplateSummaryWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "category", "source"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable template name, unique within the workspace.",
+    },
+    alias: {
+      type: ["string", "null"],
+      description:
+        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+    },
+    description: {
+      type: ["string", "null"],
+      description:
+        "Optional description of the template's purpose. Null when unset.",
+    },
+    category: {
+      $ref: "#/components/schemas/EmailTemplateCategory",
+    },
+    source: {
+      $ref: "#/components/schemas/EmailTemplateSource",
+    },
+  },
+} as const;
+
 export const SuppressionListWritableSchema = {
   allOf: [
     {
@@ -4148,6 +6283,157 @@ export const SuppressionWritableSchema = {
       ],
     },
   },
+} as const;
+
+export const VerificationCheckResultWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verification"],
+  properties: {
+    verification: {
+      $ref: "#/components/schemas/VerificationWritable",
+    },
+  },
+} as const;
+
+export const VerificationWritableSchema = {} as const;
+
+export const SMSTemplateListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "The templates available to your workspace. The catalogue is small and returned in full — this list is not paginated.",
+      items: {
+        $ref: "#/components/schemas/SMSTemplateWritable",
+      },
+    },
+  },
+} as const;
+
+export const SMSTemplateWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+} as const;
+
+export const SMSMessageBatchResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data", "summary"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/SMSMessageWritable",
+      },
+      description: "One entry per message in the batch, in submission order.",
+    },
+    summary: {
+      $ref: "#/components/schemas/SMSBatchSummary",
+      description: "Aggregate result for the batch.",
+    },
+  },
+} as const;
+
+export const SMSCostWritableSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  description:
+    "Cost of the message. Null until the message has been priced; the cost is populated as the message is processed, not at the moment it is accepted.",
+  properties: {
+    breakdown: {
+      $ref: "#/components/schemas/SMSCostBreakdown",
+      description:
+        "Per-component cost breakdown. Returned on single-message reads; omitted from list rows.",
+    },
+  },
+} as const;
+
+export const SMSMessageWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["to", "from", "text"],
+  properties: {
+    to: {
+      type: "string",
+      minLength: 1,
+      description: "Recipient phone number in E.164 format.",
+      example: "+15551234567",
+    },
+    from: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.",
+      example: "+15557654321",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      description: "Message body.",
+      example: "Your verification code is 123456.",
+    },
+    category: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/SMSMessageCategory",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Content classification supplied on the send. Null for inbound messages.",
+    },
+    cost: {
+      $ref: "#/components/schemas/SMSCostWritable",
+      description:
+        "Cost of the message. Null until the message has been priced.",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      description:
+        "Structured `{name, value}` filter labels applied to this message.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON metadata stored on the message and echoed in webhook payloads.",
+    },
+    last_error: {
+      $ref: "#/components/schemas/SMSErrorWritable",
+      description:
+        "Failure detail on a terminally failed or rejected message. Null otherwise.",
+    },
+  },
+} as const;
+
+export const SMSMessageListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of message objects.",
+          items: {
+            $ref: "#/components/schemas/SMSMessageWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
 } as const;
 
 export const EmailEventListWritableSchema = {
@@ -4471,7 +6757,7 @@ export const EmailMessageWritableSchema = {
     tags: {
       type: "array",
       items: {
-        $ref: "#/components/schemas/EmailTag",
+        $ref: "#/components/schemas/Tag",
       },
       description:
         "Structured `{name, value}` filter labels applied to this send. See EmailMessageSendRequest for the tags vs metadata distinction.",

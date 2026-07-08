@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Add the SMS channel: `sms.send`, `sms.sendBatch`, `sms.get`, `sms.list`.
+- Add SMS templates (read-only): `smsTemplates.list`, `smsTemplates.get`.
+- Add email templates: `emailTemplates.create`, `.get`, `.update`, `.delete`, `.publish`, `.list`, plus versions `.listVersions` and `.getVersion`.
+- `email.send` can send a published template: pass `template` (an `emt_…` ID or name handle) with `parameters` in place of inline `subject`/`html`/`text`.
+
 ## 0.2.2
 
 - Rename the anonymous client-identity headers from `X-Bird-Surface`/`X-Bird-Version` to `Bird-Surface`/`Bird-Version` (the `X-` prefix is deprecated, RFC 6648). Same telemetry, new header names; no other behavior or API-surface change.

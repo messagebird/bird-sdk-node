@@ -139,11 +139,11 @@ export type SmsError = {
 } | null;
 
 /**
- * Structured key/value tag attached to an SMS message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.
- * Tag count and per-tag size are capped to keep per-send tag payloads small — see SMSMessageSendRequest for the array maximum.
+ * Structured key/value label attached to a message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.
+ * Tag count and per-tag size are capped to keep per-send tag payloads small — see the send request for the array maximum. Tag names are unique within a send; supplying the same name twice is rejected.
  *
  */
-export type SmsTag = {
+export type Tag = {
   /**
    * Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
    *
@@ -184,7 +184,7 @@ export type EventSmsBase = {
    * Tags provided on the send request, echoed on every event for the message so you can route and correlate without an extra lookup. Null when the message carried no tags.
    *
    */
-  tags: Array<SmsTag> | null;
+  tags: Array<Tag> | null;
   /**
    * The metadata object provided on the send request, echoed on every event for the message so you can correlate events with your own records. Null when the message carried no metadata.
    *
@@ -383,24 +383,6 @@ export type EventEmailSuppressionCreated = {
 export type EventEmailUnsubscribedData = EventEmailBase;
 
 /**
- * Structured key/value tag attached to an email send. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.
- * Tag count and per-tag size are capped to keep per-send tag payloads small — see EmailMessageSendRequest for the array maximum.
- *
- */
-export type EmailTag = {
-  /**
-   * Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
-   *
-   */
-  name: string;
-  /**
-   * Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
-   *
-   */
-  value: string;
-};
-
-/**
  * Envelope position of a recipient on an outbound email event.
  */
 export type RecipientRole = "to" | "cc" | "bcc";
@@ -437,7 +419,7 @@ export type EventEmailBase = {
    * Tags provided on the send request, echoed on every event for the send so you can route and correlate without an extra lookup. Null when the send carried no tags.
    *
    */
-  tags: Array<EmailTag> | null;
+  tags: Array<Tag> | null;
   /**
    * The metadata object provided on the send request, echoed on every event for the send so you can correlate events with your own records. Null when the send carried no metadata.
    *
@@ -488,7 +470,7 @@ export type EventEmailMessageBase = {
    * Tags provided on the send request, echoed on the event so you can route and correlate without an extra lookup. Null when the send carried no tags.
    *
    */
-  tags: Array<EmailTag> | null;
+  tags: Array<Tag> | null;
   /**
    * The metadata object provided on the send request, echoed on the event so you can correlate events with your own records. Null when the send carried no metadata.
    *
@@ -665,11 +647,7 @@ export type EventEmailOutOfBandBounceData = EventEmailBase & {
  *
  */
 export type EmailBounceType =
-  | "hard"
-  | "soft"
-  | "undetermined"
-  | "admin"
-  | "block";
+  "hard" | "soft" | "undetermined" | "admin" | "block";
 
 /**
  * A bounce notification arrived after the message had already been accepted for delivery. Fires once per recipient.
@@ -1149,6 +1127,478 @@ export type ListEnvelopeWithTotal = ListEnvelope & {
   total?: number | null;
 };
 
+/**
+ * The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.
+ */
+export type InboundAttachmentList = {
+  /**
+   * Metadata for every attachment on the message. Empty when the message had no attachments.
+   */
+  data: Array<InboundAttachment>;
+};
+
+export type InboundAttachmentId = string;
+
+/**
+ * Metadata for a file attached to a received email. The raw bytes are fetched separately with `GET /v1/email/inbound-messages/{id}/attachments/{attachment_id}`.
+ *
+ */
+export type InboundAttachment = {
+  /**
+   * Attachment ID, stable within the received message.
+   */
+  readonly id: InboundAttachmentId;
+  /**
+   * Filename from the attachment's Content-Disposition, or null when the sender did not name the part.
+   */
+  filename: string | null;
+  /**
+   * MIME type parsed from the attachment part, or null when absent.
+   */
+  content_type: string | null;
+  /**
+   * Size of the attachment in bytes.
+   */
+  size: number;
+};
+
+/**
+ * The parsed body of a received email.
+ */
+export type InboundEmailMessageBody = {
+  /**
+   * The HTML body of the message, or null when the message had no HTML part.
+   */
+  html: string | null;
+  /**
+   * The plain-text body of the message, or null when the message had no text part.
+   */
+  text: string | null;
+};
+
+export type InboundEmailMessageList = {
+  data: Array<InboundEmailMessage>;
+} & ListEnvelope;
+
+/**
+ * An email address with an optional display name.
+ */
+export type EmailAddress = {
+  /**
+   * Email address.
+   */
+  email: string;
+  /**
+   * Display name shown alongside the address in mail clients.
+   */
+  name?: string;
+};
+
+/**
+ * An email Bird received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.
+ *
+ */
+export type InboundEmailMessage = {
+  /**
+   * Received message ID.
+   */
+  readonly id: InboundEmailMessageId;
+  /**
+   * Sender address parsed from the message.
+   */
+  from: EmailAddress;
+  /**
+   * Recipients on the message's To header.
+   */
+  to: Array<EmailAddress>;
+  /**
+   * Recipients on the message's Cc header.
+   */
+  cc: Array<EmailAddress>;
+  /**
+   * Subject line as received, or null when the message had no subject.
+   */
+  subject: string | null;
+  /**
+   * RFC 5322 Message-ID header from the sender, or null when the sender did not include one.
+   */
+  message_id: string | null;
+  /**
+   * In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.
+   */
+  in_reply_to: string | null;
+  /**
+   * References header — the chain of Message-IDs in this conversation, oldest first. Absent when the message had no References header.
+   */
+  references?: Array<string>;
+  /**
+   * Conversation this message belongs to. Always null until threading is available.
+   */
+  thread_id: string | null;
+  /**
+   * Whether SPF passed for the sender, parsed from the message's authentication results. Null when the result did not carry an SPF verdict.
+   */
+  spf_pass: boolean | null;
+  /**
+   * Whether DKIM passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DKIM verdict.
+   */
+  dkim_pass: boolean | null;
+  /**
+   * Whether DMARC passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DMARC verdict.
+   */
+  dmarc_pass: boolean | null;
+  /**
+   * Spam score for the message. Always null at present; reserved for a future content-scoring capability.
+   */
+  spam_score: number | null;
+  /**
+   * Metadata for each attachment found on the message. Empty when the message had no attachments.
+   */
+  attachments: Array<InboundAttachment>;
+  /**
+   * When Bird received the message.
+   */
+  readonly received_at: string;
+};
+
+/**
+ * Fields to update on an inbound address.
+ */
+export type InboundAddressUpdate = {
+  /**
+   * Your own label for this address. Pass null to clear it.
+   */
+  label?: string | null;
+};
+
+/**
+ * Parameters for minting a new inbound address.
+ */
+export type InboundAddressCreate = {
+  /**
+   * Your own label for this address, typically the source mailbox it maps to.
+   */
+  label?: string;
+};
+
+export type InboundAddressList = {
+  data: Array<InboundAddress>;
+} & ListEnvelope;
+
+export type InboundAddressId = string;
+
+/**
+ * A Bird-minted email address that receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address and Bird parses every message it receives into a received email.
+ *
+ */
+export type InboundAddress = {
+  /**
+   * Inbound address ID.
+   */
+  readonly id: InboundAddressId;
+  /**
+   * The address to forward your mailbox to. Minted by Bird when the inbound address is created.
+   */
+  readonly address: string;
+  /**
+   * Your own label for this address, typically the source mailbox it maps to. Null when unset.
+   */
+  label: string | null;
+  /**
+   * When the inbound address was created.
+   */
+  readonly created_at: string;
+  /**
+   * When the inbound address was last updated.
+   */
+  readonly updated_at: string;
+};
+
+export type EmailTemplateVersionList = {
+  /**
+   * All versions of the template, newest first.
+   */
+  data: Array<EmailTemplateVersion>;
+};
+
+/**
+ * A single variable slot a template fills in from the values supplied when sending. Shared across channels (SMS, email) so template introspection reads the same everywhere.
+ *
+ */
+export type TemplateVariable = {
+  /**
+   * The parameters key this slot is filled with.
+   */
+  readonly key: string;
+  /**
+   * The value type this slot accepts. Open enum — treat any unrecognized value as a future type rather than an error. SMS templates use the typed slots (`code`, `amount`, …); email templates use `text`.
+   *
+   */
+  readonly type: string;
+  /**
+   * Whether the slot must be supplied when sending. Advisory for email templates, where a missing value renders as empty rather than rejecting the send.
+   *
+   */
+  readonly required: boolean;
+  /**
+   * A human-readable description of the accepted values.
+   */
+  readonly constraint: string;
+};
+
+export type EmailTemplateId = string;
+
+export type EmailTemplateVersionId = string;
+
+export type EmailTemplateVersion = {
+  /**
+   * Template version ID.
+   */
+  readonly id: EmailTemplateVersionId;
+  /**
+   * The template this version belongs to.
+   */
+  readonly template_id: EmailTemplateId;
+  /**
+   * Sequential published-version number (1, 2, 3…). Null while the version is a draft.
+   */
+  readonly version_number?: number | null;
+  /**
+   * Lifecycle status of this version.
+   */
+  readonly status: "draft" | "published";
+  /**
+   * The version's revision counter.
+   */
+  readonly revision: number;
+  /**
+   * The variable slots this version's content fills in from the values you supply when sending.
+   */
+  readonly variables: Array<TemplateVariable>;
+  /**
+   * When this version was created.
+   */
+  readonly created_at: string;
+  /**
+   * When this version was published, or null if it has not been published.
+   */
+  readonly published_at?: string | null;
+};
+
+/**
+ * Partial update of a template's metadata and its draft content. Only the fields you send are changed; the rest are left as-is. Include the draft `revision` you last read so concurrent edits are detected.
+ *
+ */
+export type EmailTemplateUpdate = {
+  /**
+   * The draft revision you last read (from the template's `revision` field). A stale value returns a conflict so you can reload and retry.
+   *
+   */
+  revision: number;
+  /**
+   * New template name. Must stay unique within the workspace.
+   */
+  name?: string;
+  /**
+   * New workspace-unique slug handle for send-by-template. Send null to clear it. Lowercase letters, numbers, and hyphens.
+   *
+   */
+  alias?: string | null;
+  /**
+   * New description of the template's purpose. Send null to clear it.
+   */
+  description?: string | null;
+  /**
+   * New email subject line for the draft. Send null to clear it.
+   */
+  subject?: string | null;
+  /**
+   * New HTML body — the source markup for the template's format.
+   */
+  html?: string;
+  /**
+   * New plain-text body for the draft. Send null to clear it.
+   */
+  text?: string | null;
+  /**
+   * Brand kit to apply to the draft.
+   */
+  brand_kit_id?: BrandKitId;
+};
+
+export type BrandKitId = string;
+
+export type EmailTemplate = {
+  /**
+   * Template ID.
+   */
+  readonly id: EmailTemplateId;
+  /**
+   * Workspace that owns the template.
+   */
+  readonly workspace_id: WorkspaceId;
+  /**
+   * Human-readable template name, unique within the workspace.
+   */
+  name: string;
+  /**
+   * The template's workspace-unique slug handle for send-by-template, or null if unset.
+   */
+  alias?: string | null;
+  /**
+   * Optional description of the template's purpose. Null when unset.
+   */
+  description?: string | null;
+  scope: TemplateScope;
+  category: EmailTemplateCategory;
+  source: EmailTemplateSource;
+  /**
+   * The variable slots this template's current draft fills in from the values you supply when sending.
+   */
+  readonly variables: Array<TemplateVariable>;
+  /**
+   * The current editable draft version.
+   */
+  readonly draft_version_id: EmailTemplateVersionId;
+  /**
+   * The currently published version, or null if the template has never been published.
+   */
+  readonly published_version_id?: EmailTemplateVersionId | null;
+  /**
+   * The draft's revision counter. Send it back on the next update to detect concurrent edits.
+   */
+  readonly revision: number;
+  /**
+   * The draft's email subject line. Null when unset.
+   */
+  subject?: string | null;
+  /**
+   * The draft's HTML body. Null when unset.
+   */
+  html?: string | null;
+  /**
+   * The draft's plain-text body. Null when unset.
+   */
+  text?: string | null;
+  /**
+   * The brand kit applied to the draft, or null if none.
+   */
+  readonly brand_kit_id?: BrandKitId | null;
+  /**
+   * When the template was created.
+   */
+  readonly created_at: string;
+  /**
+   * When the template was last modified.
+   */
+  readonly updated_at: string;
+};
+
+/**
+ * The authoring format the template is written in. Fixed at creation.
+ */
+export type EmailTemplateSource = "liquid" | "handlebars" | "html";
+
+/**
+ * Whether the template is transactional or marketing email.
+ */
+export type EmailTemplateCategory = "transactional" | "marketing";
+
+/**
+ * Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).
+ */
+export type TemplateScope = "system" | "workspace";
+
+/**
+ * Parameters for creating an email template and its initial draft.
+ */
+export type EmailTemplateCreate = {
+  /**
+   * Human-readable template name, unique within the workspace.
+   */
+  name: string;
+  /**
+   * Optional workspace-unique slug handle for the template — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.
+   *
+   */
+  alias?: string;
+  /**
+   * Optional description of the template's purpose.
+   */
+  description?: string;
+  category: EmailTemplateCategory;
+  /**
+   * The authoring format the template is written in, fixed at creation. `liquid` currently supports variable substitution only (e.g. `{{ first_name }}`); filters, tags, and control flow are not yet supported — fuller Liquid support is coming soon.
+   *
+   */
+  source: EmailTemplateSource;
+  /**
+   * The email subject line for the initial draft.
+   */
+  subject?: string;
+  /**
+   * The HTML body — the source markup for the chosen format.
+   */
+  html?: string;
+  /**
+   * The optional plain-text body.
+   */
+  text?: string;
+  /**
+   * Optional brand kit to apply to the draft.
+   */
+  brand_kit_id?: BrandKitId;
+};
+
+export type EmailTemplateList = {
+  /**
+   * Page of email templates.
+   */
+  data: Array<EmailTemplateSummary>;
+} & ListEnvelope;
+
+export type EmailTemplateSummary = {
+  /**
+   * Template ID.
+   */
+  readonly id: EmailTemplateId;
+  /**
+   * Workspace that owns the template.
+   */
+  readonly workspace_id: WorkspaceId;
+  /**
+   * Human-readable template name, unique within the workspace.
+   */
+  name: string;
+  /**
+   * The template's workspace-unique slug handle for send-by-template, or null if unset.
+   */
+  alias?: string | null;
+  /**
+   * Optional description of the template's purpose. Null when unset.
+   */
+  description?: string | null;
+  scope: TemplateScope;
+  category: EmailTemplateCategory;
+  source: EmailTemplateSource;
+  /**
+   * The current editable draft version.
+   */
+  readonly draft_version_id: EmailTemplateVersionId;
+  /**
+   * The currently published version, or null if never published.
+   */
+  readonly published_version_id?: EmailTemplateVersionId | null;
+  /**
+   * When the template was created.
+   */
+  readonly created_at: string;
+  /**
+   * When the template was last modified.
+   */
+  readonly updated_at: string;
+};
+
 export type SuppressionCreate = {
   /**
    * Email address to suppress. Normalized to lowercase before storage.
@@ -1201,6 +1651,490 @@ export type Suppression = {
   source_recipient_id?: RecipientId | null;
   readonly created_at: string;
 };
+
+export type VerificationCheckResult = {
+  /**
+   * Whether the submitted passcode verified this verification. true means the passcode was correct and the verification is now complete; false means it was not verified — see reason. A verification that has already reached a final state is no longer checkable and returns 404.
+   */
+  readonly success: boolean;
+  /**
+   * Why the check did not succeed, or null when success is true. incorrect_code means the passcode was wrong and attempts remain; expired means the time window elapsed; attempts_exhausted means too many incorrect attempts. Open enum — treat any unrecognized value as a future reason.
+   */
+  readonly reason?: string | null;
+  verification: Verification;
+  /**
+   * The number of check attempts left, or null once the verification is complete.
+   */
+  readonly attempts_remaining?: number | null;
+};
+
+/**
+ * The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.
+ */
+export type VerificationChannel = string;
+
+export type VerificationChannelEntry = {
+  channel: VerificationChannel;
+};
+
+/**
+ * The recipient to verify. Provide an email_address, a phone_number, or both; at least one is required.
+ */
+export type VerificationTo = {
+  /**
+   * The recipient's email address.
+   */
+  email_address?: string;
+  /**
+   * The recipient's phone number in E.164 format.
+   */
+  phone_number?: string;
+};
+
+export type VerificationId = string;
+
+export type Verification = {
+  readonly id: VerificationId;
+  /**
+   * The verification's current state: pending (awaiting a valid passcode), verified, failed (too many incorrect attempts), or expired (the time window elapsed before a correct passcode).
+   */
+  readonly status:
+    "pending" | "verified" | "failed" | "expired" | "canceled" | "blocked";
+  /**
+   * Why the verification reached its final state, or null while pending or once verified. Open enum — treat any unrecognized value as a future reason.
+   */
+  readonly reason?: string | null;
+  readonly to: VerificationTo;
+  /**
+   * The ordered channels this verification uses to deliver the passcode. An email recipient is verified over email; a phone recipient is verified over SMS.
+   */
+  readonly channels: Array<VerificationChannelEntry>;
+  /**
+   * The channel the most recent passcode was sent on, or null before the first send. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.
+   */
+  readonly last_channel?: string | null;
+  /**
+   * The key/value pairs attached when the verification was created.
+   */
+  readonly metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * When the verification expires if no correct passcode is submitted.
+   */
+  readonly expires_at: string;
+  /**
+   * When the verification was completed, or null if it is not yet verified.
+   */
+  readonly verified_at?: string | null;
+} & Timestamps;
+
+export type VerificationCheckRequest = {
+  to: VerificationTo;
+  /**
+   * The passcode the recipient received.
+   */
+  code: string;
+};
+
+export type VerificationCreateRequest = {
+  to: VerificationTo;
+  options?: VerificationOptions;
+  /**
+   * Optional key/value pairs to attach to the verification, for example a correlation id. Returned on the verification.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+};
+
+/**
+ * Per-request overrides applied to this verification only.
+ */
+export type VerificationOptions = {
+  /**
+   * Passcode length for this verification, overriding the configured length.
+   */
+  code_length?: number;
+  /**
+   * Reorder or narrow the delivery channels for this request. List channel names in the order to try them; a channel you omit is not used for this request, and a channel not already enabled for the recipient is ignored. Omit the field to use the configured order.
+   */
+  channels?: Array<VerificationChannel>;
+};
+
+export type SmsTemplateList = {
+  /**
+   * The templates available to your workspace. The catalogue is small and returned in full — this list is not paginated.
+   */
+  data: Array<SmsTemplate>;
+};
+
+export type SmsTemplateVersionId = string;
+
+/**
+ * Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance.
+ */
+export type SmsMessageCategory =
+  "transactional" | "marketing" | "authentication" | "service";
+
+export type SmsTemplateId = string;
+
+export type SmsTemplate = {
+  /**
+   * Unique identifier for the template.
+   */
+  readonly id: SmsTemplateId;
+  /**
+   * Human-readable description of what the template is for.
+   */
+  readonly name: string;
+  /**
+   * The template's stable handle. Pass it (or the id) as the template reference when sending.
+   */
+  readonly alias: string;
+  scope: TemplateScope;
+  /**
+   * Content classification applied to messages sent from this template.
+   */
+  readonly category: SmsMessageCategory;
+  /**
+   * The template body in its default language, shown for preview.
+   */
+  readonly body: string;
+  /**
+   * The typed slots this template fills in from the values you supply when sending.
+   */
+  readonly variables: Array<TemplateVariable>;
+  /**
+   * The languages this template is available in, as BCP-47 tags.
+   */
+  readonly available_locales: Array<string>;
+  /**
+   * The template's lifecycle state. Built-in templates are always `active`.
+   */
+  readonly status: "active" | "draft" | "pending" | "approved" | "rejected";
+  /**
+   * The current editable draft version. Always null today — SMS templates are not yet versioned; present for parity with email templates.
+   */
+  readonly draft_version_id: SmsTemplateVersionId | null;
+  /**
+   * The currently published version, or null if the template has never been published. Always null today — SMS templates are not yet versioned; present for parity with email templates.
+   */
+  readonly published_version_id?: SmsTemplateVersionId | null;
+  /**
+   * The draft's revision counter. Always null today — SMS templates are not yet versioned; present for parity with email templates.
+   */
+  readonly revision: number | null;
+  /**
+   * When the template was created. Null for built-in templates.
+   */
+  readonly created_at: string | null;
+  /**
+   * When the template was last updated. Null for built-in templates.
+   */
+  readonly updated_at: string | null;
+};
+
+export type SmsMessageBatchResponse = {
+  /**
+   * One entry per message in the batch, in submission order.
+   */
+  data: Array<SmsMessage>;
+  /**
+   * Aggregate result for the batch.
+   */
+  summary: SmsBatchSummary;
+};
+
+/**
+ * Aggregate result for an SMS batch.
+ */
+export type SmsBatchSummary = {
+  /**
+   * Number of messages accepted in the batch.
+   */
+  accepted_count: number;
+};
+
+/**
+ * Per-component cost breakdown. Returned on single-message reads; omitted from list rows.
+ */
+export type SmsCostBreakdown = {
+  /**
+   * Per-segment price as a decimal string.
+   */
+  per_segment: string;
+  /**
+   * Number of billable segments.
+   */
+  segments: number;
+  /**
+   * ISO 3166-1 alpha-2 destination country the price was resolved for.
+   */
+  country_code: string;
+  /**
+   * Carrier surcharge component as a decimal string (for example US 10DLC fees). `0.0000` when none applies.
+   */
+  carrier_surcharge: string;
+};
+
+/**
+ * ISO 4217 three-letter currency code.
+ */
+export type CurrencyCode = string;
+
+/**
+ * Cost of the message. Null until the message has been priced; the cost is populated as the message is processed, not at the moment it is accepted.
+ */
+export type SmsCost = {
+  /**
+   * ISO 4217 currency code for the cost amount. Omitted when the cost is not denominated in a currency (for example a zero-priced internal send).
+   */
+  readonly currency_code?: CurrencyCode;
+  /**
+   * Total cost as a decimal string — the per-segment rate multiplied by the segment count, plus any surcharges.
+   */
+  readonly amount: string;
+  /**
+   * Per-component cost breakdown. Returned on single-message reads; omitted from list rows.
+   */
+  breakdown?: SmsCostBreakdown;
+} | null;
+
+/**
+ * Segment breakdown for the message body. Segment count drives billing.
+ */
+export type SmsSegments = {
+  /**
+   * Number of segments the body is split into. Each segment is a billable unit.
+   */
+  readonly count: number;
+  /**
+   * Encoding used for the body. `GSM_7BIT` fits 160 characters in a single segment (153 per part when multi-segment); `UCS2` is used when the body contains any character outside the GSM 03.38 alphabet (emoji, CJK, some accented characters) and fits 70 characters in a single segment (67 per part when multi-segment).
+   *
+   */
+  readonly encoding: "GSM_7BIT" | "UCS2";
+  /**
+   * Character count of the body under the selected encoding.
+   */
+  readonly characters: number;
+};
+
+/**
+ * Delivery status. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird accepted the request and it is awaiting handoff to the carrier network. `sent` means it was handed to the carrier and is awaiting a delivery receipt. `delivered` is confirmed delivery. `undelivered` is a non-permanent non-delivery (handset off, content blocked). `failed` is a terminal permanent failure. `rejected` means Bird refused it before reaching the carrier. `canceled` means a scheduled message was canceled before it was sent. `expired` means the validity period elapsed without a terminal receipt. `received` applies to inbound messages.
+ *
+ */
+export type SmsMessageStatus =
+  | "scheduled"
+  | "accepted"
+  | "sent"
+  | "delivered"
+  | "undelivered"
+  | "failed"
+  | "rejected"
+  | "canceled"
+  | "expired"
+  | "received";
+
+export type SmsMessage = {
+  /**
+   * Message ID.
+   */
+  readonly id: SmsMessageId;
+  /**
+   * Whether the message was sent from a Bird sender (`outbound`) or received from a subscriber (`inbound`).
+   */
+  readonly direction: "outbound" | "inbound";
+  readonly status: SmsMessageStatus;
+  /**
+   * Recipient phone number in E.164 format.
+   */
+  to: string;
+  /**
+   * Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.
+   */
+  from: string;
+  /**
+   * Message body.
+   */
+  text: string;
+  /**
+   * Content classification supplied on the send. Null for inbound messages.
+   */
+  category?: SmsMessageCategory | null;
+  /**
+   * Segment breakdown for the body.
+   */
+  segments: SmsSegments;
+  /**
+   * Cost of the message. Null until the message has been priced.
+   */
+  cost?: SmsCost;
+  /**
+   * Structured `{name, value}` filter labels applied to this message.
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON metadata stored on the message and echoed in webhook payloads.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * How long, in seconds, Bird keeps trying to deliver before the message transitions to `expired`.
+   */
+  readonly validity_period?: number;
+  /**
+   * Carrier that handled the message, when known. Populated once a delivery receipt identifies it.
+   */
+  readonly carrier?: string | null;
+  /**
+   * Mobile country code and mobile network code of the carrier, when known.
+   */
+  readonly mcc_mnc?: string | null;
+  /**
+   * Failure detail on a terminally failed or rejected message. Null otherwise.
+   */
+  last_error?: SmsError;
+  /**
+   * When the message was accepted (outbound) or received (inbound).
+   */
+  readonly created_at: string;
+  /**
+   * When the message was handed to the carrier. Null until then.
+   */
+  readonly sent_at?: string | null;
+  /**
+   * When delivery was confirmed. Null until then.
+   */
+  readonly delivered_at?: string | null;
+};
+
+/**
+ * Batch of SMS message send requests. All items are validated before any are queued.
+ */
+export type SmsMessageBatchRequest = Array<SmsMessageSendRequest>;
+
+export type SmsTemplateSend = unknown & {
+  /**
+   * The template to send, by its id.
+   */
+  id?: SmsTemplateId;
+  /**
+   * The template to send, by its alias handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.
+   *
+   */
+  alias?: string;
+  /**
+   * Language tag (BCP 47, for example `fr` or `pt-BR`) selecting the localized body. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.
+   *
+   */
+  locale?: string;
+  /**
+   * Values for the template's variables, keyed by variable name. The accepted keys and their formats are fixed per template — see the template's `variables` on the templates endpoint. Every required variable must be supplied, and no undeclared key may be present. Cap: 16 KB serialized.
+   *
+   */
+  parameters?: {
+    [key: string]: unknown;
+  };
+};
+
+export type SmsMessageSendRequest = unknown & {
+  /**
+   * Recipient phone number in E.164 format (for example `+15551234567`). One recipient per message.
+   */
+  to: string;
+  /**
+   * Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (up to 11 characters, for example `MyBrand`), or a short code (5–6 digits). When omitted, Bird selects an eligible sender for you.
+   *
+   */
+  from?: string;
+  /**
+   * Free-text message body. Required unless `template` is supplied (the two are mutually exclusive). At least 1 character, up to a 12-segment cap (roughly 1836 GSM-7 or 804 UCS-2 characters). Bird does not truncate; a body exceeding 12 segments is rejected with a 422. The limit is on segment count, not characters, because GSM-7 and UCS-2 encodings differ in characters per segment.
+   *
+   */
+  text?: string;
+  /**
+   * Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance. Required on a free-text send; omit it on a template send, where the category is derived from the template.
+   *
+   */
+  category?: SmsMessageCategory;
+  /**
+   * Preview feature — how long, in seconds (60–172800), Bird keeps trying to deliver before the message transitions to `expired`. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   *
+   */
+  validity_period?: number;
+  /**
+   * Structured `{name, value}` labels for filtering and analytics. Tags become first-class query dimensions: filter the list endpoint by tag name, slice analytics by tag, and surface in webhook payloads. Maximum 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`). For arbitrary structured context you do not need as a filter dimension, use `metadata` instead.
+   *
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON object stored on the message, returned on API reads, and echoed in webhook payloads. Maximum 2 KB serialized. Use metadata for per-send context like internal IDs and foreign keys. For low-cardinality filterable labels, use `tags` instead.
+   *
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Preview feature — multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  media_urls?: Array<string>;
+  /**
+   * Preview feature — sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  messaging_profile_id?: string;
+  /**
+   * Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  scheduled_at?: string;
+  /**
+   * Send using a stored template instead of free text. Mutually exclusive with `text`; the message category is derived from the template, so `from`, `category`, and `media_urls` are not accepted alongside it.
+   *
+   */
+  template?: SmsTemplateSend;
+  /**
+   * Preview feature — broadcast correlation. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  broadcast_id?: string;
+  /**
+   * Preview feature — campaign correlation for analytics. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  campaign_id?: string;
+  /**
+   * Preview feature — audience-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  audience_id?: string;
+  /**
+   * Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  contact_id?: string;
+  /**
+   * Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  topic_id?: string;
+  /**
+   * Preview feature — per-segment price ceiling. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  max_price_per_segment?: number;
+  /**
+   * Preview feature — per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   */
+  personalization?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Preview feature — link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 unsupported_feature`.
+   */
+  track_clicks?: boolean;
+};
+
+export type SmsMessageList = {
+  /**
+   * Page of message objects.
+   */
+  data: Array<SmsMessage>;
+} & ListEnvelope;
 
 /**
  * The stored body content of a sent email message.
@@ -1370,12 +2304,7 @@ export type EmailRecipient = {
    *
    */
   readonly bounce_type?:
-    | "hard"
-    | "soft"
-    | "undetermined"
-    | "admin"
-    | "block"
-    | null;
+    "hard" | "soft" | "undetermined" | "admin" | "block" | null;
   /**
    * SMTP reply code returned by the receiving mail server for `bounced` and `deferred` rows, or null when none was provided.
    */
@@ -1477,18 +2406,22 @@ export type EmailAttachment = {
   content_id?: string;
 };
 
-/**
- * An email address with an optional display name.
- */
-export type EmailAddress = {
+export type EmailTemplateSend = unknown & {
   /**
-   * Email address.
+   * The template to send, by its id.
    */
-  email: string;
+  id?: EmailTemplateId;
   /**
-   * Display name shown alongside the address in mail clients.
+   * The template to send, by its alias handle (for example `welcome-email`).
    */
-  name?: string;
+  alias?: string;
+  /**
+   * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Cap: 16 KB serialized.
+   *
+   */
+  parameters?: {
+    [key: string]: unknown;
+  };
 };
 
 /**
@@ -1515,9 +2448,9 @@ export type EmailMessageSendRequest = {
    */
   bcc?: Array<EmailAddressInput>;
   /**
-   * Message subject line.
+   * Message subject line. Required for inline sends; omit it when sending a `template` (the template supplies the subject).
    */
-  subject: string;
+  subject?: string;
   /**
    * HTML body. At least one of html or text must be provided.
    */
@@ -1541,7 +2474,7 @@ export type EmailMessageSendRequest = {
    * Structured `{name, value}` labels for **filtering and analytics**. Tags become first-class query dimensions: filter the list endpoint by tag name, slice analytics rollups by tag, and surface in webhook payloads. Cap: 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`, `template_id`). For arbitrary structured context that you do not need as a filter dimension, use `metadata` instead.
    *
    */
-  tags?: Array<EmailTag>;
+  tags?: Array<Tag>;
   /**
    * Arbitrary JSON object **stored, returned on API reads, and echoed in webhook payloads**. Path-queryable in analytics (e.g. filter on `metadata.order_id`) but not surfaced as a first-class dashboard filter dimension. Cap: 2 KB serialized. Use metadata for per-send context like internal IDs, foreign keys, and structured payloads you want round-tripped through events. For low-cardinality filterable labels, use `tags` instead.
    *
@@ -1549,6 +2482,18 @@ export type EmailMessageSendRequest = {
   metadata?: {
     [key: string]: unknown;
   };
+  /**
+   * Template variables used to personalize inline content. Tokens in the subject and body (e.g. `{{ first_name }}`) are replaced with these values at send time. Shared across all recipients of this send. A token with no matching key renders empty. Cap: 16 KB serialized. When sending a stored `template`, put the values in `template.parameters` instead.
+   *
+   */
+  parameters?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Send a stored template instead of inline content. When set, omit `subject`/`html`/`text` — the template supplies them; personalize with `template.parameters`.
+   *
+   */
+  template?: EmailTemplateSend;
   /**
    * Whether to track open events for this message.
    */
@@ -1736,7 +2681,7 @@ export type EmailMessage = {
   /**
    * Structured `{name, value}` filter labels applied to this send. See EmailMessageSendRequest for the tags vs metadata distinction.
    */
-  tags?: Array<EmailTag>;
+  tags?: Array<Tag>;
   /**
    * Arbitrary JSON metadata stored on the message object and echoed in webhook payloads. See EmailMessageSendRequest for the tags vs metadata distinction.
    */
@@ -1841,13 +2786,9 @@ export type ErrorNextAction = {
    */
   operation: string;
   /**
-   * Short human-readable label for the recovery step.
+   * A short, human-readable label for the recovery step, suitable for display.
    */
   description?: string;
-  /**
-   * The permission scope the recovery operation requires, when it is scoped. Omitted for operations that need no scope.
-   */
-  scope?: string;
 };
 
 export type ErrorDetail = {
@@ -2181,6 +3122,173 @@ export type WebhookEndpointListWritable = {
   data: Array<WebhookEndpointWritable>;
 } & ListEnvelopeWithTotal;
 
+/**
+ * The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.
+ */
+export type InboundAttachmentListWritable = {
+  /**
+   * Metadata for every attachment on the message. Empty when the message had no attachments.
+   */
+  data: Array<InboundAttachmentWritable>;
+};
+
+/**
+ * Metadata for a file attached to a received email. The raw bytes are fetched separately with `GET /v1/email/inbound-messages/{id}/attachments/{attachment_id}`.
+ *
+ */
+export type InboundAttachmentWritable = {
+  /**
+   * Filename from the attachment's Content-Disposition, or null when the sender did not name the part.
+   */
+  filename: string | null;
+  /**
+   * MIME type parsed from the attachment part, or null when absent.
+   */
+  content_type: string | null;
+  /**
+   * Size of the attachment in bytes.
+   */
+  size: number;
+};
+
+export type InboundEmailMessageListWritable = {
+  data: Array<InboundEmailMessageWritable>;
+} & ListEnvelope;
+
+/**
+ * An email Bird received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.
+ *
+ */
+export type InboundEmailMessageWritable = {
+  /**
+   * Sender address parsed from the message.
+   */
+  from: EmailAddress;
+  /**
+   * Recipients on the message's To header.
+   */
+  to: Array<EmailAddress>;
+  /**
+   * Recipients on the message's Cc header.
+   */
+  cc: Array<EmailAddress>;
+  /**
+   * Subject line as received, or null when the message had no subject.
+   */
+  subject: string | null;
+  /**
+   * RFC 5322 Message-ID header from the sender, or null when the sender did not include one.
+   */
+  message_id: string | null;
+  /**
+   * In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.
+   */
+  in_reply_to: string | null;
+  /**
+   * References header — the chain of Message-IDs in this conversation, oldest first. Absent when the message had no References header.
+   */
+  references?: Array<string>;
+  /**
+   * Conversation this message belongs to. Always null until threading is available.
+   */
+  thread_id: string | null;
+  /**
+   * Whether SPF passed for the sender, parsed from the message's authentication results. Null when the result did not carry an SPF verdict.
+   */
+  spf_pass: boolean | null;
+  /**
+   * Whether DKIM passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DKIM verdict.
+   */
+  dkim_pass: boolean | null;
+  /**
+   * Whether DMARC passed for the sender, parsed from the message's authentication results. Null when the result did not carry a DMARC verdict.
+   */
+  dmarc_pass: boolean | null;
+  /**
+   * Spam score for the message. Always null at present; reserved for a future content-scoring capability.
+   */
+  spam_score: number | null;
+  /**
+   * Metadata for each attachment found on the message. Empty when the message had no attachments.
+   */
+  attachments: Array<InboundAttachmentWritable>;
+};
+
+export type InboundAddressListWritable = {
+  data: Array<InboundAddressWritable>;
+} & ListEnvelope;
+
+/**
+ * A Bird-minted email address that receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address and Bird parses every message it receives into a received email.
+ *
+ */
+export type InboundAddressWritable = {
+  /**
+   * Your own label for this address, typically the source mailbox it maps to. Null when unset.
+   */
+  label: string | null;
+};
+
+export type EmailTemplateVersionListWritable = {
+  /**
+   * All versions of the template, newest first.
+   */
+  data: Array<unknown>;
+};
+
+export type EmailTemplateWritable = {
+  /**
+   * Human-readable template name, unique within the workspace.
+   */
+  name: string;
+  /**
+   * The template's workspace-unique slug handle for send-by-template, or null if unset.
+   */
+  alias?: string | null;
+  /**
+   * Optional description of the template's purpose. Null when unset.
+   */
+  description?: string | null;
+  category: EmailTemplateCategory;
+  source: EmailTemplateSource;
+  /**
+   * The draft's email subject line. Null when unset.
+   */
+  subject?: string | null;
+  /**
+   * The draft's HTML body. Null when unset.
+   */
+  html?: string | null;
+  /**
+   * The draft's plain-text body. Null when unset.
+   */
+  text?: string | null;
+};
+
+export type EmailTemplateListWritable = {
+  /**
+   * Page of email templates.
+   */
+  data: Array<EmailTemplateSummaryWritable>;
+} & ListEnvelope;
+
+export type EmailTemplateSummaryWritable = {
+  /**
+   * Human-readable template name, unique within the workspace.
+   */
+  name: string;
+  /**
+   * The template's workspace-unique slug handle for send-by-template, or null if unset.
+   */
+  alias?: string | null;
+  /**
+   * Optional description of the template's purpose. Null when unset.
+   */
+  description?: string | null;
+  category: EmailTemplateCategory;
+  source: EmailTemplateSource;
+};
+
 export type SuppressionListWritable = {
   data: Array<SuppressionWritable>;
 } & ListEnvelope;
@@ -2209,6 +3317,88 @@ export type SuppressionWritable = {
    */
   source_recipient_id?: RecipientId | null;
 };
+
+export type VerificationCheckResultWritable = {
+  verification: VerificationWritable;
+};
+
+export type VerificationWritable = unknown;
+
+export type SmsTemplateListWritable = {
+  /**
+   * The templates available to your workspace. The catalogue is small and returned in full — this list is not paginated.
+   */
+  data: Array<SmsTemplateWritable>;
+};
+
+export type SmsTemplateWritable = {
+  [key: string]: never;
+};
+
+export type SmsMessageBatchResponseWritable = {
+  /**
+   * One entry per message in the batch, in submission order.
+   */
+  data: Array<SmsMessageWritable>;
+  /**
+   * Aggregate result for the batch.
+   */
+  summary: SmsBatchSummary;
+};
+
+/**
+ * Cost of the message. Null until the message has been priced; the cost is populated as the message is processed, not at the moment it is accepted.
+ */
+export type SmsCostWritable = {
+  /**
+   * Per-component cost breakdown. Returned on single-message reads; omitted from list rows.
+   */
+  breakdown?: SmsCostBreakdown;
+} | null;
+
+export type SmsMessageWritable = {
+  /**
+   * Recipient phone number in E.164 format.
+   */
+  to: string;
+  /**
+   * Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.
+   */
+  from: string;
+  /**
+   * Message body.
+   */
+  text: string;
+  /**
+   * Content classification supplied on the send. Null for inbound messages.
+   */
+  category?: SmsMessageCategory | null;
+  /**
+   * Cost of the message. Null until the message has been priced.
+   */
+  cost?: SmsCostWritable;
+  /**
+   * Structured `{name, value}` filter labels applied to this message.
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON metadata stored on the message and echoed in webhook payloads.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Failure detail on a terminally failed or rejected message. Null otherwise.
+   */
+  last_error?: SmsErrorWritable;
+};
+
+export type SmsMessageListWritable = {
+  /**
+   * Page of message objects.
+   */
+  data: Array<SmsMessageWritable>;
+} & ListEnvelope;
 
 export type EmailEventListWritable = {
   /**
@@ -2399,7 +3589,7 @@ export type EmailMessageWritable = {
   /**
    * Structured `{name, value}` filter labels applied to this send. See EmailMessageSendRequest for the tags vs metadata distinction.
    */
-  tags?: Array<EmailTag>;
+  tags?: Array<Tag>;
   /**
    * Arbitrary JSON metadata stored on the message object and echoed in webhook payloads. See EmailMessageSendRequest for the tags vs metadata distinction.
    */
@@ -2429,6 +3619,11 @@ export type CreatedBefore = string;
  * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
  */
 export type CreatedAfter = string;
+
+/**
+ * Workspace context. Required for session auth; derived from API key otherwise.
+ */
+export type XWorkspaceId = string;
 
 /**
  * Sort direction. Defaults to `desc` (newest/largest first).
@@ -2509,10 +3704,10 @@ export type ListEmailMessagesData = {
       | "rejected"
       | "canceled";
     /**
-     * Filter by tag. Accepts `name` to match any send carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). For filtering on arbitrary `metadata` fields, use the metadata path-filter parameters instead.
+     * Filter by tag. Accepts `name` to match any send carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
      *
      */
-    tag?: string;
+    tag?: Array<string>;
     /**
      * Filter by category.
      */
@@ -2752,3 +3947,863 @@ export type GetEmailMessageResponses = {
 
 export type GetEmailMessageResponse =
   GetEmailMessageResponses[keyof GetEmailMessageResponses];
+
+export type ListSmsMessagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+    /**
+     * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
+     */
+    created_after?: string;
+    /**
+     * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
+     */
+    created_before?: string;
+    /**
+     * Filter by direction. Omit for both.
+     */
+    direction?: "outbound" | "inbound";
+    /**
+     * Filter by status; repeat the parameter to match any of several. One of scheduled, accepted, sent, delivered, undelivered, failed, rejected, canceled, expired, or received.
+     *
+     */
+    status?: Array<string>;
+    /**
+     * Filter to messages whose failure reason matches one of the supplied values; repeat the parameter to match any of several. One of invalid_destination, unreachable, blocked_by_carrier, blocked_by_recipient, landline_unreachable, content_rejected, sender_unregistered, recipient_opted_out, provider_unavailable, or unknown.
+     *
+     */
+    error_code?: Array<string>;
+    /**
+     * Filter by category.
+     */
+    category?: "transactional" | "marketing" | "authentication" | "service";
+    /**
+     * Filter by recipient phone number (E.164 exact match).
+     */
+    to?: string;
+    /**
+     * Filter by sender (E.164, alphanumeric, or short code — exact match).
+     */
+    from?: string;
+    /**
+     * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair. Repeat the parameter to AND-combine several tag filters.
+     *
+     */
+    tag?: Array<string>;
+  };
+  url: "/v1/sms/messages";
+};
+
+export type ListSmsMessagesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type ListSmsMessagesError =
+  ListSmsMessagesErrors[keyof ListSmsMessagesErrors];
+
+export type ListSmsMessagesResponses = {
+  /**
+   * Paginated list of messages.
+   */
+  200: SmsMessageList;
+};
+
+export type ListSmsMessagesResponse =
+  ListSmsMessagesResponses[keyof ListSmsMessagesResponses];
+
+export type CreateSmsMessageData = {
+  body: SmsMessageSendRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/sms/messages";
+};
+
+export type CreateSmsMessageErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient balance
+   */
+  402: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateSmsMessageError =
+  CreateSmsMessageErrors[keyof CreateSmsMessageErrors];
+
+export type CreateSmsMessageResponses = {
+  /**
+   * Message accepted for asynchronous delivery.
+   */
+  202: SmsMessage;
+};
+
+export type CreateSmsMessageResponse =
+  CreateSmsMessageResponses[keyof CreateSmsMessageResponses];
+
+export type CreateSmsMessageBatchData = {
+  body: SmsMessageBatchRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/sms/batches";
+};
+
+export type CreateSmsMessageBatchErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient balance
+   */
+  402: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateSmsMessageBatchError =
+  CreateSmsMessageBatchErrors[keyof CreateSmsMessageBatchErrors];
+
+export type CreateSmsMessageBatchResponses = {
+  /**
+   * Batch accepted for asynchronous delivery.
+   */
+  202: SmsMessageBatchResponse;
+};
+
+export type CreateSmsMessageBatchResponse =
+  CreateSmsMessageBatchResponses[keyof CreateSmsMessageBatchResponses];
+
+export type GetSmsMessageData = {
+  body?: never;
+  path: {
+    /**
+     * Message ID.
+     */
+    message_id: SmsMessageId;
+  };
+  query?: never;
+  url: "/v1/sms/messages/{message_id}";
+};
+
+export type GetSmsMessageErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type GetSmsMessageError = GetSmsMessageErrors[keyof GetSmsMessageErrors];
+
+export type GetSmsMessageResponses = {
+  /**
+   * Message object.
+   */
+  200: SmsMessage;
+};
+
+export type GetSmsMessageResponse =
+  GetSmsMessageResponses[keyof GetSmsMessageResponses];
+
+export type ListSmsTemplatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Filter by scope. Omit for all.
+     */
+    scope?: "system" | "workspace";
+    /**
+     * Filter by category.
+     */
+    category?: "transactional" | "marketing" | "authentication" | "service";
+    /**
+     * Keep only templates available in this language, as a BCP-47 tag.
+     */
+    locale?: string;
+  };
+  url: "/v1/sms/templates";
+};
+
+export type ListSmsTemplatesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListSmsTemplatesError =
+  ListSmsTemplatesErrors[keyof ListSmsTemplatesErrors];
+
+export type ListSmsTemplatesResponses = {
+  /**
+   * List of templates available to your workspace.
+   */
+  200: SmsTemplateList;
+};
+
+export type ListSmsTemplatesResponse =
+  ListSmsTemplatesResponses[keyof ListSmsTemplatesResponses];
+
+export type GetSmsTemplateData = {
+  body?: never;
+  path: {
+    /**
+     * The template's alias or id.
+     */
+    template_ref: string;
+  };
+  query?: never;
+  url: "/v1/sms/templates/{template_ref}";
+};
+
+export type GetSmsTemplateErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetSmsTemplateError =
+  GetSmsTemplateErrors[keyof GetSmsTemplateErrors];
+
+export type GetSmsTemplateResponses = {
+  /**
+   * The requested template.
+   */
+  200: SmsTemplate;
+};
+
+export type GetSmsTemplateResponse =
+  GetSmsTemplateResponses[keyof GetSmsTemplateResponses];
+
+export type ListEmailTemplatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Filter by template category.
+     */
+    category?: EmailTemplateCategory;
+    /**
+     * Filter by authoring format.
+     */
+    source?: EmailTemplateSource;
+    /**
+     * Filter by name prefix (case-insensitive).
+     */
+    name?: string;
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/email/templates";
+};
+
+export type ListEmailTemplatesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListEmailTemplatesError =
+  ListEmailTemplatesErrors[keyof ListEmailTemplatesErrors];
+
+export type ListEmailTemplatesResponses = {
+  /**
+   * Paginated list of email templates.
+   */
+  200: EmailTemplateList;
+};
+
+export type ListEmailTemplatesResponse =
+  ListEmailTemplatesResponses[keyof ListEmailTemplatesResponses];
+
+export type CreateEmailTemplateData = {
+  body: EmailTemplateCreate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/email/templates";
+};
+
+export type CreateEmailTemplateErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateEmailTemplateError =
+  CreateEmailTemplateErrors[keyof CreateEmailTemplateErrors];
+
+export type CreateEmailTemplateResponses = {
+  /**
+   * Email template created.
+   */
+  201: EmailTemplate;
+};
+
+export type CreateEmailTemplateResponse =
+  CreateEmailTemplateResponses[keyof CreateEmailTemplateResponses];
+
+export type DeleteEmailTemplateData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    template_id: EmailTemplateId;
+  };
+  query?: never;
+  url: "/v1/email/templates/{template_id}";
+};
+
+export type DeleteEmailTemplateErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteEmailTemplateError =
+  DeleteEmailTemplateErrors[keyof DeleteEmailTemplateErrors];
+
+export type DeleteEmailTemplateResponses = {
+  /**
+   * Email template deleted.
+   */
+  204: void;
+};
+
+export type DeleteEmailTemplateResponse =
+  DeleteEmailTemplateResponses[keyof DeleteEmailTemplateResponses];
+
+export type GetEmailTemplateData = {
+  body?: never;
+  path: {
+    template_id: EmailTemplateId;
+  };
+  query?: never;
+  url: "/v1/email/templates/{template_id}";
+};
+
+export type GetEmailTemplateErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetEmailTemplateError =
+  GetEmailTemplateErrors[keyof GetEmailTemplateErrors];
+
+export type GetEmailTemplateResponses = {
+  /**
+   * Email template object.
+   */
+  200: EmailTemplate;
+};
+
+export type GetEmailTemplateResponse =
+  GetEmailTemplateResponses[keyof GetEmailTemplateResponses];
+
+export type UpdateEmailTemplateData = {
+  body: EmailTemplateUpdate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    template_id: EmailTemplateId;
+  };
+  query?: never;
+  url: "/v1/email/templates/{template_id}";
+};
+
+export type UpdateEmailTemplateErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateEmailTemplateError =
+  UpdateEmailTemplateErrors[keyof UpdateEmailTemplateErrors];
+
+export type UpdateEmailTemplateResponses = {
+  /**
+   * Updated email template object.
+   */
+  200: EmailTemplate;
+};
+
+export type UpdateEmailTemplateResponse =
+  UpdateEmailTemplateResponses[keyof UpdateEmailTemplateResponses];
+
+export type ListEmailTemplateVersionsData = {
+  body?: never;
+  path: {
+    template_id: EmailTemplateId;
+  };
+  query?: never;
+  url: "/v1/email/templates/{template_id}/versions";
+};
+
+export type ListEmailTemplateVersionsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListEmailTemplateVersionsError =
+  ListEmailTemplateVersionsErrors[keyof ListEmailTemplateVersionsErrors];
+
+export type ListEmailTemplateVersionsResponses = {
+  /**
+   * The template's versions.
+   */
+  200: EmailTemplateVersionList;
+};
+
+export type ListEmailTemplateVersionsResponse =
+  ListEmailTemplateVersionsResponses[keyof ListEmailTemplateVersionsResponses];
+
+export type GetEmailTemplateVersionData = {
+  body?: never;
+  path: {
+    template_id: EmailTemplateId;
+    version_id: EmailTemplateVersionId;
+  };
+  query?: never;
+  url: "/v1/email/templates/{template_id}/versions/{version_id}";
+};
+
+export type GetEmailTemplateVersionErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetEmailTemplateVersionError =
+  GetEmailTemplateVersionErrors[keyof GetEmailTemplateVersionErrors];
+
+export type GetEmailTemplateVersionResponses = {
+  /**
+   * Email template version object.
+   */
+  200: EmailTemplateVersion;
+};
+
+export type GetEmailTemplateVersionResponse =
+  GetEmailTemplateVersionResponses[keyof GetEmailTemplateVersionResponses];
+
+export type PublishEmailTemplateData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    template_id: EmailTemplateId;
+  };
+  query?: never;
+  url: "/v1/email/templates/{template_id}/publish";
+};
+
+export type PublishEmailTemplateErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type PublishEmailTemplateError =
+  PublishEmailTemplateErrors[keyof PublishEmailTemplateErrors];
+
+export type PublishEmailTemplateResponses = {
+  /**
+   * The newly published version.
+   */
+  200: EmailTemplateVersion;
+};
+
+export type PublishEmailTemplateResponse =
+  PublishEmailTemplateResponses[keyof PublishEmailTemplateResponses];

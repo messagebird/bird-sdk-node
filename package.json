@@ -1,6 +1,6 @@
 {
   "name": "@messagebird/sdk",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Official TypeScript SDK for the Bird API.",
   "license": "MIT",
   "author": "Bird",
@@ -54,9 +54,9 @@
     "standardwebhooks": "^1.0.0"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.97.1",
+    "@hey-api/openapi-ts": "0.97.3",
     "tsup": "8.5.1",
     "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "vitest": "4.1.10"
   }
 }

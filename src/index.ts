@@ -46,6 +46,26 @@ export type {
   EmailChannelDefaults,
 } from "./resources/email.js";
 export type {
+  EmailTemplate,
+  EmailTemplateSummary,
+  EmailTemplateVersion,
+  EmailTemplateCreateParams,
+  EmailTemplateUpdateParams,
+  EmailTemplateListQuery,
+} from "./resources/emailTemplates.js";
+export type {
+  SmsMessage,
+  SmsSendParams,
+  SmsSendBatchParams,
+  SmsSendBatchResult,
+  SmsListQuery,
+} from "./resources/sms.js";
+export type {
+  SmsTemplate,
+  SmsTemplateList,
+  SmsTemplateListQuery,
+} from "./resources/smsTemplates.js";
+export type {
   BirdWebhookEvent,
   WebhookHeaders,
   WebhookOptions,

@@ -37,6 +37,14 @@ export const WebhookEventTypeSchema = {
     "email.rejected",
     "email.scheduled",
     "email.unsubscribed",
+    "email_mailbox.message_delivered",
+    "email_mailbox.message_failed",
+    "email_mailbox.message_received",
+    "email_mailbox.message_received_blocked",
+    "email_mailbox.message_received_unauthenticated",
+    "email_mailbox.message_sent",
+    "email_mailbox.suspended",
+    "email_mailbox.thread_created",
     "email_suppression.created",
     "sms.accepted",
     "sms.delivered",
@@ -759,6 +767,587 @@ export const EventEmailSuppressionCreatedSchema = {
   },
 } as const;
 
+export const EventEmailMailboxThreadCreatedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the email_mailbox.thread_created event.",
+  required: ["thread_id", "mailbox_id", "subject", "initiated_by"],
+  properties: {
+    thread_id: {
+      $ref: "#/components/schemas/ThreadID",
+      description: "ID of the thread.",
+      "x-go-type": "domain.ThreadID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description: "ID of the mailbox.",
+      "x-go-type": "domain.MailboxID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    subject: {
+      type: ["string", "null"],
+      description:
+        "Subject of the first message in the thread, or null when it had none.",
+      example: "Your quote",
+    },
+    initiated_by: {
+      type: "string",
+      minLength: 1,
+      enum: ["inbound", "outbound"],
+      description: "Which direction created the thread.",
+      example: "inbound",
+    },
+  },
+} as const;
+
+export const MailboxIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^mbx_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "mbx_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const ThreadIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^thr_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "thr_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventEmailMailboxThreadCreatedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "A new thread was created in a mailbox, from either direction.",
+  "x-event-type-id": "email_mailbox.thread_created",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.thread_created"],
+      description: "Event type.",
+      example: "email_mailbox.thread_created",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxThreadCreatedData",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxSuspendedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the email_mailbox.suspended event.",
+  required: ["mailbox_id", "reason"],
+  properties: {
+    mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description: "ID of the suspended mailbox.",
+      "x-go-type": "domain.MailboxID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    reason: {
+      type: "string",
+      minLength: 1,
+      description: "Why the mailbox was suspended.",
+      example: "abuse review",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxSuspendedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Platform abuse controls suspended a mailbox. Sends are rejected and inbound is quarantined until it is reinstated.",
+  "x-event-type-id": "email_mailbox.suspended",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.suspended"],
+      description: "Event type.",
+      example: "email_mailbox.suspended",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxSuspendedData",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageSentDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the email_mailbox.message_sent event.",
+  required: ["message_id", "mailbox_id", "thread_id"],
+  properties: {
+    message_id: {
+      $ref: "#/components/schemas/EmailID",
+      description:
+        "ID of the sent message. The same send fires the per-recipient email.* lifecycle events with this ID as email_id — when you subscribe to both families, dedupe by this ID.",
+      "x-go-type": "domain.EmailID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description: "ID of the mailbox the message was sent from.",
+      "x-go-type": "domain.MailboxID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    thread_id: {
+      $ref: "#/components/schemas/ThreadID",
+      description: "ID of the thread the message belongs to.",
+      "x-go-type": "domain.ThreadID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+  },
+} as const;
+
+export const EmailIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^em_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "em_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventEmailMailboxMessageSentSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A mailbox send reached provider handoff — the per-message status folded to sent. Status events are per-message folds, not per-recipient telemetry; the same send also fires the shipped per-recipient email.* lifecycle events. Pick one family per automation and dedupe by message_id.",
+  "x-event-type-id": "email_mailbox.message_sent",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.message_sent"],
+      description: "Event type.",
+      example: "email_mailbox.message_sent",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxMessageSentData",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageReceivedUnauthenticatedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An email was received into a mailbox and stored with disposition unauthenticated — sender authentication could not be verified. Opt-in. Non-inbox dispositions fire only this mailbox variant, never email.received — existing email.received automations never start processing unauthenticated mail because a mailbox was attached. The payload carries identifiers, threading, authentication results, and the extracted text.",
+  "x-event-type-id": "email_mailbox.message_received_unauthenticated",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.message_received_unauthenticated"],
+      description: "Event type.",
+      example: "email_mailbox.message_received_unauthenticated",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedData",
+    },
+  },
+} as const;
+
+export const InboundEmailMessageIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^rem_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "rem_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventEmailMailboxMessageReceivedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Payload shared by the email_mailbox.message_received event family. Carries identifiers, threading, disposition, authentication results, and the extracted text — enough for an agent to act without a fetch. Fetch original source (while within its 30-day window) via the thread-member endpoints.",
+  required: [
+    "message_id",
+    "mailbox_id",
+    "thread_id",
+    "from",
+    "to",
+    "subject",
+    "disposition",
+    "attachment_count",
+  ],
+  properties: {
+    message_id: {
+      $ref: "#/components/schemas/InboundEmailMessageID",
+      description:
+        "ID of the received message. The same message fires email.received with this ID as inbound_message_id — when you subscribe to both families, dedupe by this ID.",
+      "x-go-type": "domain.InboundEmailMessageID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description: "ID of the mailbox that received the message.",
+      "x-go-type": "domain.MailboxID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    thread_id: {
+      $ref: "#/components/schemas/ThreadID",
+      description: "ID of the thread the message was filed into.",
+      "x-go-type": "domain.ThreadID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    route_id: {
+      type: ["string", "null"],
+      description:
+        "ID (ein_…) of the explicit inbound route that matched, or null when the message was delivered by the virtual exact-address route.",
+      example: null,
+    },
+    from: {
+      type: "string",
+      minLength: 1,
+      format: "email",
+      description: "Envelope-from address.",
+      example: "alice@example.com",
+    },
+    to: {
+      type: "array",
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description: "Recipient addresses the message was sent to.",
+      example: ["support@acme-support.eu.mailbox.bird.com"],
+    },
+    subject: {
+      type: ["string", "null"],
+      description:
+        "Subject line as received, or null when the message had no subject.",
+      example: "Re: Your quote",
+    },
+    disposition: {
+      type: "string",
+      minLength: 1,
+      enum: ["inbox", "blocked", "unauthenticated"],
+      description:
+        "Where the message landed after receive policy, rules, and scanning were applied.",
+      example: "inbox",
+    },
+    extracted_text: {
+      type: ["string", "null"],
+      description:
+        "Plain-text body with quoted history stripped, capped at 64 KB (see truncated_text). Null when extraction produced nothing. This copy is what the mailbox durably retains.",
+      example: "Sounds good — can you send the invoice?",
+    },
+    truncated_text: {
+      type: "boolean",
+      description:
+        "True when extracted_text was truncated to the 64 KB cap; fetch the full text via the thread-member endpoint.",
+      default: false,
+    },
+    attachment_count: {
+      type: "integer",
+      minimum: 0,
+      description:
+        "Number of attachments on the message. Metadata is durable; bytes are fetchable while within the 30-day original-source window.",
+      example: 1,
+    },
+    spf_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether SPF passed for the sender, or null when no verdict was computable.",
+    },
+    dkim_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DKIM passed for the sender, or null when no verdict was computable.",
+    },
+    dmarc_pass: {
+      type: ["boolean", "null"],
+      description:
+        "Whether DMARC passed for the sender, or null when no verdict was computable.",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageReceivedBlockedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An email was received into a mailbox and stored with disposition blocked — it failed the mailbox receive policy or a block rule. Opt-in. Non-inbox dispositions fire only this mailbox variant, never email.received — existing email.received automations never start processing blocked mail because a mailbox was attached. The payload carries identifiers, threading, authentication results, and the extracted text.",
+  "x-event-type-id": "email_mailbox.message_received_blocked",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.message_received_blocked"],
+      description: "Event type.",
+      example: "email_mailbox.message_received_blocked",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedData",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageReceivedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An email was received into a mailbox, threaded, and stored with disposition inbox. The payload carries identifiers, threading, authentication results, and the extracted text — enough for an agent to act without a fetch. Dual-fire rule: mailbox-owned inbound with disposition inbox ALSO fires the unchanged email.received event; the streams are unordered relative to each other, so pick one family per automation and dedupe by message_id.",
+  "x-event-type-id": "email_mailbox.message_received",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.message_received"],
+      description: "Event type.",
+      example: "email_mailbox.message_received",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedData",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageFailedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the email_mailbox.message_failed event.",
+  required: ["message_id", "mailbox_id", "thread_id", "reason"],
+  properties: {
+    message_id: {
+      $ref: "#/components/schemas/EmailID",
+      description:
+        "ID of the failed message. The same send fires the per-recipient email.* lifecycle events with this ID as email_id — when you subscribe to both families, dedupe by this ID.",
+      "x-go-type": "domain.EmailID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description: "ID of the mailbox the message was sent from.",
+      "x-go-type": "domain.MailboxID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    thread_id: {
+      $ref: "#/components/schemas/ThreadID",
+      description: "ID of the thread the message belongs to.",
+      "x-go-type": "domain.ThreadID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    reason: {
+      type: "string",
+      minLength: 1,
+      description: "Why the send folded to failed.",
+      example: "all recipients bounced",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageFailedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A mailbox send folded to a terminal failure. Status events are per-message folds, not per-recipient telemetry: one event per message, distinct in cardinality from the shipped per-recipient email.* lifecycle events, which the same send also fires. Pick one family per automation and dedupe by message_id.",
+  "x-event-type-id": "email_mailbox.message_failed",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.message_failed"],
+      description: "Event type.",
+      example: "email_mailbox.message_failed",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxMessageFailedData",
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageDeliveredDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the email_mailbox.message_delivered event.",
+  required: ["message_id", "mailbox_id", "thread_id"],
+  properties: {
+    message_id: {
+      $ref: "#/components/schemas/EmailID",
+      description:
+        "ID of the delivered message. The same send fires the per-recipient email.* lifecycle events with this ID as email_id — when you subscribe to both families, dedupe by this ID.",
+      "x-go-type": "domain.EmailID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description: "ID of the mailbox the message was sent from.",
+      "x-go-type": "domain.MailboxID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    thread_id: {
+      $ref: "#/components/schemas/ThreadID",
+      description: "ID of the thread the message belongs to.",
+      "x-go-type": "domain.ThreadID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+  },
+} as const;
+
+export const EventEmailMailboxMessageDeliveredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A mailbox send folded to delivered — every recipient reached a terminal delivered outcome. Status events are per-message folds, not per-recipient telemetry: one event per message, distinct in cardinality from the shipped per-recipient email.delivered (one event per recipient), which the same send also fires. Pick one family per automation and dedupe by message_id.",
+  "x-event-type-id": "email_mailbox.message_delivered",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["email_mailbox.message_delivered"],
+      description: "Event type.",
+      example: "email_mailbox.message_delivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the event occurred.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventEmailMailboxMessageDeliveredData",
+    },
+  },
+} as const;
+
 export const EventEmailUnsubscribedDataSchema = {
   type: "object",
   description: "Payload of the email.unsubscribed event.",
@@ -782,13 +1371,6 @@ export const RecipientIDSchema = {
   minLength: 1,
   pattern: "^er_[0-9a-hjkmnp-tv-z]{26}$",
   example: "er_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const EmailIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^em_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "em_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const EventEmailBaseSchema = {
@@ -1064,13 +1646,6 @@ export const EventEmailRejectedSchema = {
       $ref: "#/components/schemas/EventEmailRejectedData",
     },
   },
-} as const;
-
-export const InboundEmailMessageIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^rem_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "rem_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const EventEmailReceivedDataSchema = {
@@ -1961,6 +2536,30 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventEmailUnsubscribed",
     },
     {
+      $ref: "#/components/schemas/EventEmailMailboxMessageDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageFailed",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceived",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedBlocked",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedUnauthenticated",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageSent",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxSuspended",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxThreadCreated",
+    },
+    {
       $ref: "#/components/schemas/EventEmailSuppressionCreated",
     },
     {
@@ -2007,6 +2606,22 @@ export const WebhookEventSchema = {
       "email.rejected": "#/components/schemas/EventEmailRejected",
       "email.scheduled": "#/components/schemas/EventEmailScheduled",
       "email.unsubscribed": "#/components/schemas/EventEmailUnsubscribed",
+      "email_mailbox.message_delivered":
+        "#/components/schemas/EventEmailMailboxMessageDelivered",
+      "email_mailbox.message_failed":
+        "#/components/schemas/EventEmailMailboxMessageFailed",
+      "email_mailbox.message_received":
+        "#/components/schemas/EventEmailMailboxMessageReceived",
+      "email_mailbox.message_received_blocked":
+        "#/components/schemas/EventEmailMailboxMessageReceivedBlocked",
+      "email_mailbox.message_received_unauthenticated":
+        "#/components/schemas/EventEmailMailboxMessageReceivedUnauthenticated",
+      "email_mailbox.message_sent":
+        "#/components/schemas/EventEmailMailboxMessageSent",
+      "email_mailbox.suspended":
+        "#/components/schemas/EventEmailMailboxSuspended",
+      "email_mailbox.thread_created":
+        "#/components/schemas/EventEmailMailboxThreadCreated",
       "email_suppression.created":
         "#/components/schemas/EventEmailSuppressionCreated",
       "sms.accepted": "#/components/schemas/EventSMSAccepted",
@@ -2398,6 +3013,1696 @@ export const EmailSmtpConfigSchema = {
   ],
 } as const;
 
+export const EmailMailboxComposeRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A new message sent from a mailbox, starting a new conversation. Mirrors the plain send request minus `from` — the mailbox is the sender identity — and minus `scheduled_at` (mailbox sends are immediate). Bird mints the RFC 5322 Message-ID so replies thread back to this conversation. At least one of `html` or `text` must be provided.\n",
+  required: ["to", "subject"],
+  properties: {
+    to: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      minItems: 1,
+      maxItems: 50,
+      description:
+        "Primary recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.",
+    },
+    cc: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      maxItems: 50,
+      description:
+        "CC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.",
+    },
+    bcc: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      maxItems: 50,
+      description:
+        "BCC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.",
+    },
+    subject: {
+      type: "string",
+      minLength: 1,
+      maxLength: 998,
+      description: "Message subject line.",
+    },
+    html: {
+      type: "string",
+      maxLength: 524288,
+      description: "HTML body. At least one of html or text must be provided.",
+    },
+    text: {
+      type: "string",
+      maxLength: 524288,
+      description:
+        "Plain-text body. At least one of html or text must be provided.",
+    },
+    reply_to: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      minItems: 1,
+      maxItems: 25,
+      description:
+        "Reply-To addresses. When omitted, the mailbox's `default_reply_to` applies (replies then come back to the mailbox itself).\n",
+    },
+    attachments: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAttachment",
+      },
+      maxItems: 20,
+      description:
+        "File attachments. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Attachment metadata endures on the message's `attachment_manifest`; the bytes are downloadable for 30 days.\n",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
+    },
+    category: {
+      type: "string",
+      enum: ["marketing", "transactional"],
+      default: "transactional",
+      description:
+        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
+    },
+  },
+  example: {
+    to: ["customer@example.com"],
+    subject: "Your quote",
+    text: "Hi — here is the quote you asked for.",
+  },
+} as const;
+
+export const EmailAttachmentSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["filename", "content"],
+  description:
+    "File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.\nInline images for `<img src=\"cid:...\"/>` references in the HTML body use the `content_id` field together with `content`.\nBird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.\nRecipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.\nBatch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.\n",
+  properties: {
+    filename: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description: "Filename shown to the recipient. Required.",
+      example: "invoice.pdf",
+    },
+    content: {
+      type: "string",
+      format: "byte",
+      minLength: 1,
+      description:
+        "Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
+    },
+    path: {
+      type: "string",
+      format: "uri",
+      description:
+        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
+    },
+    content_type: {
+      type: "string",
+      description:
+        "MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.\n",
+      example: "application/pdf",
+    },
+    content_id: {
+      type: "string",
+      minLength: 1,
+      maxLength: 128,
+      pattern: "^[A-Za-z0-9._-]+$",
+      description:
+        'RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.\n',
+      example: "invoice-logo",
+    },
+  },
+} as const;
+
+export const EmailAddressSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "An email address with an optional display name.",
+  required: ["email"],
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      description: "Email address.",
+      example: "jane@example.com",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 256,
+      pattern: "^[^\\r\\n]+$",
+      description: "Display name shown alongside the address in mail clients.",
+      example: "Jane Doe",
+    },
+  },
+} as const;
+
+export const EmailAddressInputSchema = {
+  description:
+    "A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.\n",
+  oneOf: [
+    {
+      type: "string",
+      minLength: 5,
+      maxLength: 998,
+      pattern: "^[^\\r\\n]+$",
+      title: "Email string",
+      description:
+        "Email address, optionally in RFC 5322 mailbox form with an embedded display name.",
+      example: "Jane Doe <jane@example.com>",
+    },
+    {
+      $ref: "#/components/schemas/EmailAddress",
+    },
+  ],
+} as const;
+
+export const EmailThreadMessageForwardRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Forwards a conversation message to new recipients. The original body and attachments are sent as they were received or sent; the subject gains a `Fwd:` prefix. Forwarding requires the message's original rendered source, which is available for 30 days after the message occurred.\n",
+  required: ["to"],
+  properties: {
+    to: {
+      type: "array",
+      minItems: 1,
+      maxItems: 50,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description: "Recipient addresses to forward the message to.",
+    },
+    cc: {
+      type: "array",
+      maxItems: 50,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description: "Cc recipient addresses.",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
+    },
+    category: {
+      type: "string",
+      enum: ["marketing", "transactional"],
+      default: "transactional",
+      description:
+        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
+    },
+  },
+  example: {
+    to: ["ops@example.com"],
+  },
+} as const;
+
+export const EmailThreadMessageReplyRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A reply to a conversation message. Recipients are derived from the message being replied to: its Reply-To address when present, otherwise its From address. Set `reply_all` to also include the original To and Cc recipients (minus the mailbox's own address). The subject and threading headers are set automatically. At least one of `html` or `text` must be provided.\n",
+  properties: {
+    html: {
+      type: "string",
+      maxLength: 524288,
+      description:
+        "HTML body of the reply. At least one of html or text must be provided.",
+    },
+    text: {
+      type: "string",
+      maxLength: 524288,
+      description:
+        "Plain-text body of the reply. At least one of html or text must be provided.",
+    },
+    reply_all: {
+      type: "boolean",
+      default: false,
+      description:
+        "Also send the reply to the original To and Cc recipients, minus the mailbox's own address.",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
+    },
+    category: {
+      type: "string",
+      enum: ["marketing", "transactional"],
+      default: "transactional",
+      description:
+        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
+    },
+  },
+  example: {
+    text: "Thanks — confirming we received your request.",
+  },
+} as const;
+
+export const EmailThreadMessageAttachmentListSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The attachments on a conversation message.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailThreadMessageAttachment",
+      },
+    },
+  },
+} as const;
+
+export const EmailThreadMessageAttachmentSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Attachment metadata on a conversation message. The metadata remains readable for the mailbox's retention period; the attachment bytes are downloadable for 30 days after the message occurred.\n",
+  required: ["id", "filename", "content_type", "size"],
+  properties: {
+    id: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "Attachment ID, used to download the attachment bytes.",
+      example: "rea_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    filename: {
+      type: ["string", "null"],
+      readOnly: true,
+      description: "Original filename, or null when the attachment had none.",
+      example: "invoice.pdf",
+    },
+    content_type: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "MIME content type, or null when it could not be determined.",
+      example: "application/pdf",
+    },
+    size: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description: "Attachment size in bytes.",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The original rendered body of a conversation message. Available for 30 days after the message occurred; after that the endpoint returns `410 Gone` while the message's extracted text remains readable on the message itself.\n",
+  required: ["html", "text"],
+  properties: {
+    html: {
+      type: ["string", "null"],
+      description:
+        "The HTML body of the message, or null when the message had no HTML part.",
+    },
+    text: {
+      type: ["string", "null"],
+      description:
+        "The plain-text body of the message, or null when the message had no text part.",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Changes to apply to a conversation message. Omitted fields are left unchanged.",
+  properties: {
+    read: {
+      type: "boolean",
+      description:
+        "Mark the message read (`true`) or unread (`false`). Only valid on received messages.",
+    },
+    labels: {
+      $ref: "#/components/schemas/EmailLabelsUpdate",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact to link this message to, or null to unlink the current contact.",
+    },
+    trashed: {
+      type: "boolean",
+      description:
+        "Set to `false` to restore a trashed message within its 30-day trash window (clears `trashed_at` and restores the original retention). To trash a message use `DELETE`; `true` is rejected.\n",
+    },
+  },
+} as const;
+
+export const ContactIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^con_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "con_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailLabelsUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Label changes to apply. Labels in `add` are applied and labels in `remove` are taken off; other labels are left untouched. Adding a label that is already present, or removing one that is not, has no effect.\n",
+  properties: {
+    add: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description: "Labels to apply.",
+      example: ["urgent"],
+    },
+    remove: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description: "Labels to take off.",
+      example: ["pending"],
+    },
+  },
+} as const;
+
+export const EmailThreadMessageListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThreadMessage",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadMessageSourceSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Link to the message's entry in the received-message or sent-message log, which carries delivery analytics such as per-recipient events. Log entries expire 30 days after the message occurred.\n",
+  required: ["resource", "available_until"],
+  properties: {
+    resource: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "API path of the log entry for this message.",
+      example: "/v1/email/inbound-messages/rem_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    available_until: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "When the log entry (and the message's original rendered source) expires.",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageRecipientSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "One recipient's terminal delivery outcome on a sent conversation message, folded into the message's durable memory when the outcome becomes known.\n",
+  required: ["address", "status"],
+  properties: {
+    address: {
+      type: "string",
+      format: "email",
+      readOnly: true,
+      minLength: 1,
+      description: "Recipient address.",
+    },
+    status: {
+      type: "string",
+      enum: ["delivered", "failed"],
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Terminal outcome: `delivered`, or `failed` (bounce or provider rejection).",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.\n",
+  required: [
+    "id",
+    "direction",
+    "channel",
+    "thread_id",
+    "from",
+    "to",
+    "cc",
+    "delivered_to",
+    "subject",
+    "preview",
+    "read",
+    "disposition",
+    "status",
+    "spf_pass",
+    "dkim_pass",
+    "dmarc_pass",
+    "attachment_count",
+    "attachment_manifest",
+    "reference_ids",
+    "labels",
+    "contact_id",
+    "recipients",
+    "trashed_at",
+    "source",
+    "occurred_at",
+  ],
+  properties: {
+    id: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      pattern: "^(rem|em)_[0-9a-hjkmnp-tv-z]{26}$",
+      description:
+        "Message ID. Received messages carry a `rem_` ID, sent messages an `em_` ID — the same IDs used by the received-message and sent-message logs.\n",
+      example: "rem_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    direction: {
+      type: "string",
+      enum: ["inbound", "outbound"],
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Direction of the message — `inbound` for a received message, `outbound` for a sent one.",
+    },
+    channel: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "Channel this message was carried on. Always `email`.",
+      example: "email",
+    },
+    thread_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/ThreadID",
+      description: "Conversation this message belongs to.",
+    },
+    from: {
+      type: "string",
+      format: "email",
+      readOnly: true,
+      minLength: 1,
+      description: "Sender address.",
+    },
+    to: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description: "Recipient addresses on the To line.",
+    },
+    cc: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description:
+        "Recipient addresses on the Cc line. Empty when the message had none.",
+    },
+    delivered_to: {
+      type: ["string", "null"],
+      format: "email",
+      readOnly: true,
+      description:
+        "Address the message was actually delivered to, when it differs from the mailbox address (for example mail routed in from another address). Null for sent messages and for mail addressed directly to the mailbox.\n",
+    },
+    subject: {
+      type: ["string", "null"],
+      readOnly: true,
+      description: "Message subject. Null when the message had no subject.",
+      example: "Re: Your order",
+    },
+    preview: {
+      type: ["string", "null"],
+      readOnly: true,
+      description: "Short plain-text preview of the message body.",
+    },
+    extracted_text: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Plain-text content of the message with quoted history stripped — readable for the mailbox's full retention period, both directions. Always present when fetching a single message; on list endpoints it is included only when the request sets `include=extracted_text`. Null when no text could be extracted.\n",
+    },
+    read: {
+      type: ["boolean", "null"],
+      description:
+        "Whether the message has been marked read. Null for sent messages.",
+    },
+    disposition: {
+      type: ["string", "null"],
+      enum: ["inbox", "blocked", "unauthenticated", null],
+      description:
+        "Where the message landed: `inbox` for accepted mail, `blocked` (receive policy or rules), or `unauthenticated` (failed sender authentication). Null for sent messages. Trash state is carried separately in `trashed_at`.\n",
+    },
+    status: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Folded delivery status of a sent message: `accepted`, `sent` (provider handoff), `delivered` (all attempted recipients delivered), or `failed` (terminal failure). Null for received messages.\n",
+    },
+    recipients: {
+      type: ["array", "null"],
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/EmailThreadMessageRecipient",
+      },
+      description:
+        "Terminal per-recipient delivery outcomes of a sent message, folded in as they become known — part of the message's durable memory. Null for received messages and before any recipient reaches a terminal state. Per-recipient event detail lives on the sent-message log (`source`) for 30 days.\n",
+    },
+    spf_pass: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Whether SPF passed for the sender of a received message. Null for sent messages and when no verdict was computable. Part of the message's durable memory — readable for the mailbox's full retention period, so the verdict survives after the 30-day inbound log has expired.\n",
+    },
+    dkim_pass: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Whether DKIM passed for the sender of a received message. Null for sent messages and when no verdict was computable. Durable for the mailbox's retention period.\n",
+    },
+    dmarc_pass: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Whether DMARC passed for the sender of a received message. Null for sent messages and when no verdict was computable. Durable for the mailbox's retention period.\n",
+    },
+    trashed_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        'When the message was moved to the trash, or null when it is not trashed. Trashed messages are purged 30 days after trashing; restore it with `PATCH {"trashed": false}` before then.\n',
+    },
+    rank: {
+      type: "number",
+      readOnly: true,
+      description:
+        "Relevance rank of this result. Present only on search results, higher is more relevant.\n",
+    },
+    attachment_count: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description: "Number of attachments on the message.",
+    },
+    attachment_manifest: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/EmailThreadMessageAttachment",
+      },
+      description:
+        "Attachment metadata (filename, content type, size). Remains readable for the mailbox's retention period even after the attachment bytes themselves have expired.\n",
+    },
+    reference_ids: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+      },
+      description:
+        "RFC 5322 References header entries used to thread the conversation.",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels applied to this message. A message carries at most 20 labels.",
+      example: ["urgent"],
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this message, or null when none is linked.",
+    },
+    source: {
+      readOnly: true,
+      $ref: "#/components/schemas/EmailThreadMessageSource",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the message was received or accepted for sending.",
+    },
+  },
+} as const;
+
+export const EmailThreadUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Changes to apply to a thread. Omitted fields are left unchanged.",
+  properties: {
+    labels: {
+      $ref: "#/components/schemas/EmailLabelsUpdate",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact to link this conversation to, or null to unlink the current contact.",
+    },
+  },
+} as const;
+
+export const EmailThreadListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThread",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.\n",
+  required: [
+    "id",
+    "mailbox_id",
+    "channel",
+    "contact_id",
+    "subject",
+    "participants",
+    "message_count",
+    "unread_count",
+    "last_message_at",
+    "last_direction",
+    "labels",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/ThreadID",
+      description: "Thread ID.",
+    },
+    mailbox_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxID",
+      description: "Mailbox this conversation belongs to.",
+    },
+    channel: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "Channel this conversation lives on. Always `email`.",
+      example: "email",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this conversation, or null when none is linked.",
+    },
+    subject: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Subject of the conversation, taken from its first message. Null when that message had no subject.",
+      example: "Re: Your order",
+    },
+    participants: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description:
+        "Addresses that appear on the retained messages in this conversation, including the mailbox's own address.",
+    },
+    message_count: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description:
+        "Number of retained messages in this conversation, both directions.",
+    },
+    unread_count: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description:
+        "Number of retained received messages in the inbox that are still unread.",
+    },
+    last_message_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "When the most recent retained message in this conversation was received or sent.",
+    },
+    last_direction: {
+      type: "string",
+      enum: ["inbound", "outbound"],
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Direction of the most recent message — `inbound` for a received message, `outbound` for a sent one.",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels applied to this conversation. A thread carries at most 20 labels.",
+      example: ["urgent", "billing"],
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the thread was created.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the thread last changed.",
+    },
+  },
+} as const;
+
+export const InboundRouteUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Fields to update on an inbound route. Omitted fields are unchanged. The domain is immutable.",
+  properties: {
+    match_type: {
+      type: "string",
+      enum: ["address", "catch_all"],
+      description: "How the route matches recipients.",
+    },
+    match_value: {
+      type: ["string", "null"],
+      maxLength: 64,
+      description:
+        "The local part an `address` route matches. Null for `catch_all` routes.",
+    },
+    action: {
+      type: "string",
+      enum: ["deliver_to_mailbox", "drop"],
+      description:
+        "What happens to matching mail. `deliver_to_mailbox` requires `target_mailbox_id`.",
+    },
+    target_mailbox_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/MailboxID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "The mailbox that receives matching mail. Null for `drop` routes.",
+    },
+    priority: {
+      type: "integer",
+      minimum: 11,
+      maximum: 1000,
+      description:
+        "Evaluation order — lowest number wins. Explicit routes accept 11–1000; the mailbox's own address always matches at priority 10.",
+    },
+    enabled: {
+      type: "boolean",
+      description: "Whether the route is evaluated.",
+    },
+  },
+  example: {
+    priority: 50,
+    enabled: true,
+  },
+} as const;
+
+export const InboundRouteCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for creating an inbound route.",
+  required: ["domain", "match_type", "action"],
+  properties: {
+    domain: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "The domain the route applies to — your agent domain or one of your inbound-enabled custom domains.",
+      example: "acme-support.eu.mailbox.bird.com",
+    },
+    match_type: {
+      type: "string",
+      minLength: 1,
+      enum: ["address", "catch_all"],
+      description:
+        "How the route matches recipients. `address` matches one local part and requires `match_value`; `catch_all` matches every recipient on the domain that nothing else matched.",
+    },
+    match_value: {
+      type: "string",
+      minLength: 1,
+      maxLength: 64,
+      pattern: "^[A-Za-z0-9._-]+$",
+      description:
+        "The local part an `address` route matches. Required for `address` routes; stored lowercase.",
+      example: "refunds",
+    },
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["deliver_to_mailbox", "drop"],
+      description:
+        "What happens to matching mail. `deliver_to_mailbox` requires `target_mailbox_id`.",
+    },
+    target_mailbox_id: {
+      $ref: "#/components/schemas/MailboxID",
+      description:
+        "The mailbox that receives matching mail. Required for `deliver_to_mailbox` routes.",
+    },
+    priority: {
+      type: "integer",
+      minimum: 11,
+      maximum: 1000,
+      default: 100,
+      description:
+        "Evaluation order — lowest number wins. Explicit routes accept 11–1000; the mailbox's own address always matches at priority 10, so a route can never pre-empt exact-address delivery.",
+    },
+    enabled: {
+      type: "boolean",
+      default: true,
+      description: "Whether the route is evaluated.",
+    },
+  },
+  example: {
+    domain: "acme-support.eu.mailbox.bird.com",
+    match_type: "address",
+    match_value: "refunds",
+    action: "deliver_to_mailbox",
+    target_mailbox_id: "mbx_01krdgeqcxet5s7t44vh8rt9mg",
+  },
+} as const;
+
+export const InboundRouteListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/InboundRoute",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailInboundRouteIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ein_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ein_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const InboundRouteSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A routing rule that directs inbound mail on one of your domains into a mailbox, or drops it. Routes are evaluated in priority order — lowest number first. Each mailbox's own address is always matched at priority 10 and explicit routes accept 11–1000, so exact-address delivery always takes precedence.\n",
+  required: [
+    "id",
+    "domain",
+    "match_type",
+    "match_value",
+    "action",
+    "target_mailbox_id",
+    "priority",
+    "enabled",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/EmailInboundRouteID",
+      description: "Inbound route ID.",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The domain the route applies to.",
+      example: "acme-support.eu.mailbox.bird.com",
+    },
+    match_type: {
+      type: "string",
+      minLength: 1,
+      enum: ["address", "catch_all"],
+      description:
+        "How the route matches recipients. `address` matches one local part; `catch_all` matches every recipient on the domain that nothing else matched.",
+    },
+    match_value: {
+      type: ["string", "null"],
+      maxLength: 64,
+      description:
+        "The local part an `address` route matches. Null for `catch_all` routes.",
+      example: "refunds",
+    },
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["deliver_to_mailbox", "drop"],
+      description: "What happens to matching mail.",
+    },
+    target_mailbox_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/MailboxID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "The mailbox that receives matching mail. Null for `drop` routes.",
+    },
+    priority: {
+      type: "integer",
+      minimum: 11,
+      maximum: 1000,
+      description:
+        "Evaluation order — lowest number wins. Explicit routes accept 11–1000 (default 100); the mailbox's own address always matches at priority 10.",
+    },
+    enabled: {
+      type: "boolean",
+      description:
+        "Whether the route is evaluated. Disabled routes are kept but skipped.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the route was created.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the route was last updated.",
+    },
+  },
+} as const;
+
+export const ReceiveRuleCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for adding a receive rule to a mailbox.",
+  required: ["action", "entry"],
+  properties: {
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["allow", "block"],
+      description:
+        "What the rule does when it matches. Block rules always win. To flip an entry's action, delete the existing rule and re-create it.",
+    },
+    entry: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "The sender address (`alice@example.com`) or domain (`example.com`) to match. Domains also match their subdomains. Stored lowercase.",
+      example: "partner.example.com",
+    },
+    note: {
+      type: "string",
+      minLength: 1,
+      maxLength: 512,
+      description: "Your own note about why the rule exists.",
+    },
+  },
+  example: {
+    action: "allow",
+    entry: "partner.example.com",
+    note: "Approved partner senders",
+  },
+} as const;
+
+export const ReceiveRuleListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/ReceiveRule",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const ReceiveRuleIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^erl_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "erl_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const ReceiveRuleSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An allow or block entry on a mailbox, evaluated when inbound mail arrives. Matching is against the message's envelope sender; domain entries also match subdomains. A given entry can be allow or block, never both.\n",
+  required: [
+    "id",
+    "mailbox_id",
+    "action",
+    "entry",
+    "entry_type",
+    "note",
+    "created_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/ReceiveRuleID",
+      description: "Receive rule ID.",
+    },
+    mailbox_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxID",
+      description: "The mailbox the rule applies to.",
+    },
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["allow", "block"],
+      readOnly: true,
+      description:
+        "What the rule does when it matches. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes.",
+    },
+    entry: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      readOnly: true,
+      description:
+        "The sender address or domain the rule matches. Domains also match their subdomains.",
+      example: "partner.example.com",
+    },
+    entry_type: {
+      type: "string",
+      minLength: 1,
+      enum: ["address", "domain"],
+      readOnly: true,
+      description: "Whether the entry is a full address or a domain.",
+    },
+    note: {
+      type: ["string", "null"],
+      maxLength: 512,
+      readOnly: true,
+      description: "Your own note about why the rule exists. Null when unset.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the rule was created.",
+    },
+  },
+} as const;
+
+export const MailboxUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Fields to update on a mailbox. Omitted fields are unchanged; fields set to null are cleared. The address and domain are immutable.",
+  properties: {
+    display_name: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox. Null clears it.",
+    },
+    default_reply_to: {
+      type: ["string", "null"],
+      format: "email",
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox. Null clears it.",
+    },
+    receive_policy: {
+      type: "string",
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      description: "Which inbound mail the mailbox accepts.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d", "90d", "1y"],
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. `3y` and `10y` are reserved future tiers.",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "The contact this mailbox is associated with. Null clears it.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Replaces the mailbox's key/value data. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+  },
+  example: {
+    display_name: "Acme Concierge",
+    retention_tier: "1y",
+  },
+} as const;
+
+export const MailboxCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for creating a mailbox.",
+  properties: {
+    local_part: {
+      type: "string",
+      minLength: 1,
+      maxLength: 64,
+      pattern: "^[A-Za-z0-9._-]+$",
+      description:
+        "The local part of the mailbox address (the part before `@`). Letters, digits, dots, underscores, and hyphens; stored lowercase. Omit to have Bird generate a random local part.",
+      example: "concierge",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "The domain the address lives under. Defaults to your workspace's agent domain. May also name one of your inbound-enabled custom domains.",
+      example: "acme-support.eu.mailbox.bird.com",
+    },
+    display_name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox.",
+      example: "Acme Concierge",
+    },
+    default_reply_to: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox.",
+    },
+    receive_policy: {
+      type: "string",
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      default: "open",
+      description:
+        "Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule; `drop` stores nothing.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d", "90d", "1y"],
+      default: "30d",
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.",
+    },
+    contact_id: {
+      $ref: "#/components/schemas/ContactID",
+      description: "A contact to associate the mailbox with.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Your own key/value data to attach to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+  },
+  example: {
+    local_part: "concierge",
+    display_name: "Acme Concierge",
+    receive_policy: "open",
+    retention_tier: "1y",
+  },
+} as const;
+
+export const MailboxListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Mailbox",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const InboundAddressIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ina_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ina_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const MailboxOwnerSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The principal that owns the mailbox. Always the workspace.",
+  required: ["type", "id"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["workspace"],
+      readOnly: true,
+      description: "Owner principal type.",
+    },
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "Owner principal ID.",
+    },
+  },
+} as const;
+
+export const MailboxSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.\n",
+  required: [
+    "id",
+    "address",
+    "display_name",
+    "default_reply_to",
+    "receive_policy",
+    "state",
+    "channel",
+    "owner",
+    "contact_id",
+    "inbound_address_id",
+    "storage_bytes",
+    "retention_tier",
+    "message_count",
+    "thread_count",
+    "metadata",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxID",
+      description: "Mailbox ID.",
+    },
+    address: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      readOnly: true,
+      description: "The mailbox's email address. Immutable once created.",
+      example: "concierge@acme-support.eu.mailbox.bird.com",
+    },
+    display_name: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox. Null when unset.",
+      example: "Acme Concierge",
+    },
+    default_reply_to: {
+      type: ["string", "null"],
+      format: "email",
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox. Null when unset.",
+    },
+    receive_policy: {
+      type: "string",
+      minLength: 1,
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      description:
+        "Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.",
+    },
+    state: {
+      type: "string",
+      minLength: 1,
+      enum: ["active", "suspended"],
+      readOnly: true,
+      description:
+        "Lifecycle state. Suspended mailboxes stop emitting events; inbound mail is retained as blocked.",
+    },
+    channel: {
+      type: "string",
+      minLength: 1,
+      enum: ["email"],
+      readOnly: true,
+      description: "The channel this mailbox receives on. Always `email`.",
+    },
+    owner: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxOwner",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "The contact this mailbox is associated with. Null when unset.",
+    },
+    inbound_address_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/InboundAddressID",
+      description:
+        "The underlying inbound address that receives this mailbox's mail.",
+    },
+    storage_bytes: {
+      type: "integer",
+      format: "int64",
+      readOnly: true,
+      description: "Logical size of the mailbox's retained memory, in bytes.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d", "90d", "1y"],
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.",
+    },
+    message_count: {
+      type: "integer",
+      format: "int64",
+      readOnly: true,
+      description: "Number of retained messages across all threads.",
+    },
+    thread_count: {
+      type: "integer",
+      format: "int64",
+      readOnly: true,
+      description: "Number of retained threads.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the mailbox was created.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the mailbox was last updated.",
+    },
+  },
+} as const;
+
+export const AgentDomainCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for claiming your workspace's agent domain.",
+  required: ["handle"],
+  properties: {
+    handle: {
+      type: "string",
+      minLength: 3,
+      maxLength: 63,
+      pattern: "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$",
+      description:
+        "The handle to claim. Lowercase letters, digits, and hyphens; must start and end with a letter or digit. Handles are globally unique, immutable, and checked against a reserved list — brand, financial, and infrastructure terms cannot be claimed.",
+      example: "acme-support",
+    },
+  },
+  example: {
+    handle: "acme-support",
+  },
+} as const;
+
+export const AgentDomainListSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The workspace's agent domains. Contains at most one active domain, plus any released domains whose handles remain reserved to this workspace.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/AgentDomain",
+      },
+    },
+  },
+} as const;
+
+export const AgentDomainIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^agd_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "agd_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const AgentDomainSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Your workspace's agent domain — a Bird-hosted subdomain (`{handle}.{region}.mailbox.bird.com`) that mailbox addresses live under. Each workspace can hold one active agent domain; the handle is globally unique and immutable once claimed.\n",
+  required: ["id", "handle", "domain", "status", "created_at", "updated_at"],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/AgentDomainID",
+      description: "Agent domain ID.",
+    },
+    handle: {
+      type: "string",
+      minLength: 3,
+      maxLength: 63,
+      readOnly: true,
+      description:
+        "The claimed handle — the leftmost label of the agent domain. Immutable.",
+      example: "acme-support",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The full agent domain that mailbox addresses live under.",
+      example: "acme-support.eu.mailbox.bird.com",
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      enum: ["provisioning", "active", "releasing", "released"],
+      readOnly: true,
+      description:
+        "Lifecycle status. `provisioning` domains are being set up and become `active` shortly — poll the domain until it does. `active` domains receive mail. `releasing` domains are being released; once `released` they no longer receive mail, and the handle stays reserved to this workspace.",
+    },
+    released_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description: "When the domain was released. Null while active.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the domain was claimed.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the domain was last updated.",
+    },
+  },
+} as const;
+
 export const InboundAttachmentListSchema = {
   type: "object",
   additionalProperties: false,
@@ -2493,30 +4798,6 @@ export const InboundEmailMessageListSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
-} as const;
-
-export const EmailAddressSchema = {
-  type: "object",
-  additionalProperties: false,
-  description: "An email address with an optional display name.",
-  required: ["email"],
-  properties: {
-    email: {
-      type: "string",
-      format: "email",
-      minLength: 5,
-      description: "Email address.",
-      example: "jane@example.com",
-    },
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 256,
-      pattern: "^[^\\r\\n]+$",
-      description: "Display name shown alongside the address in mail clients.",
-      example: "Jane Doe",
-    },
-  },
 } as const;
 
 export const InboundEmailMessageSchema = {
@@ -2686,13 +4967,6 @@ export const InboundAddressListSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
-} as const;
-
-export const InboundAddressIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^ina_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "ina_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const InboundAddressSchema = {
@@ -3383,6 +5657,672 @@ export const SuppressionSchema = {
       type: "string",
       format: "date-time",
       readOnly: true,
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description: "The templates available to your workspace.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppTemplate",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateButtonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "text"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      "x-extensible-enum": ["url"],
+      description: "The button's behavior type.",
+      example: "url",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The button's label text.",
+      example: "Copy code",
+    },
+    url: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The URL the button opens, with any variable placeholder shown inline. Present on link buttons.",
+      example:
+        "https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp{{1}}",
+    },
+    example_parameters: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Example values for this button's variables, in placeholder order. Present when the button URL has variables.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppTemplateExampleParameter",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateParameterTypeSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["text"],
+  description: "The type of a template parameter.",
+} as const;
+
+export const WhatsAppTemplateExampleParameterSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppTemplateParameterType",
+        },
+      ],
+      readOnly: true,
+      description: "The kind of value this parameter accepts.",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "An example value for a text parameter. Present when `type` is `text`.",
+      example: "123456",
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateComponentSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      "x-extensible-enum": ["header", "body", "buttons"],
+      description: "The content block's type within the template.",
+      example: "body",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The block's text content, with any variable placeholders shown inline. Present when the block carries text.",
+      example: "Your verification code is {{1}}.",
+    },
+    example_parameters: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Example values for this block's variables, in placeholder order — one per `{{n}}`. Use them to see what a filled message looks like. Present when the block has variables.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppTemplateExampleParameter",
+      },
+    },
+    buttons: {
+      type: "array",
+      readOnly: true,
+      description:
+        "The buttons attached to this block. Present when the block carries buttons.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppTemplateButton",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateStatusSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": [
+    "approved",
+    "pending",
+    "rejected",
+    "paused",
+    "disabled",
+    "in_appeal",
+    "pending_deletion",
+    "limit_exceeded",
+  ],
+  description:
+    "A message template's review and health status. `approved`, `pending`, and `rejected` are review outcomes; `paused`, `disabled`, `in_appeal`, `pending_deletion`, and `limit_exceeded` reflect a template's ongoing health after approval.",
+} as const;
+
+export const WhatsAppTemplateCategorySchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["authentication", "utility", "marketing"],
+  description:
+    "WhatsApp template category — Meta's content classification for a template. Open enum — Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error. The values below are the categories known at this version.",
+} as const;
+
+export const WhatsAppTemplateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "scope", "language", "category", "status", "components"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The template's stable handle. Pass it as the template reference when sending.",
+      example: "bird_otp",
+    },
+    scope: {
+      $ref: "#/components/schemas/TemplateScope",
+    },
+    language: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The language code of this template variant (for example `en` or `pt_BR`).",
+      example: "en",
+    },
+    category: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppTemplateCategory",
+        },
+      ],
+      readOnly: true,
+      description:
+        "Content classification applied to messages sent from this template.",
+    },
+    status: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppTemplateStatus",
+        },
+      ],
+      readOnly: true,
+      description: "The template's review and health status.",
+    },
+    components: {
+      type: "array",
+      readOnly: true,
+      description:
+        "The content blocks that make up the template, in display order.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppTemplateComponent",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppEventListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full — this list is not paginated.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppEvent",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppErrorCodeSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": [
+    "insufficient_balance",
+    "price_not_found",
+    "internal_error",
+    "undeliverable",
+    "service_window_expired",
+    "rate_limited",
+  ],
+  description:
+    "Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance` — the workspace could not afford the send. `price_not_found` — no price was configured for this destination/template combination. `internal_error` — an unexpected Bird-side failure. `undeliverable` — the recipient could not be reached (e.g. not on WhatsApp, number invalid). `service_window_expired` — the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited` — the send was throttled.\n",
+} as const;
+
+export const WhatsAppErrorSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code", "description", "occurred_at"],
+  description:
+    "Failure detail for a message that could not be delivered. Null when there is no failure.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/WhatsAppErrorCode",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Human-readable explanation of the failure.",
+      example: "Message could not be delivered.",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the failure occurred.",
+    },
+  },
+} as const;
+
+export const WhatsAppEventIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ev_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ev_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const WhatsAppEventSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "type", "occurred_at", "error"],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/WhatsAppEventID",
+      description: "Event ID.",
+    },
+    type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      "x-extensible-enum": [
+        "whatsapp.accepted",
+        "whatsapp.sent",
+        "whatsapp.delivered",
+        "whatsapp.read",
+        "whatsapp.failed",
+      ],
+      description:
+        "Lifecycle event type. `whatsapp.accepted` — Bird accepted the request. `whatsapp.sent` — handed to the WhatsApp network. `whatsapp.delivered` — delivery confirmed to the recipient's device. `whatsapp.read` — the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed` — terminal permanent failure. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
+      example: "whatsapp.delivered",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When this event occurred.",
+    },
+    error: {
+      $ref: "#/components/schemas/WhatsAppError",
+      description:
+        "Failure detail. Present on `whatsapp.failed` events; null otherwise.",
+    },
+  },
+} as const;
+
+export const SendWhatsAppMessageRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["to"],
+  properties: {
+    to: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The message recipient's phone number in E.164 format (for example `+31612345678`).",
+      example: "+31612345678",
+    },
+    template: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/SendWhatsAppMessageTemplate",
+        },
+      ],
+      description:
+        "The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are currently the only supported content type, so every send must include one; free-text content will be added in a future release.\n",
+    },
+  },
+} as const;
+
+export const WhatsAppMessageTemplateComponentParameterSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "text"],
+  properties: {
+    type: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppTemplateParameterType",
+        },
+      ],
+      description: "Parameter type.",
+    },
+    text: {
+      type: "string",
+      minLength: 1,
+      description: "Parameter value.",
+    },
+  },
+} as const;
+
+export const WhatsAppMessageTemplateComponentSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      "x-extensible-enum": ["header", "body", "button"],
+      description: "Which part of the template this fills in.",
+    },
+    parameters: {
+      type: "array",
+      description: "The values that fill this part's placeholders, in order.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppMessageTemplateComponentParameter",
+      },
+    },
+  },
+} as const;
+
+export const SendWhatsAppMessageTemplateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9_]*[a-z0-9])?$",
+      description:
+        "The template to send, by its name (for example `bird_otp`).",
+      example: "bird_otp",
+    },
+    language: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language.\n",
+      example: "en",
+    },
+    components: {
+      type: "array",
+      description: "The values that fill the template's placeholders.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppMessageTemplateComponent",
+      },
+    },
+  },
+  examples: [
+    {
+      name: "bird_order_confirmation",
+      language: "en",
+      components: [
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              text: "A1B2C3D4",
+            },
+            {
+              type: "text",
+              text: "EUR 49.99",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "bird_otp",
+      language: "en",
+      components: [],
+    },
+  ],
+} as const;
+
+export const WhatsAppMessageListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of WhatsApp message objects.",
+          items: {
+            $ref: "#/components/schemas/WhatsAppMessage",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const WhatsAppMessageStatusSchema = {
+  type: "string",
+  minLength: 1,
+  enum: [
+    "scheduled",
+    "accepted",
+    "sent",
+    "delivered",
+    "failed",
+    "canceled",
+    "received",
+  ],
+  description:
+    "Delivery status. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `canceled` means a scheduled message was canceled before it was sent. `received` is the status of an inbound message (`direction: inbound`) sent to you by a contact. There is no `read` status — a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value.\n",
+} as const;
+
+export const WhatsAppMessageTemplateSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present — `components` is an empty array for an authentication template (the filled-in values, e.g. a verification code, are never returned).\n",
+  required: ["name", "language", "category", "components"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The template's stable handle (for example `bird_otp`).",
+      example: "bird_otp",
+    },
+    category: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppTemplateCategory",
+        },
+      ],
+      readOnly: true,
+      description:
+        "Content classification applied to messages sent from this template.",
+    },
+    language: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The language code of the template variant that was sent (for example `en`).",
+      example: "en",
+    },
+    components: {
+      type: "array",
+      readOnly: true,
+      description:
+        "The values that filled the template's placeholders. Empty for an authentication template, whose content is never returned.\n",
+      items: {
+        $ref: "#/components/schemas/WhatsAppMessageTemplateComponent",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppMessageContactSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Contact on the other end of the message. Fields are omitted when not available; at least one is always present.",
+  properties: {
+    phone_number: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Contact's phone number in E.164 format, when known.",
+      example: "+15551234567",
+    },
+    bsuid: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Business-scoped user ID (Meta's WhatsApp identifier for this contact within the business account), when available.",
+      example: "NL.xxxx",
+    },
+  },
+} as const;
+
+export const WhatsAppMessageBusinessSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "The business identity that sent the message. `phone_number` is always present; `phone_number_id` is included only for account-owned numbers.\n",
+  properties: {
+    phone_number: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "E.164 phone number of the WhatsApp business account that sent the message.",
+      example: "+15557654321",
+    },
+    phone_number_id: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The WhatsApp phone number identifier. Present only for account-owned numbers.",
+      example: "397968058767338",
+    },
+  },
+} as const;
+
+export const WhatsAppMessageIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^wam_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "wam_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const WhatsAppMessageSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "direction", "business", "contact", "status", "created_at"],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/WhatsAppMessageID",
+      description: "Message ID.",
+    },
+    direction: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      enum: ["outbound", "inbound"],
+      description:
+        "Whether the message was sent by the business (`outbound`) or received from the contact (`inbound`).",
+    },
+    business: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppMessageBusiness",
+        },
+      ],
+    },
+    contact: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppMessageContact",
+        },
+      ],
+    },
+    template: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppMessageTemplate",
+        },
+      ],
+      description:
+        "The template the message was sent from. For authentication templates the filled-in values are not returned.",
+    },
+    status: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppMessageStatus",
+        },
+      ],
+    },
+    last_error: {
+      $ref: "#/components/schemas/WhatsAppError",
+      description:
+        "Failure detail for a message that did not reach the recipient. Null when there is no failure.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the message was accepted for delivery.",
+    },
+    sent_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the message was handed to the WhatsApp network. Null until then.",
+    },
+    delivered_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description: "When delivery was confirmed. Null until then.",
+    },
+    read_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the message was read by the recipient. Null until then.",
     },
   },
 } as const;
@@ -4346,13 +7286,6 @@ export const AudienceContactsRemoveRequestSchema = {
   example: {
     contact_ids: ["con_01krdgeqcxet5s7t44vh8rt9mg"],
   },
-} as const;
-
-export const ContactIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^con_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "con_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const AudienceContactsAddRequestSchema = {
@@ -5364,51 +8297,6 @@ export const EmailMessageBatchRequestSchema = {
   ],
 } as const;
 
-export const EmailAttachmentSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["filename", "content"],
-  description:
-    "File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.\nInline images for `<img src=\"cid:...\"/>` references in the HTML body use the `content_id` field together with `content`.\nBird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.\nRecipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.\nBatch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.\n",
-  properties: {
-    filename: {
-      type: "string",
-      minLength: 1,
-      maxLength: 255,
-      description: "Filename shown to the recipient. Required.",
-      example: "invoice.pdf",
-    },
-    content: {
-      type: "string",
-      format: "byte",
-      minLength: 1,
-      description:
-        "Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
-    },
-    path: {
-      type: "string",
-      format: "uri",
-      description:
-        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
-    },
-    content_type: {
-      type: "string",
-      description:
-        "MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.\n",
-      example: "application/pdf",
-    },
-    content_id: {
-      type: "string",
-      minLength: 1,
-      maxLength: 128,
-      pattern: "^[A-Za-z0-9._-]+$",
-      description:
-        'RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.\n',
-      example: "invoice-logo",
-    },
-  },
-} as const;
-
 export const EmailTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
@@ -5446,26 +8334,6 @@ export const EmailTemplateSendSchema = {
       },
     },
   },
-} as const;
-
-export const EmailAddressInputSchema = {
-  description:
-    "A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.\n",
-  oneOf: [
-    {
-      type: "string",
-      minLength: 5,
-      maxLength: 998,
-      pattern: "^[^\\r\\n]+$",
-      title: "Email string",
-      description:
-        "Email address, optionally in RFC 5322 mailbox form with an embedded display name.",
-      example: "Jane Doe <jane@example.com>",
-    },
-    {
-      $ref: "#/components/schemas/EmailAddress",
-    },
-  ],
 } as const;
 
 export const EmailMessageSendRequestSchema = {
@@ -6614,6 +9482,30 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventEmailUnsubscribed",
     },
     {
+      $ref: "#/components/schemas/EventEmailMailboxMessageDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageFailed",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceived",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedBlocked",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageReceivedUnauthenticated",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxMessageSent",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxSuspended",
+    },
+    {
+      $ref: "#/components/schemas/EventEmailMailboxThreadCreated",
+    },
+    {
       $ref: "#/components/schemas/EventEmailSuppressionCreated",
     },
     {
@@ -6660,6 +9552,22 @@ export const WebhookEventWritableSchema = {
       "email.rejected": "#/components/schemas/EventEmailRejected",
       "email.scheduled": "#/components/schemas/EventEmailScheduled",
       "email.unsubscribed": "#/components/schemas/EventEmailUnsubscribed",
+      "email_mailbox.message_delivered":
+        "#/components/schemas/EventEmailMailboxMessageDelivered",
+      "email_mailbox.message_failed":
+        "#/components/schemas/EventEmailMailboxMessageFailed",
+      "email_mailbox.message_received":
+        "#/components/schemas/EventEmailMailboxMessageReceived",
+      "email_mailbox.message_received_blocked":
+        "#/components/schemas/EventEmailMailboxMessageReceivedBlocked",
+      "email_mailbox.message_received_unauthenticated":
+        "#/components/schemas/EventEmailMailboxMessageReceivedUnauthenticated",
+      "email_mailbox.message_sent":
+        "#/components/schemas/EventEmailMailboxMessageSent",
+      "email_mailbox.suspended":
+        "#/components/schemas/EventEmailMailboxSuspended",
+      "email_mailbox.thread_created":
+        "#/components/schemas/EventEmailMailboxThreadCreated",
       "email_suppression.created":
         "#/components/schemas/EventEmailSuppressionCreated",
       "sms.accepted": "#/components/schemas/EventSMSAccepted",
@@ -6806,6 +9714,329 @@ export const EmailSmtpConfigWritableSchema = {
       },
     },
   ],
+} as const;
+
+export const EmailThreadMessageAttachmentListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The attachments on a conversation message.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThreadMessageWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadMessageWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.\n",
+  required: ["read", "disposition", "labels", "contact_id"],
+  properties: {
+    read: {
+      type: ["boolean", "null"],
+      description:
+        "Whether the message has been marked read. Null for sent messages.",
+    },
+    disposition: {
+      type: ["string", "null"],
+      enum: ["inbox", "blocked", "unauthenticated", null],
+      description:
+        "Where the message landed: `inbox` for accepted mail, `blocked` (receive policy or rules), or `unauthenticated` (failed sender authentication). Null for sent messages. Trash state is carried separately in `trashed_at`.\n",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels applied to this message. A message carries at most 20 labels.",
+      example: ["urgent"],
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this message, or null when none is linked.",
+    },
+  },
+} as const;
+
+export const EmailThreadListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThreadWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.\n",
+  required: ["contact_id", "labels"],
+  properties: {
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this conversation, or null when none is linked.",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels applied to this conversation. A thread carries at most 20 labels.",
+      example: ["urgent", "billing"],
+    },
+  },
+} as const;
+
+export const InboundRouteListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/InboundRouteWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const InboundRouteWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A routing rule that directs inbound mail on one of your domains into a mailbox, or drops it. Routes are evaluated in priority order — lowest number first. Each mailbox's own address is always matched at priority 10 and explicit routes accept 11–1000, so exact-address delivery always takes precedence.\n",
+  required: [
+    "match_type",
+    "match_value",
+    "action",
+    "target_mailbox_id",
+    "priority",
+    "enabled",
+  ],
+  properties: {
+    match_type: {
+      type: "string",
+      minLength: 1,
+      enum: ["address", "catch_all"],
+      description:
+        "How the route matches recipients. `address` matches one local part; `catch_all` matches every recipient on the domain that nothing else matched.",
+    },
+    match_value: {
+      type: ["string", "null"],
+      maxLength: 64,
+      description:
+        "The local part an `address` route matches. Null for `catch_all` routes.",
+      example: "refunds",
+    },
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["deliver_to_mailbox", "drop"],
+      description: "What happens to matching mail.",
+    },
+    target_mailbox_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/MailboxID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "The mailbox that receives matching mail. Null for `drop` routes.",
+    },
+    priority: {
+      type: "integer",
+      minimum: 11,
+      maximum: 1000,
+      description:
+        "Evaluation order — lowest number wins. Explicit routes accept 11–1000 (default 100); the mailbox's own address always matches at priority 10.",
+    },
+    enabled: {
+      type: "boolean",
+      description:
+        "Whether the route is evaluated. Disabled routes are kept but skipped.",
+    },
+  },
+} as const;
+
+export const ReceiveRuleListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const MailboxListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/MailboxWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const MailboxWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.\n",
+  required: [
+    "display_name",
+    "default_reply_to",
+    "receive_policy",
+    "contact_id",
+    "retention_tier",
+    "metadata",
+  ],
+  properties: {
+    display_name: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox. Null when unset.",
+      example: "Acme Concierge",
+    },
+    default_reply_to: {
+      type: ["string", "null"],
+      format: "email",
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox. Null when unset.",
+    },
+    receive_policy: {
+      type: "string",
+      minLength: 1,
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      description:
+        "Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "The contact this mailbox is associated with. Null when unset.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d", "90d", "1y"],
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+  },
+} as const;
+
+export const AgentDomainListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The workspace's agent domains. Contains at most one active domain, plus any released domains whose handles remain reserved to this workspace.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+    },
+  },
 } as const;
 
 export const InboundAttachmentListWritableSchema = {
@@ -7189,6 +10420,110 @@ export const SuppressionWritableSchema = {
           type: "null",
         },
       ],
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description: "The templates available to your workspace.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppTemplateWritable",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppTemplateWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+} as const;
+
+export const WhatsAppEventListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full — this list is not paginated.",
+      items: {
+        $ref: "#/components/schemas/WhatsAppEventWritable",
+      },
+    },
+  },
+} as const;
+
+export const WhatsAppErrorWritableSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code"],
+  description:
+    "Failure detail for a message that could not be delivered. Null when there is no failure.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/WhatsAppErrorCode",
+    },
+  },
+} as const;
+
+export const WhatsAppEventWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["error"],
+  properties: {
+    error: {
+      $ref: "#/components/schemas/WhatsAppErrorWritable",
+      description:
+        "Failure detail. Present on `whatsapp.failed` events; null otherwise.",
+    },
+  },
+} as const;
+
+export const WhatsAppMessageListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of WhatsApp message objects.",
+          items: {
+            $ref: "#/components/schemas/WhatsAppMessageWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const WhatsAppMessageTemplateWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present — `components` is an empty array for an authentication template (the filled-in values, e.g. a verification code, are never returned).\n",
+} as const;
+
+export const WhatsAppMessageWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    last_error: {
+      $ref: "#/components/schemas/WhatsAppErrorWritable",
+      description:
+        "Failure detail for a message that did not reach the recipient. Null when there is no failure.",
     },
   },
 } as const;

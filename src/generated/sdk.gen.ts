@@ -993,7 +993,7 @@ export const getSmsTemplate = <ThrowOnError extends boolean = false>(
 /**
  * List email templates
  *
- * Returns a paginated list of the workspace's email templates, newest first. Filter by category, source, or a case-insensitive name prefix.
+ * Returns a paginated list of the workspace's email templates, newest first. Filter by category, source, or a case-insensitive search that matches the template's name or description.
  *
  */
 export const listEmailTemplates = <ThrowOnError extends boolean = false>(

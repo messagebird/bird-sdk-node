@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- Fix the package entry points so the SDK is importable: the build emits `dist/index.mjs`/`.d.mts`, but `main`/`types`/`exports` still pointed at `dist/index.js`/`.d.ts`, so 0.4.0 and 0.4.1 failed with `ERR_MODULE_NOT_FOUND`. 0.4.1 is deprecated; use 0.4.2.
+
 ## 0.4.1
 
 - Build determinism: commit a lockfile and install it frozen so the published build is reproducible (0.4.0 failed to publish on a non-deterministic dependency resolution). Ship the caller-detection test fixtures inside the package so they resolve in the standalone build.

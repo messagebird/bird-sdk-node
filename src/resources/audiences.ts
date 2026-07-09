@@ -155,7 +155,7 @@ export class AudiencesResource extends Resource {
    *
    * @example
    * for await (const member of bird.audiences.listContacts("aud_01krdgeqcxet5s7t44vh8rt9mg")) {
-   *   console.log(member.contact_id);
+   *   console.log(member.contact.id, member.joined_at);
    * }
    */
   listContacts(

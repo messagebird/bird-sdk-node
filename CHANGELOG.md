@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Build determinism: commit a lockfile and install it frozen so the published build is reproducible (0.4.0 failed to publish on a non-deterministic dependency resolution). Ship the caller-detection test fixtures inside the package so they resolve in the standalone build.
+- Correct the `audiences.listContacts` example: a member's contact is `member.contact.id`, with `member.joined_at`.
+
 ## 0.4.0
 
 - Add the contacts collection: `contacts.create`, `.get`, `.list`, `.update`, `.delete`, and `.batch` (bulk upsert by email). Requires an API key with the `email_marketing` scope.

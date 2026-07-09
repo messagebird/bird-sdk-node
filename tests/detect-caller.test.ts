@@ -6,7 +6,7 @@ import { detectCaller } from "../src/detect-caller.js";
 // Shared cross-language fixtures (clients/caller-detection-cases.json), so this
 // SDK's detector stays in lockstep with the CLI and the other SDKs.
 const doc = JSON.parse(
-  readFileSync(fileURLToPath(new URL("../../caller-detection-cases.json", import.meta.url)), "utf8"),
+  readFileSync(fileURLToPath(new URL("./caller-detection-cases.json", import.meta.url)), "utf8"),
 ) as { cases: { name: string; env: Record<string, string>; want: string }[] };
 
 describe("detectCaller golden vectors", () => {

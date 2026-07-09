@@ -8,6 +8,51 @@ declare const rawBody: string;
 declare const headers: Record<string, string>;
 
 export async function _ex_0() {
+await bird.audiences.addContacts("aud_01krdgeqcxet5s7t44vh8rt9mg", {
+  contact_ids: ["con_1", "con_2"],
+});
+}
+
+export async function _ex_1() {
+const audience = await bird.audiences.create({ name: "Newsletter subscribers" });
+console.log(audience.id); // "aud_…"
+}
+
+export async function _ex_2() {
+await bird.audiences.delete("aud_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_3() {
+const audience = await bird.audiences.get("aud_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_4() {
+for await (const audience of bird.audiences.list()) {
+  console.log(audience.id, audience.name);
+}
+}
+
+export async function _ex_5() {
+for await (const member of bird.audiences.listContacts("aud_01krdgeqcxet5s7t44vh8rt9mg")) {
+  console.log(member.contact.id, member.joined_at);
+}
+}
+
+export async function _ex_6() {
+await bird.audiences.removeContact("aud_01krdgeqcxet5s7t44vh8rt9mg", "con_1");
+}
+
+export async function _ex_7() {
+await bird.audiences.removeContacts("aud_01krdgeqcxet5s7t44vh8rt9mg", {
+  contact_ids: ["con_1", "con_2"],
+});
+}
+
+export async function _ex_8() {
+await bird.audiences.update("aud_01krdgeqcxet5s7t44vh8rt9mg", { name: "Renamed" });
+}
+
+export async function _ex_9() {
 const bird = new BirdClient({
   apiKey: process.env.BIRD_API_KEY!,
   region: "eu1", // optional — override the region from the key prefix
@@ -17,13 +62,40 @@ const bird = new BirdClient({
 });
 }
 
-export async function _ex_1() {
+export async function _ex_10() {
+await bird.contactProperties.archive("cp_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_11() {
+const prop = await bird.contactProperties.create({ key: "plan", type: "string" });
+console.log(prop.id); // "cp_…"
+}
+
+export async function _ex_12() {
+const prop = await bird.contactProperties.get("cp_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_13() {
+for await (const prop of bird.contactProperties.list()) {
+  console.log(prop.key, prop.type);
+}
+}
+
+export async function _ex_14() {
+await bird.contactProperties.unarchive("cp_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_15() {
+await bird.contactProperties.update("cp_01krdgeqcxet5s7t44vh8rt9mg", { fallback_value: "free" });
+}
+
+export async function _ex_16() {
 const result = await bird.contacts.batch({
   contacts: [{ email: "jane@acme.com", first_name: "Jane" }],
 });
 }
 
-export async function _ex_2() {
+export async function _ex_17() {
 const contact = await bird.contacts.create({
   email: "jane@acme.com",
   first_name: "Jane",
@@ -31,29 +103,29 @@ const contact = await bird.contacts.create({
 console.log(contact.id); // "con_…"
 }
 
-export async function _ex_3() {
+export async function _ex_18() {
 await bird.contacts.delete("con_01krdgeqcxet5s7t44vh8rt9mg");
 }
 
-export async function _ex_4() {
+export async function _ex_19() {
 const contact = await bird.contacts.get("con_01krdgeqcxet5s7t44vh8rt9mg");
 contact.email;
 }
 
-export async function _ex_5() {
+export async function _ex_20() {
 for await (const contact of bird.contacts.list({ search: "acme.com" })) {
   console.log(contact.id, contact.email);
 }
 const page = await bird.contacts.list({ limit: 50 }); // page.data, page.next_cursor
 }
 
-export async function _ex_6() {
+export async function _ex_21() {
 const contact = await bird.contacts.update("con_01krdgeqcxet5s7t44vh8rt9mg", {
   first_name: "Jane",
 });
 }
 
-export async function _ex_7() {
+export async function _ex_22() {
 
 try {
   await bird.email.send({
@@ -70,27 +142,27 @@ try {
 }
 }
 
-export async function _ex_8() {
+export async function _ex_23() {
 const msg = await bird.email.get("em_abc123");
 msg.status; // "accepted" | "processed" | "delivered" | "bounced" | …
 msg.delivered_count;
 msg.bounced_count;
 }
 
-export async function _ex_9() {
+export async function _ex_24() {
 for await (const message of bird.email.list({ status: "bounced" })) {
   console.log(message.id);
 }
 }
 
-export async function _ex_10() {
+export async function _ex_25() {
 for await (const message of bird.email.list({ status: "bounced" })) {
   console.log(message.id);
 }
 const page = await bird.email.list({ limit: 50 }); // page.data, page.next_cursor
 }
 
-export async function _ex_11() {
+export async function _ex_26() {
 const { data, error } = await bird.email
   .send({
     from: { email: "onboarding@messagebird.dev", name: "Bird" },
@@ -103,7 +175,7 @@ if (error) console.error(error.message);
 else console.log(data.id);
 }
 
-export async function _ex_12() {
+export async function _ex_27() {
 const msg = await bird.email.send({
   from: { email: "onboarding@messagebird.dev", name: "Bird" },
   to: ["delivered@messagebird.dev"],
@@ -113,7 +185,7 @@ const msg = await bird.email.send({
 console.log(msg.id, msg.status); // "em_…", "accepted"
 }
 
-export async function _ex_13() {
+export async function _ex_28() {
 const batch = await bird.email.sendBatch([
   {
     from: { email: "onboarding@messagebird.dev", name: "Bird" },
@@ -131,7 +203,7 @@ const batch = await bird.email.sendBatch([
 for (const item of batch.data) console.log(item.id, item.status);
 }
 
-export async function _ex_14() {
+export async function _ex_29() {
 const tpl = await bird.emailTemplates.create({
   name: "welcome-email",
   description: "Welcome",
@@ -143,34 +215,34 @@ const tpl = await bird.emailTemplates.create({
 console.log(tpl.id, tpl.revision); // "emt_…", 0
 }
 
-export async function _ex_15() {
+export async function _ex_30() {
 await bird.emailTemplates.delete("emt_abc123");
 }
 
-export async function _ex_16() {
+export async function _ex_31() {
 const tpl = await bird.emailTemplates.get("emt_abc123");
 tpl.subject;
 tpl.published_version_id; // null until first publish
 }
 
-export async function _ex_17() {
+export async function _ex_32() {
 const version = await bird.emailTemplates.getVersion("emt_abc123", "emv_def456");
 version.status; // "draft" | "published"
 }
 
-export async function _ex_18() {
+export async function _ex_33() {
 for await (const tpl of bird.emailTemplates.list({ category: "transactional" })) {
   console.log(tpl.id, tpl.name);
 }
 const page = await bird.emailTemplates.list({ limit: 50 }); // page.data, page.next_cursor
 }
 
-export async function _ex_19() {
+export async function _ex_34() {
 const { data } = await bird.emailTemplates.listVersions("emt_abc123");
 for (const v of data) console.log(v.version_number, v.status);
 }
 
-export async function _ex_20() {
+export async function _ex_35() {
 const version = await bird.emailTemplates.publish("emt_abc123");
 console.log(version.version_number); // 1, 2, 3…
 await bird.email.send({
@@ -180,7 +252,7 @@ await bird.email.send({
 });
 }
 
-export async function _ex_21() {
+export async function _ex_36() {
 const tpl = await bird.emailTemplates.get("emt_abc123");
 const updated = await bird.emailTemplates.update("emt_abc123", {
   revision: tpl.revision,
@@ -188,18 +260,18 @@ const updated = await bird.emailTemplates.update("emt_abc123", {
 });
 }
 
-export async function _ex_22() {
+export async function _ex_37() {
 const msg = await bird.sms.get("sms_abc123");
 msg.status; // "accepted" | "delivered" | …
 }
 
-export async function _ex_23() {
+export async function _ex_38() {
 for await (const msg of bird.sms.list({ direction: "outbound" })) {
   console.log(msg.id, msg.status);
 }
 }
 
-export async function _ex_24() {
+export async function _ex_39() {
 const msg = await bird.sms.send({
   to: "+15551234567",
   text: "Your verification code is 123456.",
@@ -208,31 +280,31 @@ const msg = await bird.sms.send({
 console.log(msg.id, msg.status);
 }
 
-export async function _ex_25() {
+export async function _ex_40() {
 const result = await bird.sms.sendBatch([
   { to: "+15551111111", text: "Hi Alice!", category: "marketing" },
   { to: "+15552222222", text: "Hi Bob!", category: "marketing" },
 ]);
 }
 
-export async function _ex_26() {
+export async function _ex_41() {
 await bird.sms.send({
   to: "+15551234567",
   template: { name: "bird_otp_verification", parameters: { code: "123456" } },
 });
 }
 
-export async function _ex_27() {
+export async function _ex_42() {
 const tpl = await bird.smsTemplates.get("bird_otp_verification");
 console.log(tpl.body, tpl.variables);
 }
 
-export async function _ex_28() {
+export async function _ex_43() {
 const { data } = await bird.smsTemplates.list({ scope: "system" });
 for (const tpl of data) console.log(tpl.id, tpl.name);
 }
 
-export async function _ex_29() {
+export async function _ex_44() {
 // Pass the RAW request body; set the secret via new BirdClient({ webhooks: { secret } }).
 const event = bird.webhooks.unwrap(rawBody, headers);
 console.log(event.type); // discriminated union — narrow on event.type

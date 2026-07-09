@@ -377,6 +377,11 @@ export const EventSMSUndeliveredSchema = {
   description:
     "The carrier reported a non-permanent failure to deliver the message.",
   "x-event-type-id": "sms.undelivered",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.undelivered",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -433,6 +438,11 @@ export const EventSMSSentSchema = {
   additionalProperties: false,
   description: "Bird handed the message to the carrier for delivery.",
   "x-event-type-id": "sms.sent",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.sent",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -483,6 +493,11 @@ export const EventSMSRejectedSchema = {
   description:
     "Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).",
   "x-event-type-id": "sms.rejected",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.rejected",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -531,6 +546,11 @@ export const EventSMSFailedSchema = {
   additionalProperties: false,
   description: "The message terminally failed and will not be delivered.",
   "x-event-type-id": "sms.failed",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.failed",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -570,6 +590,11 @@ export const EventSMSExpiredSchema = {
   description:
     "The message's validity period elapsed before it could be delivered.",
   "x-event-type-id": "sms.expired",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.expired",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -627,6 +652,11 @@ export const EventSMSDeliveredSchema = {
   description:
     "The carrier confirmed delivery of the message to the recipient handset.",
   "x-event-type-id": "sms.delivered",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.delivered",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -666,6 +696,11 @@ export const EventSMSAcceptedSchema = {
   description:
     "Bird accepted the SMS send request and queued it for processing.",
   "x-event-type-id": "sms.accepted",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.accepted",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -695,6 +730,9 @@ export const EventEmailSuppressionCreatedSchema = {
   description:
     "An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce). Payload schema not yet finalized.",
   "x-event-type-id": "email_suppression.created",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -831,6 +869,9 @@ export const EventEmailUnsubscribedSchema = {
   description:
     "Recipient unsubscribed by clicking a tracked unsubscribe link in the email. Fires once per recipient.",
   "x-event-type-id": "email.unsubscribed",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -928,6 +969,11 @@ export const EventEmailScheduledSchema = {
   description:
     "Bird accepted a send scheduled for a future time. Fires once per message when the schedule is created, not per recipient.",
   "x-event-type-id": "email.scheduled",
+  "x-dedupe": {
+    scope: "message",
+    stage: "scheduled",
+    id: "email_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -993,6 +1039,10 @@ export const EventEmailRejectedSchema = {
   description:
     "Bird rejected the email before sending it (suppression list hit, transmission failure, or a content/policy guard). Fires once per recipient.",
   "x-event-type-id": "email.rejected",
+  "x-dedupe": {
+    scope: "recipient",
+    stage: "rejected",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1118,6 +1168,9 @@ export const EventEmailReceivedSchema = {
   description:
     "Bird received and parsed an inbound email. The payload carries the message's identifiers, sender and recipients, subject, threading reference, and authentication results — enough to route and triage without a fetch. Fetch the body, full headers, and attachments with GET /v1/email/inbound-messages/{id}.",
   "x-event-type-id": "email.received",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1157,6 +1210,10 @@ export const EventEmailProcessedSchema = {
   description:
     "Bird processed the message and queued it for delivery to the recipient's mail server. Fires once per recipient when the message enters the SMTP delivery queue.",
   "x-event-type-id": "email.processed",
+  "x-dedupe": {
+    scope: "recipient",
+    stage: "provider_accepted",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1247,6 +1304,9 @@ export const EventEmailOutOfBandBounceSchema = {
   description:
     "A bounce notification arrived after the message had already been accepted for delivery. Fires once per recipient.",
   "x-event-type-id": "email.out_of_band_bounce",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1304,6 +1364,9 @@ export const EventEmailOpenedSchema = {
   description:
     "The recipient opened the email (the tracking pixel was loaded). May fire more than once per recipient.",
   "x-event-type-id": "email.opened",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1343,6 +1406,9 @@ export const EventEmailListUnsubscribedSchema = {
   description:
     "Recipient unsubscribed via the RFC 8058 one-click List-Unsubscribe mechanism. Fires once per recipient.",
   "x-event-type-id": "email.list_unsubscribed",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1382,6 +1448,9 @@ export const EventEmailDeliveredSchema = {
   description:
     "An outbound email reached the recipient's mail server and was accepted.",
   "x-event-type-id": "email.delivered",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1450,6 +1519,9 @@ export const EventEmailDeferredSchema = {
   description:
     "The recipient's mail server temporarily refused the email; delivery will be retried. May fire more than once per recipient.",
   "x-event-type-id": "email.deferred",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1501,6 +1573,9 @@ export const EventEmailComplainedSchema = {
   description:
     "The recipient marked the email as spam through their mailbox provider's feedback loop. Fires once per recipient.",
   "x-event-type-id": "email.complained",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1564,6 +1639,9 @@ export const EventEmailClickedSchema = {
   description:
     "The recipient clicked a tracked link in the email. May fire more than once per recipient.",
   "x-event-type-id": "email.clicked",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1603,6 +1681,11 @@ export const EventEmailCanceledSchema = {
   description:
     "A scheduled send was canceled before it fired. Fires once per message, not per recipient.",
   "x-event-type-id": "email.canceled",
+  "x-dedupe": {
+    scope: "message",
+    stage: "canceled",
+    id: "email_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1683,6 +1766,9 @@ export const EventEmailBouncedSchema = {
   description:
     "An outbound email permanently failed at the recipient's mail server. Fires once per recipient.",
   "x-event-type-id": "email.bounced",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1722,6 +1808,10 @@ export const EventEmailAcceptedSchema = {
   description:
     "Bird accepted the email send and is preparing to deliver. Fires once per requested recipient at acceptance time.",
   "x-event-type-id": "email.accepted",
+  "x-dedupe": {
+    scope: "recipient",
+    stage: "accepted",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1751,6 +1841,9 @@ export const EventDomainVerifiedSchema = {
   description:
     "A sending domain completed DNS verification successfully. Payload schema not yet finalized.",
   "x-event-type-id": "domain.verified",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -1783,6 +1876,9 @@ export const EventDomainFailedSchema = {
   description:
     "A sending domain failed DNS verification. Payload schema not yet finalized.",
   "x-event-type-id": "domain.failed",
+  "x-dedupe": {
+    scope: "provider",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -2175,6 +2271,129 @@ export const _ListEnvelopeWithTotalSchema = {
             "Total number of items matching the request's filters across all pages. Present only when `include_total=true` was passed; otherwise null.",
         },
       },
+    },
+  ],
+} as const;
+
+export const EmailSmtpConfigUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Desired changes to the SMTP config for the key. A field you omit is left unchanged; if no config exists yet for this key, omitted fields take their documented defaults instead.\n",
+  properties: {
+    ip_pool_id: {
+      type: ["string", "null"],
+      pattern: "^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$",
+      description:
+        "ID of the IP pool to send from (`ipp_` prefix), or `ipp_shared` to route through the shared pool explicitly. Send `null` to reset to your organization's default pool, or omit to leave unchanged. An unknown pool, or a pool with no dedicated IPs available to send from, is rejected with a `422`.\n",
+    },
+    category: {
+      type: "string",
+      enum: ["marketing", "transactional"],
+      description:
+        "Content classification — independent of which endpoint messages are submitted through. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Omit to leave unchanged.\n",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels applied to every message submitted over SMTP with this key. Send an empty array to clear all tags, or omit to leave unchanged.\n",
+    },
+    track_opens: {
+      type: "boolean",
+      description:
+        "Whether to track open events for messages submitted over SMTP with this key. Omit to leave unchanged.",
+    },
+    track_clicks: {
+      type: "boolean",
+      description:
+        "Whether to track click events for messages submitted over SMTP with this key. Omit to leave unchanged.",
+    },
+  },
+} as const;
+
+export const EmailSmtpConfigListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailSmtpConfig",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
+} as const;
+
+export const APIKeyIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^key_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "key_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailSmtpConfigSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: [
+        "api_key_id",
+        "category",
+        "tags",
+        "track_opens",
+        "track_clicks",
+      ],
+      properties: {
+        api_key_id: {
+          readOnly: true,
+          $ref: "#/components/schemas/APIKeyID",
+        },
+        ip_pool_id: {
+          type: ["string", "null"],
+          pattern: "^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$",
+          description:
+            "ID of the IP pool that SMTP sends with this key use, or `ipp_shared` for the shared pool. `null` when this key uses your organization's default pool.\n",
+        },
+        category: {
+          type: "string",
+          minLength: 1,
+          enum: ["marketing", "transactional"],
+          description:
+            "Content classification applied to messages submitted over SMTP with this key. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.\n",
+        },
+        tags: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Tag",
+          },
+          maxItems: 20,
+          description:
+            "Structured `{name, value}` labels applied to every message submitted over SMTP with this key — the same tags used by the email sending API. See EmailMessageSendRequest for how tags are used for filtering and analytics.\n",
+        },
+        track_opens: {
+          type: "boolean",
+          description:
+            "Whether open events are tracked for messages submitted over SMTP with this key.",
+        },
+        track_clicks: {
+          type: "boolean",
+          description:
+            "Whether click events are tracked for messages submitted over SMTP with this key.",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/Timestamps",
     },
   ],
 } as const;
@@ -2680,16 +2899,10 @@ export const EmailTemplateUpdateSchema = {
     name: {
       type: "string",
       minLength: 1,
-      maxLength: 255,
-      description: "New template name. Must stay unique within the workspace.",
-    },
-    alias: {
-      type: ["string", "null"],
-      minLength: 1,
       maxLength: 63,
       pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "New workspace-unique slug handle for send-by-template. Send null to clear it. Lowercase letters, numbers, and hyphens.\n",
+        "New workspace-unique slug handle. Must stay unique within the workspace. Lowercase letters, numbers, and hyphens.\n",
     },
     description: {
       type: ["string", "null"],
@@ -2754,12 +2967,11 @@ export const EmailTemplateSchema = {
     name: {
       type: "string",
       minLength: 1,
-      description: "Human-readable template name, unique within the workspace.",
-    },
-    alias: {
-      type: ["string", "null"],
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
+      example: "welcome-email",
     },
     description: {
       type: ["string", "null"],
@@ -2884,17 +3096,10 @@ export const EmailTemplateCreateSchema = {
     name: {
       type: "string",
       minLength: 1,
-      maxLength: 255,
-      description: "Human-readable template name, unique within the workspace.",
-      example: "Welcome email",
-    },
-    alias: {
-      type: "string",
-      minLength: 1,
       maxLength: 63,
       pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "Optional workspace-unique slug handle for the template — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.\n",
+        "The template's workspace-unique slug handle — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.\n",
       example: "welcome-email",
     },
     description: {
@@ -2984,12 +3189,11 @@ export const EmailTemplateSummarySchema = {
     name: {
       type: "string",
       minLength: 1,
-      description: "Human-readable template name, unique within the workspace.",
-    },
-    alias: {
-      type: ["string", "null"],
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
+      example: "welcome-email",
     },
     description: {
       type: ["string", "null"],
@@ -3399,7 +3603,7 @@ export const VerificationOptionsSchema = {
     code_length: {
       type: "integer",
       minimum: 4,
-      maximum: 10,
+      maximum: 8,
       description:
         "Passcode length for this verification, overriding the configured length.",
     },
@@ -3458,12 +3662,12 @@ export const SMSTemplateSchema = {
   required: [
     "id",
     "name",
-    "alias",
+    "description",
     "scope",
     "category",
     "body",
     "variables",
-    "available_locales",
+    "available_languages",
     "status",
     "draft_version_id",
     "revision",
@@ -3480,16 +3684,16 @@ export const SMSTemplateSchema = {
       type: "string",
       minLength: 1,
       readOnly: true,
-      description: "Human-readable description of what the template is for.",
-      example: "One-time passcode verification",
-    },
-    alias: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
       description:
         "The template's stable handle. Pass it (or the id) as the template reference when sending.",
       example: "bird_otp_verification",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Human-readable description of what the template is for.",
+      example: "One-time passcode verification",
     },
     scope: {
       $ref: "#/components/schemas/TemplateScope",
@@ -3521,7 +3725,7 @@ export const SMSTemplateSchema = {
       description:
         "The typed slots this template fills in from the values you supply when sending.",
     },
-    available_locales: {
+    available_languages: {
       type: "array",
       readOnly: true,
       items: {
@@ -3902,13 +4106,13 @@ export const SMSTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "A send-by-template reference. Identify the template by its `id` or its `alias` (supply exactly one), optionally pick a locale, and pass its variable values in `parameters`.\n",
+    "A send-by-template reference. Identify the template by its `id` or its `name` (supply exactly one), optionally pick a language, and pass its variable values in `parameters`.\n",
   oneOf: [
     {
       required: ["id"],
     },
     {
-      required: ["alias"],
+      required: ["name"],
     },
   ],
   properties: {
@@ -3916,16 +4120,16 @@ export const SMSTemplateSendSchema = {
       description: "The template to send, by its id.",
       $ref: "#/components/schemas/SMSTemplateID",
     },
-    alias: {
+    name: {
       type: "string",
       minLength: 1,
       maxLength: 63,
       pattern: "^[a-z0-9]([a-z0-9_]*[a-z0-9])?$",
       description:
-        "The template to send, by its alias handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.\n",
+        "The template to send, by its name handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.\n",
       example: "bird_otp_verification_ttl",
     },
-    locale: {
+    language: {
       type: "string",
       minLength: 2,
       description:
@@ -4113,6 +4317,623 @@ export const SMSMessageListSchema = {
           description: "Page of message objects.",
           items: {
             $ref: "#/components/schemas/SMSMessage",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const AudienceContactsRemoveRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact_ids"],
+  properties: {
+    contact_ids: {
+      type: "array",
+      minItems: 1,
+      maxItems: 1000,
+      items: {
+        $ref: "#/components/schemas/ContactID",
+      },
+      description:
+        "Contacts to remove from the audience. Removing a contact that is not a member has no effect. If any ID does not exist, the whole request fails and no contacts are removed.",
+    },
+  },
+  example: {
+    contact_ids: ["con_01krdgeqcxet5s7t44vh8rt9mg"],
+  },
+} as const;
+
+export const ContactIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^con_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "con_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const AudienceContactsAddRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact_ids"],
+  properties: {
+    contact_ids: {
+      type: "array",
+      minItems: 1,
+      maxItems: 1000,
+      items: {
+        $ref: "#/components/schemas/ContactID",
+      },
+      description:
+        "Contacts to add to the audience. Adding a contact that is already a member has no effect. If any ID does not exist, the whole request fails and no contacts are added.",
+    },
+  },
+  example: {
+    contact_ids: ["con_01krdgeqcxet5s7t44vh8rt9mg"],
+  },
+} as const;
+
+export const AudienceMemberListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description:
+            "Page of audience members, each a contact paired with the time it joined the audience.",
+          items: {
+            $ref: "#/components/schemas/AudienceMember",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const ContactSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["id", "email", "created_at", "updated_at"],
+      properties: {
+        id: {
+          readOnly: true,
+          $ref: "#/components/schemas/ContactID",
+          description: "Contact ID.",
+        },
+        email: {
+          type: "string",
+          format: "email",
+          minLength: 1,
+          maxLength: 254,
+          description:
+            "The contact's email address, stored trimmed and lowercased. Unique within the workspace.",
+        },
+        first_name: {
+          type: ["string", "null"],
+          maxLength: 100,
+          description: "The contact's first name.",
+        },
+        last_name: {
+          type: ["string", "null"],
+          maxLength: 100,
+          description: "The contact's last name.",
+        },
+        external_id: {
+          type: ["string", "null"],
+          maxLength: 254,
+          description:
+            "Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.",
+        },
+        data: {
+          type: "object",
+          additionalProperties: true,
+          description:
+            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.\n",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/Timestamps",
+    },
+  ],
+} as const;
+
+export const AudienceMemberSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact", "joined_at"],
+  properties: {
+    contact: {
+      $ref: "#/components/schemas/Contact",
+    },
+    joined_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "When this contact joined the audience. Members are listed in join order, most recent first.",
+    },
+  },
+} as const;
+
+export const AudienceUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      description: "Display name for the audience.",
+    },
+    description: {
+      type: ["string", "null"],
+      maxLength: 500,
+      description:
+        "Longer description of who this audience is. Set to null to clear.",
+    },
+  },
+  example: {
+    name: "Newsletter subscribers",
+  },
+} as const;
+
+export const AudienceCreateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      description: "Display name for the audience.",
+    },
+    description: {
+      type: "string",
+      maxLength: 500,
+      description: "Longer description of who this audience is.",
+    },
+    type: {
+      type: "string",
+      enum: ["static", "dynamic", "external"],
+      "x-enum-varnames": [
+        "AudienceTypeStatic",
+        "AudienceTypeDynamic",
+        "AudienceTypeExternal",
+      ],
+      default: "static",
+      description:
+        "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
+    },
+  },
+  example: {
+    name: "Newsletter subscribers",
+    description: "Contacts who opted into the monthly product newsletter",
+  },
+} as const;
+
+export const AudienceListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of audience objects.",
+          items: {
+            $ref: "#/components/schemas/Audience",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const AudienceIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^adn_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "adn_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const AudienceSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["id", "name", "type", "created_at", "updated_at"],
+      properties: {
+        id: {
+          readOnly: true,
+          $ref: "#/components/schemas/AudienceID",
+          description: "Audience ID.",
+        },
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: 100,
+          description: "Display name for the audience.",
+        },
+        description: {
+          type: ["string", "null"],
+          maxLength: 500,
+          description: "Longer description of who this audience is.",
+        },
+        type: {
+          type: "string",
+          minLength: 1,
+          enum: ["static", "dynamic", "external"],
+          "x-enum-varnames": [
+            "AudienceTypeStatic",
+            "AudienceTypeDynamic",
+            "AudienceTypeExternal",
+          ],
+          default: "static",
+          description:
+            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/Timestamps",
+    },
+  ],
+} as const;
+
+export const ContactPropertyUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    fallback_value: {
+      maxLength: 500,
+      description:
+        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters). Set to null to remove the fallback.",
+    },
+  },
+  example: {
+    fallback_value: "free",
+  },
+} as const;
+
+export const ContactPropertyCreateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["key", "type"],
+  properties: {
+    key: {
+      type: "string",
+      minLength: 1,
+      maxLength: 50,
+      pattern: "^[a-z][a-z0-9_]*$",
+      description:
+        "The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.",
+    },
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["string", "number", "boolean"],
+      "x-enum-varnames": [
+        "ContactPropertyTypeString",
+        "ContactPropertyTypeNumber",
+        "ContactPropertyTypeBoolean",
+      ],
+      description:
+        "The value type every contact must use for this property. Cannot be changed after creation.",
+    },
+    fallback_value: {
+      maxLength: 500,
+      description:
+        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback.",
+    },
+  },
+  example: {
+    key: "plan",
+    type: "string",
+    fallback_value: "free",
+  },
+} as const;
+
+export const ContactPropertyListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of contact property objects.",
+          items: {
+            $ref: "#/components/schemas/ContactProperty",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const ContactPropertyIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^prp_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "prp_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const ContactPropertySchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["id", "key", "type", "created_at", "updated_at"],
+      properties: {
+        id: {
+          readOnly: true,
+          $ref: "#/components/schemas/ContactPropertyID",
+          description: "Contact property ID.",
+        },
+        key: {
+          type: "string",
+          minLength: 1,
+          maxLength: 50,
+          pattern: "^[a-z][a-z0-9_]*$",
+          description:
+            "The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.",
+        },
+        type: {
+          type: "string",
+          minLength: 1,
+          enum: ["string", "number", "boolean"],
+          "x-enum-varnames": [
+            "ContactPropertyTypeString",
+            "ContactPropertyTypeNumber",
+            "ContactPropertyTypeBoolean",
+          ],
+          description:
+            "The value type every contact must use for this property. Cannot be changed after creation.",
+        },
+        fallback_value: {
+          maxLength: 500,
+          description:
+            "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.",
+        },
+        archived: {
+          type: "boolean",
+          readOnly: true,
+          description:
+            "Whether the property is archived. An archived property is rejected in new contact writes and stops rendering in templates, but every value already stored on contacts is preserved. Reactivate it with unarchive.",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/Timestamps",
+    },
+  ],
+} as const;
+
+export const ContactUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      minLength: 1,
+      maxLength: 254,
+      description:
+        "New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace.",
+    },
+    first_name: {
+      type: ["string", "null"],
+      maxLength: 100,
+      description: "The contact's first name. Set to null to clear.",
+    },
+    last_name: {
+      type: ["string", "null"],
+      maxLength: 100,
+      description: "The contact's last name. Set to null to clear.",
+    },
+    external_id: {
+      type: ["string", "null"],
+      maxLength: 254,
+      description:
+        "Your own identifier for this contact. Unique within the workspace when set. Set to null to clear.",
+    },
+    data: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters). The merged result is capped at 2 KB serialized.\n",
+    },
+  },
+  example: {
+    first_name: "Alice",
+    last_name: "Anderson",
+  },
+} as const;
+
+export const ContactUpsertResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/ContactUpsertResultItem",
+      },
+      description: "One entry per contact in the request, in submission order.",
+    },
+  },
+} as const;
+
+export const ContactUpsertErrorSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "message"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Machine-readable error category for this entry, such as `validation_error` or `conflict_error`, in the same vocabulary as the top-level error `type`. New categories may be added over time, so treat unrecognized values as a generic failure.",
+    },
+    message: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable explanation of why this entry failed.",
+    },
+  },
+} as const;
+
+export const ContactUpsertResultItemSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["email", "status"],
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      minLength: 1,
+      description: "Email address of the contact this entry refers to.",
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      enum: ["created", "updated", "failed"],
+      description:
+        "What happened to this contact. A failed entry does not affect the other entries in the request.",
+    },
+    contact_id: {
+      $ref: "#/components/schemas/ContactID",
+      description:
+        "ID of the created or updated contact. Absent when the entry failed.",
+    },
+    error: {
+      $ref: "#/components/schemas/ContactUpsertError",
+      description: "Why this entry failed. Absent for successful entries.",
+    },
+  },
+} as const;
+
+export const ContactUpsertRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contacts"],
+  properties: {
+    contacts: {
+      type: "array",
+      minItems: 1,
+      maxItems: 1000,
+      items: {
+        $ref: "#/components/schemas/ContactCreateRequest",
+      },
+      description:
+        "Contacts to create or update, matched by email address. Existing contacts are updated with the supplied fields; new ones are created.",
+    },
+    audience_ids: {
+      type: "array",
+      minItems: 1,
+      maxItems: 10,
+      items: {
+        $ref: "#/components/schemas/AudienceID",
+      },
+      description:
+        "Audiences every contact in this request is added to. Contacts that are already members are left in place.",
+    },
+    data_mode: {
+      type: "string",
+      enum: ["merge", "replace"],
+      default: "merge",
+      description:
+        "How a supplied `data` object is applied to an existing contact. `merge` (the default) merges the supplied keys onto the contact's stored custom values, and a key with a `null` value deletes that one key. `replace` overwrites the whole stored `data` map with the supplied one. In both modes a contact that omits `data` keeps its stored values unchanged, so an import that touches one attribute never wipes the others.\n",
+    },
+  },
+  example: {
+    contacts: [
+      {
+        email: "alice@acme.com",
+        first_name: "Alice",
+        last_name: "Anderson",
+      },
+      {
+        email: "bob@acme.com",
+        first_name: "Bob",
+        last_name: "Baker",
+      },
+    ],
+    audience_ids: ["adn_01krdgeqcxet5s7t44vh8rt9mg"],
+  },
+} as const;
+
+export const ContactCreateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["email"],
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      minLength: 1,
+      maxLength: 254,
+      description:
+        "The contact's email address. Trimmed and lowercased before it is stored and checked for uniqueness. Unique within the workspace.",
+    },
+    first_name: {
+      type: "string",
+      maxLength: 100,
+      description: "The contact's first name.",
+    },
+    last_name: {
+      type: "string",
+      maxLength: 100,
+      description: "The contact's last name.",
+    },
+    external_id: {
+      type: "string",
+      maxLength: 254,
+      description:
+        "Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.",
+    },
+    data: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); a null value is ignored. Total size is capped at 2 KB serialized.\n",
+    },
+  },
+  example: {
+    email: "alice@acme.com",
+    first_name: "Alice",
+    last_name: "Anderson",
+  },
+} as const;
+
+export const ContactListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of contact objects.",
+          items: {
+            $ref: "#/components/schemas/Contact",
           },
         },
       },
@@ -4592,13 +5413,13 @@ export const EmailTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "A send-by-template reference. Identify the template by its `id` or its `alias` (supply exactly one), and pass its variable values in `parameters`.\n",
+    "A send-by-template reference. Identify the template by its `id` or its `name` (supply exactly one), and pass its variable values in `parameters`.\n",
   oneOf: [
     {
       required: ["id"],
     },
     {
-      required: ["alias"],
+      required: ["name"],
     },
   ],
   properties: {
@@ -4606,13 +5427,13 @@ export const EmailTemplateSendSchema = {
       description: "The template to send, by its id.",
       $ref: "#/components/schemas/EmailTemplateID",
     },
-    alias: {
+    name: {
       type: "string",
       minLength: 1,
       maxLength: 63,
       pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "The template to send, by its alias handle (for example `welcome-email`).",
+        "The template to send, by its name handle (for example `welcome-email`).",
       example: "welcome-email",
     },
     parameters: {
@@ -4720,7 +5541,8 @@ export const EmailMessageSendRequestSchema = {
         type: "string",
         maxLength: 998,
       },
-      description: "Custom email headers as key-value pairs.",
+      description:
+        "Custom email headers as key-value pairs (for example `References`, `In-Reply-To`, or your own `X-*` headers). Reserved headers are rejected with a `422`: set the message's addressing and subject through the dedicated fields (`from`, `to`, `cc`, `bcc`, `reply_to`, `subject`) rather than here, and headers the platform generates for you — `Content-Type`, `Content-Transfer-Encoding`, `DKIM-Signature`, `Received`, and `Return-Path` — cannot be overridden. `List-Unsubscribe` and `List-Unsubscribe-Post` are honored as-is on `transactional` sends; on `marketing` sends the platform sets a compliant unsubscribe header for you, so supplying them there is rejected with a `422`. Header values may not contain carriage-return or line-feed characters.\n",
     },
     tags: {
       type: "array",
@@ -4771,9 +5593,9 @@ export const EmailMessageSendRequestSchema = {
     category: {
       type: "string",
       enum: ["marketing", "transactional"],
-      default: "transactional",
+      default: "marketing",
       description:
-        "Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: transactional.\n",
+        "Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: marketing.\n",
     },
     in_reply_to_message_id: {
       $ref: "#/components/schemas/EmailID",
@@ -4911,6 +5733,25 @@ export const EmailAttachmentRefSchema = {
   },
 } as const;
 
+export const EmailMessageStatusSchema = {
+  type: "string",
+  minLength: 1,
+  enum: [
+    "scheduled",
+    "accepted",
+    "processed",
+    "deferred",
+    "delivered",
+    "partial_failure",
+    "bounced",
+    "complained",
+    "rejected",
+    "canceled",
+  ],
+  description:
+    "Aggregate delivery status of an email, derived from its recipients' states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet; `canceled` means a scheduled message was canceled before it was sent.\n",
+} as const;
+
 export const EmailMessageSchema = {
   type: "object",
   additionalProperties: false,
@@ -4991,20 +5832,11 @@ export const EmailMessageSchema = {
         "Reply-To addresses, if set on the send. Empty/null when no Reply-To was provided.",
     },
     status: {
-      type: "string",
-      minLength: 1,
       readOnly: true,
-      enum: [
-        "scheduled",
-        "accepted",
-        "processed",
-        "deferred",
-        "delivered",
-        "partial_failure",
-        "bounced",
-        "complained",
-        "rejected",
-        "canceled",
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailMessageStatus",
+        },
       ],
       description:
         "Aggregate delivery status derived from recipient states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server. `canceled` means a scheduled message was canceled before it was sent.\n",
@@ -5590,6 +6422,11 @@ export const EventSMSUndeliveredWritableSchema = {
   description:
     "The carrier reported a non-permanent failure to deliver the message.",
   "x-event-type-id": "sms.undelivered",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.undelivered",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -5640,6 +6477,11 @@ export const EventSMSRejectedWritableSchema = {
   description:
     "Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).",
   "x-event-type-id": "sms.rejected",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.rejected",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -5688,6 +6530,11 @@ export const EventSMSFailedWritableSchema = {
   additionalProperties: false,
   description: "The message terminally failed and will not be delivered.",
   "x-event-type-id": "sms.failed",
+  "x-dedupe": {
+    scope: "message",
+    stage: "sms.failed",
+    id: "sms_id",
+  },
   "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
@@ -5894,6 +6741,69 @@ export const WebhookEndpointListWritableSchema = {
     },
     {
       $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
+} as const;
+
+export const EmailSmtpConfigListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailSmtpConfigWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
+} as const;
+
+export const EmailSmtpConfigWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["category", "tags", "track_opens", "track_clicks"],
+      properties: {
+        ip_pool_id: {
+          type: ["string", "null"],
+          pattern: "^ipp_([0-9a-hjkmnp-tv-z]{26}|shared)$",
+          description:
+            "ID of the IP pool that SMTP sends with this key use, or `ipp_shared` for the shared pool. `null` when this key uses your organization's default pool.\n",
+        },
+        category: {
+          type: "string",
+          minLength: 1,
+          enum: ["marketing", "transactional"],
+          description:
+            "Content classification applied to messages submitted over SMTP with this key. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.\n",
+        },
+        tags: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Tag",
+          },
+          maxItems: 20,
+          description:
+            "Structured `{name, value}` labels applied to every message submitted over SMTP with this key — the same tags used by the email sending API. See EmailMessageSendRequest for how tags are used for filtering and analytics.\n",
+        },
+        track_opens: {
+          type: "boolean",
+          description:
+            "Whether open events are tracked for messages submitted over SMTP with this key.",
+        },
+        track_clicks: {
+          type: "boolean",
+          description:
+            "Whether click events are tracked for messages submitted over SMTP with this key.",
+        },
+      },
     },
   ],
 } as const;
@@ -6121,12 +7031,11 @@ export const EmailTemplateWritableSchema = {
     name: {
       type: "string",
       minLength: 1,
-      description: "Human-readable template name, unique within the workspace.",
-    },
-    alias: {
-      type: ["string", "null"],
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
+      example: "welcome-email",
     },
     description: {
       type: ["string", "null"],
@@ -6183,12 +7092,11 @@ export const EmailTemplateSummaryWritableSchema = {
     name: {
       type: "string",
       minLength: 1,
-      description: "Human-readable template name, unique within the workspace.",
-    },
-    alias: {
-      type: ["string", "null"],
+      maxLength: 63,
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       description:
-        "The template's workspace-unique slug handle for send-by-template, or null if unset.",
+        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
+      example: "welcome-email",
     },
     description: {
       type: ["string", "null"],
@@ -6426,6 +7334,214 @@ export const SMSMessageListWritableSchema = {
           description: "Page of message objects.",
           items: {
             $ref: "#/components/schemas/SMSMessageWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const AudienceMemberListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description:
+            "Page of audience members, each a contact paired with the time it joined the audience.",
+          items: {
+            $ref: "#/components/schemas/AudienceMemberWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const ContactWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["email", "created_at", "updated_at"],
+      properties: {
+        email: {
+          type: "string",
+          format: "email",
+          minLength: 1,
+          maxLength: 254,
+          description:
+            "The contact's email address, stored trimmed and lowercased. Unique within the workspace.",
+        },
+        first_name: {
+          type: ["string", "null"],
+          maxLength: 100,
+          description: "The contact's first name.",
+        },
+        last_name: {
+          type: ["string", "null"],
+          maxLength: 100,
+          description: "The contact's last name.",
+        },
+        external_id: {
+          type: ["string", "null"],
+          maxLength: 254,
+          description:
+            "Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.",
+        },
+        data: {
+          type: "object",
+          additionalProperties: true,
+          description:
+            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.\n",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const AudienceMemberWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["contact"],
+  properties: {
+    contact: {
+      $ref: "#/components/schemas/ContactWritable",
+    },
+  },
+} as const;
+
+export const AudienceListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of audience objects.",
+          items: {
+            $ref: "#/components/schemas/AudienceWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const AudienceWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["name", "type", "created_at", "updated_at"],
+      properties: {
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: 100,
+          description: "Display name for the audience.",
+        },
+        description: {
+          type: ["string", "null"],
+          maxLength: 500,
+          description: "Longer description of who this audience is.",
+        },
+        type: {
+          type: "string",
+          minLength: 1,
+          enum: ["static", "dynamic", "external"],
+          "x-enum-varnames": [
+            "AudienceTypeStatic",
+            "AudienceTypeDynamic",
+            "AudienceTypeExternal",
+          ],
+          default: "static",
+          description:
+            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const ContactPropertyListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of contact property objects.",
+          items: {
+            $ref: "#/components/schemas/ContactPropertyWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const ContactPropertyWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["key", "type", "created_at", "updated_at"],
+      properties: {
+        key: {
+          type: "string",
+          minLength: 1,
+          maxLength: 50,
+          pattern: "^[a-z][a-z0-9_]*$",
+          description:
+            "The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.",
+        },
+        type: {
+          type: "string",
+          minLength: 1,
+          enum: ["string", "number", "boolean"],
+          "x-enum-varnames": [
+            "ContactPropertyTypeString",
+            "ContactPropertyTypeNumber",
+            "ContactPropertyTypeBoolean",
+          ],
+          description:
+            "The value type every contact must use for this property. Cannot be changed after creation.",
+        },
+        fallback_value: {
+          maxLength: 500,
+          description:
+            "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const ContactListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of contact objects.",
+          items: {
+            $ref: "#/components/schemas/ContactWritable",
           },
         },
       },

@@ -53,7 +53,8 @@ export class EmailTemplatesResource extends Resource {
    *
    * @example Create a template
    * const tpl = await bird.emailTemplates.create({
-   *   name: "Welcome",
+   *   name: "welcome-email",
+   *   description: "Welcome",
    *   category: "transactional",
    *   source: "handlebars",
    *   subject: "Welcome, {{ first_name }}!",

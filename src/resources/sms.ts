@@ -36,7 +36,7 @@ export type SmsListQuery = NonNullable<ListSmsMessagesData["query"]>;
 export class SmsResource extends Resource {
   /**
    * Send one SMS to a single recipient. Supply either `text` (with a `category`)
-   * or a stored `template` (by `id` or `alias`, with its `parameters`). The
+   * or a stored `template` (by `id` or `name`, with its `parameters`). The
    * result is `accepted`, not yet delivered — read it back with `get` to confirm.
    *
    * @example Send free text
@@ -50,7 +50,7 @@ export class SmsResource extends Resource {
    * @example Send by template
    * await bird.sms.send({
    *   to: "+15551234567",
-   *   template: { alias: "bird_otp_verification", parameters: { code: "123456" } },
+   *   template: { name: "bird_otp_verification", parameters: { code: "123456" } },
    * });
    */
   send(

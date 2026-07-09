@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
-// Mirror tsup's `define` so tests see the real package version in `__SDK_VERSION__`.
+// Mirror tsdown's `define` so tests see the real package version in `__SDK_VERSION__`.
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 export default defineConfig({

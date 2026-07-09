@@ -25,7 +25,7 @@ export class SmsTemplatesResource extends Resource {
    * List the SMS templates available to the workspace — Bird's built-in
    * templates plus any the workspace authored. The catalogue is small and
    * returned in full (`.data`); this list is not paginated. Filter by `scope`,
-   * `category`, or `locale` (a BCP-47 language tag).
+   * `category`, or `language` (a BCP-47 language tag).
    *
    * @example List the built-in templates
    * const { data } = await bird.smsTemplates.list({ scope: "system" });
@@ -46,7 +46,7 @@ export class SmsTemplatesResource extends Resource {
   }
 
   /**
-   * Fetch a single SMS template by its alias or id, including its body and the
+   * Fetch a single SMS template by its name or id, including its body and the
    * variables it expects.
    *
    * @example

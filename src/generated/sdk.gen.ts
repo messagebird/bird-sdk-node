@@ -3,6 +3,24 @@
 import type { Client, Options as Options2, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  ArchiveContactPropertyData,
+  ArchiveContactPropertyErrors,
+  ArchiveContactPropertyResponses,
+  AssignAudienceContactsData,
+  AssignAudienceContactsErrors,
+  AssignAudienceContactsResponses,
+  CreateAudienceData,
+  CreateAudienceErrors,
+  CreateAudienceResponses,
+  CreateContactBatchData,
+  CreateContactBatchErrors,
+  CreateContactBatchResponses,
+  CreateContactData,
+  CreateContactErrors,
+  CreateContactPropertyData,
+  CreateContactPropertyErrors,
+  CreateContactPropertyResponses,
+  CreateContactResponses,
   CreateEmailMessageBatchData,
   CreateEmailMessageBatchErrors,
   CreateEmailMessageBatchResponses,
@@ -18,9 +36,24 @@ import type {
   CreateSmsMessageData,
   CreateSmsMessageErrors,
   CreateSmsMessageResponses,
+  DeleteAudienceData,
+  DeleteAudienceErrors,
+  DeleteAudienceResponses,
+  DeleteContactData,
+  DeleteContactErrors,
+  DeleteContactResponses,
   DeleteEmailTemplateData,
   DeleteEmailTemplateErrors,
   DeleteEmailTemplateResponses,
+  GetAudienceData,
+  GetAudienceErrors,
+  GetAudienceResponses,
+  GetContactData,
+  GetContactErrors,
+  GetContactPropertyData,
+  GetContactPropertyErrors,
+  GetContactPropertyResponses,
+  GetContactResponses,
   GetEmailMessageData,
   GetEmailMessageErrors,
   GetEmailMessageResponses,
@@ -36,6 +69,18 @@ import type {
   GetSmsTemplateData,
   GetSmsTemplateErrors,
   GetSmsTemplateResponses,
+  ListAudienceContactsData,
+  ListAudienceContactsErrors,
+  ListAudienceContactsResponses,
+  ListAudiencesData,
+  ListAudiencesErrors,
+  ListAudiencesResponses,
+  ListContactPropertiesData,
+  ListContactPropertiesErrors,
+  ListContactPropertiesResponses,
+  ListContactsData,
+  ListContactsErrors,
+  ListContactsResponses,
   ListEmailMessagesData,
   ListEmailMessagesErrors,
   ListEmailMessagesResponses,
@@ -54,6 +99,24 @@ import type {
   PublishEmailTemplateData,
   PublishEmailTemplateErrors,
   PublishEmailTemplateResponses,
+  UnarchiveContactPropertyData,
+  UnarchiveContactPropertyErrors,
+  UnarchiveContactPropertyResponses,
+  UnassignAudienceContactData,
+  UnassignAudienceContactErrors,
+  UnassignAudienceContactResponses,
+  UnassignAudienceContactsData,
+  UnassignAudienceContactsErrors,
+  UnassignAudienceContactsResponses,
+  UpdateAudienceData,
+  UpdateAudienceErrors,
+  UpdateAudienceResponses,
+  UpdateContactData,
+  UpdateContactErrors,
+  UpdateContactPropertyData,
+  UpdateContactPropertyErrors,
+  UpdateContactPropertyResponses,
+  UpdateContactResponses,
   UpdateEmailTemplateData,
   UpdateEmailTemplateErrors,
   UpdateEmailTemplateResponses,
@@ -187,6 +250,582 @@ export const getEmailMessage = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/email/messages/{message_id}",
+    ...options,
+  });
+
+/**
+ * List contacts
+ *
+ * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email` or `external_id`, or search by email substring with `search`.
+ *
+ */
+export const listContacts = <ThrowOnError extends boolean = false>(
+  options?: Options<ListContactsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListContactsResponses,
+    ListContactsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contacts",
+    ...options,
+  });
+
+/**
+ * Create a contact
+ *
+ * Creates a contact in the workspace. Contacts are unique by email address; creating a second contact with the same email returns a conflict error. The same applies to `external_id` — a value already used by another contact returns a conflict error. Custom values in `data` must use property keys you created via the contact properties API, with values matching each property's declared type.
+ *
+ */
+export const createContact = <ThrowOnError extends boolean = false>(
+  options: Options<CreateContactData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateContactResponses,
+    CreateContactErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contacts",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Create or update contacts in bulk
+ *
+ * Creates or updates up to 1,000 contacts in one request, matched by email address (trimmed and lowercased before matching). Existing contacts are updated with the supplied fields; new ones are created. Optionally adds every contact in the request to one or more audiences. Results are returned per contact, in submission order — a failed entry does not abort the rest of the request.
+ *
+ */
+export const createContactBatch = <ThrowOnError extends boolean = false>(
+  options: Options<CreateContactBatchData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateContactBatchResponses,
+    CreateContactBatchErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contacts/batch",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a contact
+ *
+ * Deletes a contact and removes it from every audience it belongs to. Suppression records for the address are not affected — an unsubscribed or bounced address stays suppressed even after the contact is deleted.
+ *
+ */
+export const deleteContact = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteContactData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteContactResponses,
+    DeleteContactErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contacts/{contact_id}",
+    ...options,
+  });
+
+/**
+ * Get a contact
+ *
+ * Returns a single contact by ID.
+ */
+export const getContact = <ThrowOnError extends boolean = false>(
+  options: Options<GetContactData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetContactResponses,
+    GetContactErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contacts/{contact_id}",
+    ...options,
+  });
+
+/**
+ * Update a contact
+ *
+ * Updates a contact. Supplied fields are changed; omitted fields are left unchanged. Custom values in `data` are merged — keys you supply are set, keys set to null are removed, and keys you omit are unchanged. Changing the email address or `external_id` to a value already used by another contact returns a conflict error.
+ *
+ */
+export const updateContact = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateContactData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateContactResponses,
+    UpdateContactErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contacts/{contact_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List contact properties
+ *
+ * Returns a paginated list of the workspace's contact properties.
+ */
+export const listContactProperties = <ThrowOnError extends boolean = false>(
+  options?: Options<ListContactPropertiesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListContactPropertiesResponses,
+    ListContactPropertiesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contact-properties",
+    ...options,
+  });
+
+/**
+ * Create a contact property
+ *
+ * Defines a custom property that contacts in the workspace can carry. The key becomes available in contact `data` and as a template variable in broadcasts. Keys are unique within the workspace; the key and type cannot be changed after creation.
+ *
+ */
+export const createContactProperty = <ThrowOnError extends boolean = false>(
+  options: Options<CreateContactPropertyData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateContactPropertyResponses,
+    CreateContactPropertyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contact-properties",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get a contact property
+ *
+ * Returns a single contact property by ID.
+ */
+export const getContactProperty = <ThrowOnError extends boolean = false>(
+  options: Options<GetContactPropertyData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetContactPropertyResponses,
+    GetContactPropertyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contact-properties/{property_id}",
+    ...options,
+  });
+
+/**
+ * Update a contact property
+ *
+ * Updates a contact property's fallback value. The key and type cannot be changed after creation — create a new property instead.
+ *
+ */
+export const updateContactProperty = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateContactPropertyData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateContactPropertyResponses,
+    UpdateContactPropertyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contact-properties/{property_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Archive a contact property
+ *
+ * Archives a contact property. The key stops being accepted in new contact writes and stops rendering in templates, but every value already stored on your contacts is preserved and still returned when you read a contact. The key stays reserved, so it cannot be re-created with a different type. Returns 409 if the property is already archived. Reverse it with unarchive.
+ *
+ */
+export const archiveContactProperty = <ThrowOnError extends boolean = false>(
+  options: Options<ArchiveContactPropertyData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ArchiveContactPropertyResponses,
+    ArchiveContactPropertyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contact-properties/{property_id}/archive",
+    ...options,
+  });
+
+/**
+ * Unarchive a contact property
+ *
+ * Reactivates an archived contact property. The key is accepted in contact writes and renders in templates again; stored values were never removed, so they are unchanged. Returns 409 if the property is not archived.
+ *
+ */
+export const unarchiveContactProperty = <ThrowOnError extends boolean = false>(
+  options: Options<UnarchiveContactPropertyData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    UnarchiveContactPropertyResponses,
+    UnarchiveContactPropertyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/contact-properties/{property_id}/unarchive",
+    ...options,
+  });
+
+/**
+ * List audiences
+ *
+ * Returns a paginated list of audiences in the workspace, newest first.
+ */
+export const listAudiences = <ThrowOnError extends boolean = false>(
+  options?: Options<ListAudiencesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListAudiencesResponses,
+    ListAudiencesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences",
+    ...options,
+  });
+
+/**
+ * Create an audience
+ *
+ * Creates an audience in the workspace. Static audiences start empty — add contacts via the audience contacts endpoint or the bulk contact upsert.
+ *
+ */
+export const createAudience = <ThrowOnError extends boolean = false>(
+  options: Options<CreateAudienceData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateAudienceResponses,
+    CreateAudienceErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete an audience
+ *
+ * Deletes an audience and its memberships. Contacts themselves are not deleted. An audience cannot be deleted while a broadcast targeting it is scheduled, accepted, sending, or canceling — cancel that broadcast first.
+ *
+ */
+export const deleteAudience = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteAudienceData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteAudienceResponses,
+    DeleteAudienceErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}",
+    ...options,
+  });
+
+/**
+ * Get an audience
+ *
+ * Returns a single audience by ID.
+ */
+export const getAudience = <ThrowOnError extends boolean = false>(
+  options: Options<GetAudienceData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetAudienceResponses,
+    GetAudienceErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}",
+    ...options,
+  });
+
+/**
+ * Update an audience
+ *
+ * Updates an audience's name or description.
+ */
+export const updateAudience = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateAudienceData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateAudienceResponses,
+    UpdateAudienceErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List an audience's contacts
+ *
+ * Lists the contacts in a static audience as a cursor page, ordered by the time each contact joined the audience, most recent first. Each entry is the contact together with the time it joined.
+ *
+ */
+export const listAudienceContacts = <ThrowOnError extends boolean = false>(
+  options: Options<ListAudienceContactsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListAudienceContactsResponses,
+    ListAudienceContactsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}/contacts",
+    ...options,
+  });
+
+/**
+ * Add contacts to an audience
+ *
+ * Adds up to 1,000 contacts to a static audience. Contacts that are already members are left in place. If any contact ID does not exist, the whole request fails and no contacts are added.
+ *
+ */
+export const assignAudienceContacts = <ThrowOnError extends boolean = false>(
+  options: Options<AssignAudienceContactsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    AssignAudienceContactsResponses,
+    AssignAudienceContactsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}/contacts",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Remove contacts from an audience
+ *
+ * Removes up to 1,000 contacts from a static audience. Contacts that are not members are skipped. If any contact ID does not exist, the whole request fails and no contacts are removed. The contacts themselves are not deleted and remain members of any other audiences.
+ *
+ */
+export const unassignAudienceContacts = <ThrowOnError extends boolean = false>(
+  options: Options<UnassignAudienceContactsData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    UnassignAudienceContactsResponses,
+    UnassignAudienceContactsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}/contacts/remove",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Remove a contact from an audience
+ *
+ * Removes a contact's membership in an audience. The contact itself is not deleted and remains a member of any other audiences. Removing a contact that is not a member of the audience succeeds with no effect (204); an unknown audience or contact returns a not-found error.
+ *
+ */
+export const unassignAudienceContact = <ThrowOnError extends boolean = false>(
+  options: Options<UnassignAudienceContactData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    UnassignAudienceContactResponses,
+    UnassignAudienceContactErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/audiences/{audience_id}/contacts/{contact_id}",
     ...options,
   });
 
@@ -329,7 +968,7 @@ export const listSmsTemplates = <ThrowOnError extends boolean = false>(
 /**
  * Get an SMS template
  *
- * Returns a single SMS template by its alias or id.
+ * Returns a single SMS template by its name or id.
  */
 export const getSmsTemplate = <ThrowOnError extends boolean = false>(
   options: Options<GetSmsTemplateData, ThrowOnError>,

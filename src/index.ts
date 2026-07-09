@@ -66,6 +66,30 @@ export type {
   SmsTemplateListQuery,
 } from "./resources/smsTemplates.js";
 export type {
+  Contact,
+  ContactCreateParams,
+  ContactUpdateParams,
+  ContactBatchParams,
+  ContactUpsertResult,
+  ContactListQuery,
+} from "./resources/contacts.js";
+export type {
+  Audience,
+  AudienceMember,
+  AudienceCreateParams,
+  AudienceUpdateParams,
+  AudienceAddContactsParams,
+  AudienceRemoveContactsParams,
+  AudienceListQuery,
+  AudienceContactsQuery,
+} from "./resources/audiences.js";
+export type {
+  ContactProperty,
+  ContactPropertyCreateParams,
+  ContactPropertyUpdateParams,
+  ContactPropertyListQuery,
+} from "./resources/contactProperties.js";
+export type {
   BirdWebhookEvent,
   WebhookHeaders,
   WebhookOptions,

@@ -4,6 +4,7 @@ import {
   type Client,
 } from "./generated/client/index.js";
 import { baseUrlForRegion, regionFromApiKey } from "./region.js";
+import { detectCaller } from "./detect-caller.js";
 import {
   BirdHTTPClient,
   type AttemptContext,
@@ -15,13 +16,16 @@ import {
   type RequestOptions,
 } from "./core/result.js";
 import { EmailResource, type EmailChannelDefaults } from "./resources/email.js";
+import { AudiencesResource } from "./resources/audiences.js";
+import { ContactPropertiesResource } from "./resources/contactProperties.js";
+import { ContactsResource } from "./resources/contacts.js";
 import { EmailTemplatesResource } from "./resources/emailTemplates.js";
 import { SmsResource } from "./resources/sms.js";
 import { SmsTemplatesResource } from "./resources/smsTemplates.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
-// package.json (tsup/vitest `define`) so it never drifts from the published
+// package.json (tsdown/vitest `define`) so it never drifts from the published
 // version. Distinct from the Bird API version (X-Bird-API-Version, ADR-0042 §5)
 // which is deferred — see sdk-build-ledger #3.
 declare const __SDK_VERSION__: string;
@@ -159,6 +163,15 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** SMS templates — `bird.smsTemplates.list(...)`, `.get(...)`. */
   readonly smsTemplates: SmsTemplatesResource;
 
+  /** Contacts — `bird.contacts.create(...)`, `.list(...)`, `.get(...)`, `.batch(...)`, … */
+  readonly contacts: ContactsResource;
+
+  /** Audiences — `bird.audiences.create(...)`, `.list(...)`, `.addContacts(...)`, … */
+  readonly audiences: AudiencesResource;
+
+  /** Contact properties — `bird.contactProperties.create(...)`, `.list(...)`, `.archive(...)`, … */
+  readonly contactProperties: ContactPropertiesResource;
+
   /** Webhooks — `bird.webhooks.unwrap(payload, headers)` verifies an inbound delivery. */
   readonly webhooks: WebhooksResource;
 
@@ -176,6 +189,10 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       "Bird-Surface": "sdk-js",
       "Bird-Version": __SDK_VERSION__,
     };
+    // Bird-Caller (the driving agent harness) — empty on a browser / when no
+    // agent env is present, in which case the header is omitted.
+    const caller = detectCaller();
+    if (caller) this.#headers["Bird-Caller"] = caller;
     this.#client = createClient(
       createConfig({
         baseUrl: this.#baseUrl,
@@ -197,6 +214,12 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     this.emailTemplates = new EmailTemplatesResource(this.core, this.#client);
     this.sms = new SmsResource(this.core, this.#client);
     this.smsTemplates = new SmsTemplatesResource(this.core, this.#client);
+    this.contacts = new ContactsResource(this.core, this.#client);
+    this.audiences = new AudiencesResource(this.core, this.#client);
+    this.contactProperties = new ContactPropertiesResource(
+      this.core,
+      this.#client,
+    );
     this.webhooks = new WebhooksResource(opts.webhooks);
   }
 

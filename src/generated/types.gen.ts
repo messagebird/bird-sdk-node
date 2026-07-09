@@ -1128,6 +1128,69 @@ export type ListEnvelopeWithTotal = ListEnvelope & {
 };
 
 /**
+ * Desired changes to the SMTP config for the key. A field you omit is left unchanged; if no config exists yet for this key, omitted fields take their documented defaults instead.
+ *
+ */
+export type EmailSmtpConfigUpdate = {
+  /**
+   * ID of the IP pool to send from (`ipp_` prefix), or `ipp_shared` to route through the shared pool explicitly. Send `null` to reset to your organization's default pool, or omit to leave unchanged. An unknown pool, or a pool with no dedicated IPs available to send from, is rejected with a `422`.
+   *
+   */
+  ip_pool_id?: string | null;
+  /**
+   * Content classification — independent of which endpoint messages are submitted through. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Omit to leave unchanged.
+   *
+   */
+  category?: "marketing" | "transactional";
+  /**
+   * Structured `{name, value}` labels applied to every message submitted over SMTP with this key. Send an empty array to clear all tags, or omit to leave unchanged.
+   *
+   */
+  tags?: Array<Tag>;
+  /**
+   * Whether to track open events for messages submitted over SMTP with this key. Omit to leave unchanged.
+   */
+  track_opens?: boolean;
+  /**
+   * Whether to track click events for messages submitted over SMTP with this key. Omit to leave unchanged.
+   */
+  track_clicks?: boolean;
+};
+
+export type EmailSmtpConfigList = {
+  data: Array<EmailSmtpConfig>;
+} & ListEnvelopeWithTotal;
+
+export type ApiKeyId = string;
+
+export type EmailSmtpConfig = {
+  readonly api_key_id: ApiKeyId;
+  /**
+   * ID of the IP pool that SMTP sends with this key use, or `ipp_shared` for the shared pool. `null` when this key uses your organization's default pool.
+   *
+   */
+  ip_pool_id?: string | null;
+  /**
+   * Content classification applied to messages submitted over SMTP with this key. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.
+   *
+   */
+  category: "marketing" | "transactional";
+  /**
+   * Structured `{name, value}` labels applied to every message submitted over SMTP with this key — the same tags used by the email sending API. See EmailMessageSendRequest for how tags are used for filtering and analytics.
+   *
+   */
+  tags: Array<Tag>;
+  /**
+   * Whether open events are tracked for messages submitted over SMTP with this key.
+   */
+  track_opens: boolean;
+  /**
+   * Whether click events are tracked for messages submitted over SMTP with this key.
+   */
+  track_clicks: boolean;
+} & Timestamps;
+
+/**
  * The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.
  */
 export type InboundAttachmentList = {
@@ -1396,14 +1459,10 @@ export type EmailTemplateUpdate = {
    */
   revision: number;
   /**
-   * New template name. Must stay unique within the workspace.
-   */
-  name?: string;
-  /**
-   * New workspace-unique slug handle for send-by-template. Send null to clear it. Lowercase letters, numbers, and hyphens.
+   * New workspace-unique slug handle. Must stay unique within the workspace. Lowercase letters, numbers, and hyphens.
    *
    */
-  alias?: string | null;
+  name?: string;
   /**
    * New description of the template's purpose. Send null to clear it.
    */
@@ -1438,13 +1497,9 @@ export type EmailTemplate = {
    */
   readonly workspace_id: WorkspaceId;
   /**
-   * Human-readable template name, unique within the workspace.
+   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
    */
   name: string;
-  /**
-   * The template's workspace-unique slug handle for send-by-template, or null if unset.
-   */
-  alias?: string | null;
   /**
    * Optional description of the template's purpose. Null when unset.
    */
@@ -1514,14 +1569,10 @@ export type TemplateScope = "system" | "workspace";
  */
 export type EmailTemplateCreate = {
   /**
-   * Human-readable template name, unique within the workspace.
-   */
-  name: string;
-  /**
-   * Optional workspace-unique slug handle for the template — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.
+   * The template's workspace-unique slug handle — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.
    *
    */
-  alias?: string;
+  name: string;
   /**
    * Optional description of the template's purpose.
    */
@@ -1567,13 +1618,9 @@ export type EmailTemplateSummary = {
    */
   readonly workspace_id: WorkspaceId;
   /**
-   * Human-readable template name, unique within the workspace.
+   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
    */
   name: string;
-  /**
-   * The template's workspace-unique slug handle for send-by-template, or null if unset.
-   */
-  alias?: string | null;
   /**
    * Optional description of the template's purpose. Null when unset.
    */
@@ -1785,13 +1832,13 @@ export type SmsTemplate = {
    */
   readonly id: SmsTemplateId;
   /**
-   * Human-readable description of what the template is for.
+   * The template's stable handle. Pass it (or the id) as the template reference when sending.
    */
   readonly name: string;
   /**
-   * The template's stable handle. Pass it (or the id) as the template reference when sending.
+   * Human-readable description of what the template is for.
    */
-  readonly alias: string;
+  readonly description: string;
   scope: TemplateScope;
   /**
    * Content classification applied to messages sent from this template.
@@ -1808,7 +1855,7 @@ export type SmsTemplate = {
   /**
    * The languages this template is available in, as BCP-47 tags.
    */
-  readonly available_locales: Array<string>;
+  readonly available_languages: Array<string>;
   /**
    * The template's lifecycle state. Built-in templates are always `active`.
    */
@@ -2021,15 +2068,15 @@ export type SmsTemplateSend = unknown & {
    */
   id?: SmsTemplateId;
   /**
-   * The template to send, by its alias handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.
+   * The template to send, by its name handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.
    *
    */
-  alias?: string;
+  name?: string;
   /**
    * Language tag (BCP 47, for example `fr` or `pt-BR`) selecting the localized body. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.
    *
    */
-  locale?: string;
+  language?: string;
   /**
    * Values for the template's variables, keyed by variable name. The accepted keys and their formats are fixed per template — see the template's `variables` on the templates endpoint. Every required variable must be supplied, and no undeclared key may be present. Cap: 16 KB serialized.
    *
@@ -2134,6 +2181,289 @@ export type SmsMessageList = {
    * Page of message objects.
    */
   data: Array<SmsMessage>;
+} & ListEnvelope;
+
+export type AudienceContactsRemoveRequest = {
+  /**
+   * Contacts to remove from the audience. Removing a contact that is not a member has no effect. If any ID does not exist, the whole request fails and no contacts are removed.
+   */
+  contact_ids: Array<ContactId>;
+};
+
+export type ContactId = string;
+
+export type AudienceContactsAddRequest = {
+  /**
+   * Contacts to add to the audience. Adding a contact that is already a member has no effect. If any ID does not exist, the whole request fails and no contacts are added.
+   */
+  contact_ids: Array<ContactId>;
+};
+
+export type AudienceMemberList = {
+  /**
+   * Page of audience members, each a contact paired with the time it joined the audience.
+   */
+  data: Array<AudienceMember>;
+} & ListEnvelope;
+
+export type Contact = {
+  /**
+   * Contact ID.
+   */
+  readonly id: ContactId;
+  /**
+   * The contact's email address, stored trimmed and lowercased. Unique within the workspace.
+   */
+  email: string;
+  /**
+   * The contact's first name.
+   */
+  first_name?: string | null;
+  /**
+   * The contact's last name.
+   */
+  last_name?: string | null;
+  /**
+   * Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.
+   */
+  external_id?: string | null;
+  /**
+   * Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.
+   *
+   */
+  data?: {
+    [key: string]: unknown;
+  };
+} & Timestamps;
+
+export type AudienceMember = {
+  contact: Contact;
+  /**
+   * When this contact joined the audience. Members are listed in join order, most recent first.
+   */
+  readonly joined_at: string;
+};
+
+export type AudienceUpdateRequest = {
+  /**
+   * Display name for the audience.
+   */
+  name?: string;
+  /**
+   * Longer description of who this audience is. Set to null to clear.
+   */
+  description?: string | null;
+};
+
+export type AudienceCreateRequest = {
+  /**
+   * Display name for the audience.
+   */
+  name: string;
+  /**
+   * Longer description of who this audience is.
+   */
+  description?: string;
+  /**
+   * How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.
+   *
+   */
+  type?: "static" | "dynamic" | "external";
+};
+
+export type AudienceList = {
+  /**
+   * Page of audience objects.
+   */
+  data: Array<Audience>;
+} & ListEnvelope;
+
+export type AudienceId = string;
+
+export type Audience = {
+  /**
+   * Audience ID.
+   */
+  readonly id: AudienceId;
+  /**
+   * Display name for the audience.
+   */
+  name: string;
+  /**
+   * Longer description of who this audience is.
+   */
+  description?: string | null;
+  /**
+   * How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.
+   *
+   */
+  type: "static" | "dynamic" | "external";
+} & Timestamps;
+
+export type ContactPropertyUpdateRequest = {
+  /**
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters). Set to null to remove the fallback.
+   */
+  fallback_value?: unknown;
+};
+
+export type ContactPropertyCreateRequest = {
+  /**
+   * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
+   */
+  key: string;
+  /**
+   * The value type every contact must use for this property. Cannot be changed after creation.
+   */
+  type: "string" | "number" | "boolean";
+  /**
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback.
+   */
+  fallback_value?: unknown;
+};
+
+export type ContactPropertyList = {
+  /**
+   * Page of contact property objects.
+   */
+  data: Array<ContactProperty>;
+} & ListEnvelope;
+
+export type ContactPropertyId = string;
+
+export type ContactProperty = {
+  /**
+   * Contact property ID.
+   */
+  readonly id: ContactPropertyId;
+  /**
+   * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
+   */
+  key: string;
+  /**
+   * The value type every contact must use for this property. Cannot be changed after creation.
+   */
+  type: "string" | "number" | "boolean";
+  /**
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
+   */
+  fallback_value?: unknown;
+  /**
+   * Whether the property is archived. An archived property is rejected in new contact writes and stops rendering in templates, but every value already stored on contacts is preserved. Reactivate it with unarchive.
+   */
+  readonly archived?: boolean;
+} & Timestamps;
+
+export type ContactUpdateRequest = {
+  /**
+   * New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace.
+   */
+  email?: string;
+  /**
+   * The contact's first name. Set to null to clear.
+   */
+  first_name?: string | null;
+  /**
+   * The contact's last name. Set to null to clear.
+   */
+  last_name?: string | null;
+  /**
+   * Your own identifier for this contact. Unique within the workspace when set. Set to null to clear.
+   */
+  external_id?: string | null;
+  /**
+   * Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters). The merged result is capped at 2 KB serialized.
+   *
+   */
+  data?: {
+    [key: string]: unknown;
+  };
+};
+
+export type ContactUpsertResult = {
+  /**
+   * One entry per contact in the request, in submission order.
+   */
+  data: Array<ContactUpsertResultItem>;
+};
+
+export type ContactUpsertError = {
+  /**
+   * Machine-readable error category for this entry, such as `validation_error` or `conflict_error`, in the same vocabulary as the top-level error `type`. New categories may be added over time, so treat unrecognized values as a generic failure.
+   */
+  type: string;
+  /**
+   * Human-readable explanation of why this entry failed.
+   */
+  message: string;
+};
+
+export type ContactUpsertResultItem = {
+  /**
+   * Email address of the contact this entry refers to.
+   */
+  email: string;
+  /**
+   * What happened to this contact. A failed entry does not affect the other entries in the request.
+   */
+  status: "created" | "updated" | "failed";
+  /**
+   * ID of the created or updated contact. Absent when the entry failed.
+   */
+  contact_id?: ContactId;
+  /**
+   * Why this entry failed. Absent for successful entries.
+   */
+  error?: ContactUpsertError;
+};
+
+export type ContactUpsertRequest = {
+  /**
+   * Contacts to create or update, matched by email address. Existing contacts are updated with the supplied fields; new ones are created.
+   */
+  contacts: Array<ContactCreateRequest>;
+  /**
+   * Audiences every contact in this request is added to. Contacts that are already members are left in place.
+   */
+  audience_ids?: Array<AudienceId>;
+  /**
+   * How a supplied `data` object is applied to an existing contact. `merge` (the default) merges the supplied keys onto the contact's stored custom values, and a key with a `null` value deletes that one key. `replace` overwrites the whole stored `data` map with the supplied one. In both modes a contact that omits `data` keeps its stored values unchanged, so an import that touches one attribute never wipes the others.
+   *
+   */
+  data_mode?: "merge" | "replace";
+};
+
+export type ContactCreateRequest = {
+  /**
+   * The contact's email address. Trimmed and lowercased before it is stored and checked for uniqueness. Unique within the workspace.
+   */
+  email: string;
+  /**
+   * The contact's first name.
+   */
+  first_name?: string;
+  /**
+   * The contact's last name.
+   */
+  last_name?: string;
+  /**
+   * Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.
+   */
+  external_id?: string;
+  /**
+   * Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); a null value is ignored. Total size is capped at 2 KB serialized.
+   *
+   */
+  data?: {
+    [key: string]: unknown;
+  };
+};
+
+export type ContactList = {
+  /**
+   * Page of contact objects.
+   */
+  data: Array<Contact>;
 } & ListEnvelope;
 
 /**
@@ -2412,9 +2742,9 @@ export type EmailTemplateSend = unknown & {
    */
   id?: EmailTemplateId;
   /**
-   * The template to send, by its alias handle (for example `welcome-email`).
+   * The template to send, by its name handle (for example `welcome-email`).
    */
-  alias?: string;
+  name?: string;
   /**
    * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Cap: 16 KB serialized.
    *
@@ -2465,7 +2795,8 @@ export type EmailMessageSendRequest = {
    */
   reply_to?: Array<EmailAddressInput>;
   /**
-   * Custom email headers as key-value pairs.
+   * Custom email headers as key-value pairs (for example `References`, `In-Reply-To`, or your own `X-*` headers). Reserved headers are rejected with a `422`: set the message's addressing and subject through the dedicated fields (`from`, `to`, `cc`, `bcc`, `reply_to`, `subject`) rather than here, and headers the platform generates for you — `Content-Type`, `Content-Transfer-Encoding`, `DKIM-Signature`, `Received`, and `Return-Path` — cannot be overridden. `List-Unsubscribe` and `List-Unsubscribe-Post` are honored as-is on `transactional` sends; on `marketing` sends the platform sets a compliant unsubscribe header for you, so supplying them there is rejected with a `422`. Header values may not contain carriage-return or line-feed characters.
+   *
    */
   headers?: {
     [key: string]: string;
@@ -2508,7 +2839,7 @@ export type EmailMessageSendRequest = {
    */
   ip_pool_id?: string;
   /**
-   * Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: transactional.
+   * Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: marketing.
    *
    */
   category?: "marketing" | "transactional";
@@ -2577,6 +2908,22 @@ export type EmailAttachmentRef = {
   content_id?: string | null;
 };
 
+/**
+ * Aggregate delivery status of an email, derived from its recipients' states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet; `canceled` means a scheduled message was canceled before it was sent.
+ *
+ */
+export type EmailMessageStatus =
+  | "scheduled"
+  | "accepted"
+  | "processed"
+  | "deferred"
+  | "delivered"
+  | "partial_failure"
+  | "bounced"
+  | "complained"
+  | "rejected"
+  | "canceled";
+
 export type EmailMessage = {
   /**
    * Message ID.
@@ -2615,17 +2962,7 @@ export type EmailMessage = {
    * Aggregate delivery status derived from recipient states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server. `canceled` means a scheduled message was canceled before it was sent.
    *
    */
-  readonly status:
-    | "scheduled"
-    | "accepted"
-    | "processed"
-    | "deferred"
-    | "delivered"
-    | "partial_failure"
-    | "bounced"
-    | "complained"
-    | "rejected"
-    | "canceled";
+  readonly status: EmailMessageStatus;
   /**
    * Number of recipients currently in the `accepted` state — Bird has the send and is preparing to deliver.
    */
@@ -3122,6 +3459,36 @@ export type WebhookEndpointListWritable = {
   data: Array<WebhookEndpointWritable>;
 } & ListEnvelopeWithTotal;
 
+export type EmailSmtpConfigListWritable = {
+  data: Array<EmailSmtpConfigWritable>;
+} & ListEnvelopeWithTotal;
+
+export type EmailSmtpConfigWritable = {
+  /**
+   * ID of the IP pool that SMTP sends with this key use, or `ipp_shared` for the shared pool. `null` when this key uses your organization's default pool.
+   *
+   */
+  ip_pool_id?: string | null;
+  /**
+   * Content classification applied to messages submitted over SMTP with this key. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.
+   *
+   */
+  category: "marketing" | "transactional";
+  /**
+   * Structured `{name, value}` labels applied to every message submitted over SMTP with this key — the same tags used by the email sending API. See EmailMessageSendRequest for how tags are used for filtering and analytics.
+   *
+   */
+  tags: Array<Tag>;
+  /**
+   * Whether open events are tracked for messages submitted over SMTP with this key.
+   */
+  track_opens: boolean;
+  /**
+   * Whether click events are tracked for messages submitted over SMTP with this key.
+   */
+  track_clicks: boolean;
+};
+
 /**
  * The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.
  */
@@ -3238,13 +3605,9 @@ export type EmailTemplateVersionListWritable = {
 
 export type EmailTemplateWritable = {
   /**
-   * Human-readable template name, unique within the workspace.
+   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
    */
   name: string;
-  /**
-   * The template's workspace-unique slug handle for send-by-template, or null if unset.
-   */
-  alias?: string | null;
   /**
    * Optional description of the template's purpose. Null when unset.
    */
@@ -3274,13 +3637,9 @@ export type EmailTemplateListWritable = {
 
 export type EmailTemplateSummaryWritable = {
   /**
-   * Human-readable template name, unique within the workspace.
+   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
    */
   name: string;
-  /**
-   * The template's workspace-unique slug handle for send-by-template, or null if unset.
-   */
-  alias?: string | null;
   /**
    * Optional description of the template's purpose. Null when unset.
    */
@@ -3398,6 +3757,95 @@ export type SmsMessageListWritable = {
    * Page of message objects.
    */
   data: Array<SmsMessageWritable>;
+} & ListEnvelope;
+
+export type AudienceMemberListWritable = {
+  /**
+   * Page of audience members, each a contact paired with the time it joined the audience.
+   */
+  data: Array<AudienceMemberWritable>;
+} & ListEnvelope;
+
+export type ContactWritable = {
+  /**
+   * The contact's email address, stored trimmed and lowercased. Unique within the workspace.
+   */
+  email: string;
+  /**
+   * The contact's first name.
+   */
+  first_name?: string | null;
+  /**
+   * The contact's last name.
+   */
+  last_name?: string | null;
+  /**
+   * Your own identifier for this contact, such as a user ID in your system. Unique within the workspace when set.
+   */
+  external_id?: string | null;
+  /**
+   * Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.
+   *
+   */
+  data?: {
+    [key: string]: unknown;
+  };
+};
+
+export type AudienceMemberWritable = {
+  contact: ContactWritable;
+};
+
+export type AudienceListWritable = {
+  /**
+   * Page of audience objects.
+   */
+  data: Array<AudienceWritable>;
+} & ListEnvelope;
+
+export type AudienceWritable = {
+  /**
+   * Display name for the audience.
+   */
+  name: string;
+  /**
+   * Longer description of who this audience is.
+   */
+  description?: string | null;
+  /**
+   * How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.
+   *
+   */
+  type: "static" | "dynamic" | "external";
+};
+
+export type ContactPropertyListWritable = {
+  /**
+   * Page of contact property objects.
+   */
+  data: Array<ContactPropertyWritable>;
+} & ListEnvelope;
+
+export type ContactPropertyWritable = {
+  /**
+   * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
+   */
+  key: string;
+  /**
+   * The value type every contact must use for this property. Cannot be changed after creation.
+   */
+  type: "string" | "number" | "boolean";
+  /**
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
+   */
+  fallback_value?: unknown;
+};
+
+export type ContactListWritable = {
+  /**
+   * Page of contact objects.
+   */
+  data: Array<ContactWritable>;
 } & ListEnvelope;
 
 export type EmailEventListWritable = {
@@ -3948,6 +4396,1331 @@ export type GetEmailMessageResponses = {
 export type GetEmailMessageResponse =
   GetEmailMessageResponses[keyof GetEmailMessageResponses];
 
+export type ListContactsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Return the contact with exactly this email address (case-insensitive). Email is unique within a workspace, so this matches at most one contact.
+     */
+    email?: string;
+    /**
+     * Return the contact with exactly this external_id (your own identifier for the contact). Unique within a workspace, so this matches at most one contact.
+     */
+    external_id?: string;
+    /**
+     * Case-insensitive substring match against the contact's email address.
+     */
+    search?: string;
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/contacts";
+};
+
+export type ListContactsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListContactsError = ListContactsErrors[keyof ListContactsErrors];
+
+export type ListContactsResponses = {
+  /**
+   * Paginated list of contacts.
+   */
+  200: ContactList;
+};
+
+export type ListContactsResponse =
+  ListContactsResponses[keyof ListContactsResponses];
+
+export type CreateContactData = {
+  body: ContactCreateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/contacts";
+};
+
+export type CreateContactErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateContactError = CreateContactErrors[keyof CreateContactErrors];
+
+export type CreateContactResponses = {
+  /**
+   * Contact created.
+   */
+  201: Contact;
+};
+
+export type CreateContactResponse =
+  CreateContactResponses[keyof CreateContactResponses];
+
+export type CreateContactBatchData = {
+  body: ContactUpsertRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/contacts/batch";
+};
+
+export type CreateContactBatchErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateContactBatchError =
+  CreateContactBatchErrors[keyof CreateContactBatchErrors];
+
+export type CreateContactBatchResponses = {
+  /**
+   * Per-contact results, in submission order.
+   */
+  200: ContactUpsertResult;
+};
+
+export type CreateContactBatchResponse =
+  CreateContactBatchResponses[keyof CreateContactBatchResponses];
+
+export type DeleteContactData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Contact ID.
+     */
+    contact_id: ContactId;
+  };
+  query?: never;
+  url: "/v1/contacts/{contact_id}";
+};
+
+export type DeleteContactErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteContactError = DeleteContactErrors[keyof DeleteContactErrors];
+
+export type DeleteContactResponses = {
+  /**
+   * Contact deleted.
+   */
+  204: void;
+};
+
+export type DeleteContactResponse =
+  DeleteContactResponses[keyof DeleteContactResponses];
+
+export type GetContactData = {
+  body?: never;
+  path: {
+    /**
+     * Contact ID.
+     */
+    contact_id: ContactId;
+  };
+  query?: never;
+  url: "/v1/contacts/{contact_id}";
+};
+
+export type GetContactErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetContactError = GetContactErrors[keyof GetContactErrors];
+
+export type GetContactResponses = {
+  /**
+   * The contact.
+   */
+  200: Contact;
+};
+
+export type GetContactResponse = GetContactResponses[keyof GetContactResponses];
+
+export type UpdateContactData = {
+  body: ContactUpdateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Contact ID.
+     */
+    contact_id: ContactId;
+  };
+  query?: never;
+  url: "/v1/contacts/{contact_id}";
+};
+
+export type UpdateContactErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateContactError = UpdateContactErrors[keyof UpdateContactErrors];
+
+export type UpdateContactResponses = {
+  /**
+   * The updated contact.
+   */
+  200: Contact;
+};
+
+export type UpdateContactResponse =
+  UpdateContactResponses[keyof UpdateContactResponses];
+
+export type ListContactPropertiesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/contact-properties";
+};
+
+export type ListContactPropertiesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListContactPropertiesError =
+  ListContactPropertiesErrors[keyof ListContactPropertiesErrors];
+
+export type ListContactPropertiesResponses = {
+  /**
+   * Paginated list of contact properties.
+   */
+  200: ContactPropertyList;
+};
+
+export type ListContactPropertiesResponse =
+  ListContactPropertiesResponses[keyof ListContactPropertiesResponses];
+
+export type CreateContactPropertyData = {
+  body: ContactPropertyCreateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/contact-properties";
+};
+
+export type CreateContactPropertyErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateContactPropertyError =
+  CreateContactPropertyErrors[keyof CreateContactPropertyErrors];
+
+export type CreateContactPropertyResponses = {
+  /**
+   * Contact property created.
+   */
+  201: ContactProperty;
+};
+
+export type CreateContactPropertyResponse =
+  CreateContactPropertyResponses[keyof CreateContactPropertyResponses];
+
+export type GetContactPropertyData = {
+  body?: never;
+  path: {
+    /**
+     * Contact property ID.
+     */
+    property_id: ContactPropertyId;
+  };
+  query?: never;
+  url: "/v1/contact-properties/{property_id}";
+};
+
+export type GetContactPropertyErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetContactPropertyError =
+  GetContactPropertyErrors[keyof GetContactPropertyErrors];
+
+export type GetContactPropertyResponses = {
+  /**
+   * The contact property.
+   */
+  200: ContactProperty;
+};
+
+export type GetContactPropertyResponse =
+  GetContactPropertyResponses[keyof GetContactPropertyResponses];
+
+export type UpdateContactPropertyData = {
+  body: ContactPropertyUpdateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Contact property ID.
+     */
+    property_id: ContactPropertyId;
+  };
+  query?: never;
+  url: "/v1/contact-properties/{property_id}";
+};
+
+export type UpdateContactPropertyErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateContactPropertyError =
+  UpdateContactPropertyErrors[keyof UpdateContactPropertyErrors];
+
+export type UpdateContactPropertyResponses = {
+  /**
+   * The updated contact property.
+   */
+  200: ContactProperty;
+};
+
+export type UpdateContactPropertyResponse =
+  UpdateContactPropertyResponses[keyof UpdateContactPropertyResponses];
+
+export type ArchiveContactPropertyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Contact property ID.
+     */
+    property_id: ContactPropertyId;
+  };
+  query?: never;
+  url: "/v1/contact-properties/{property_id}/archive";
+};
+
+export type ArchiveContactPropertyErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ArchiveContactPropertyError =
+  ArchiveContactPropertyErrors[keyof ArchiveContactPropertyErrors];
+
+export type ArchiveContactPropertyResponses = {
+  /**
+   * The archived contact property.
+   */
+  200: ContactProperty;
+};
+
+export type ArchiveContactPropertyResponse =
+  ArchiveContactPropertyResponses[keyof ArchiveContactPropertyResponses];
+
+export type UnarchiveContactPropertyData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Contact property ID.
+     */
+    property_id: ContactPropertyId;
+  };
+  query?: never;
+  url: "/v1/contact-properties/{property_id}/unarchive";
+};
+
+export type UnarchiveContactPropertyErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UnarchiveContactPropertyError =
+  UnarchiveContactPropertyErrors[keyof UnarchiveContactPropertyErrors];
+
+export type UnarchiveContactPropertyResponses = {
+  /**
+   * The reactivated contact property.
+   */
+  200: ContactProperty;
+};
+
+export type UnarchiveContactPropertyResponse =
+  UnarchiveContactPropertyResponses[keyof UnarchiveContactPropertyResponses];
+
+export type ListAudiencesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/audiences";
+};
+
+export type ListAudiencesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListAudiencesError = ListAudiencesErrors[keyof ListAudiencesErrors];
+
+export type ListAudiencesResponses = {
+  /**
+   * Paginated list of audiences.
+   */
+  200: AudienceList;
+};
+
+export type ListAudiencesResponse =
+  ListAudiencesResponses[keyof ListAudiencesResponses];
+
+export type CreateAudienceData = {
+  body: AudienceCreateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/audiences";
+};
+
+export type CreateAudienceErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateAudienceError =
+  CreateAudienceErrors[keyof CreateAudienceErrors];
+
+export type CreateAudienceResponses = {
+  /**
+   * Audience created.
+   */
+  201: Audience;
+};
+
+export type CreateAudienceResponse =
+  CreateAudienceResponses[keyof CreateAudienceResponses];
+
+export type DeleteAudienceData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+  };
+  query?: never;
+  url: "/v1/audiences/{audience_id}";
+};
+
+export type DeleteAudienceErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteAudienceError =
+  DeleteAudienceErrors[keyof DeleteAudienceErrors];
+
+export type DeleteAudienceResponses = {
+  /**
+   * Audience deleted.
+   */
+  204: void;
+};
+
+export type DeleteAudienceResponse =
+  DeleteAudienceResponses[keyof DeleteAudienceResponses];
+
+export type GetAudienceData = {
+  body?: never;
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+  };
+  query?: never;
+  url: "/v1/audiences/{audience_id}";
+};
+
+export type GetAudienceErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetAudienceError = GetAudienceErrors[keyof GetAudienceErrors];
+
+export type GetAudienceResponses = {
+  /**
+   * The audience.
+   */
+  200: Audience;
+};
+
+export type GetAudienceResponse =
+  GetAudienceResponses[keyof GetAudienceResponses];
+
+export type UpdateAudienceData = {
+  body: AudienceUpdateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+  };
+  query?: never;
+  url: "/v1/audiences/{audience_id}";
+};
+
+export type UpdateAudienceErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateAudienceError =
+  UpdateAudienceErrors[keyof UpdateAudienceErrors];
+
+export type UpdateAudienceResponses = {
+  /**
+   * The updated audience.
+   */
+  200: Audience;
+};
+
+export type UpdateAudienceResponse =
+  UpdateAudienceResponses[keyof UpdateAudienceResponses];
+
+export type ListAudienceContactsData = {
+  body?: never;
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+  };
+  query?: {
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/audiences/{audience_id}/contacts";
+};
+
+export type ListAudienceContactsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListAudienceContactsError =
+  ListAudienceContactsErrors[keyof ListAudienceContactsErrors];
+
+export type ListAudienceContactsResponses = {
+  /**
+   * Paginated list of the audience's contacts.
+   */
+  200: AudienceMemberList;
+};
+
+export type ListAudienceContactsResponse =
+  ListAudienceContactsResponses[keyof ListAudienceContactsResponses];
+
+export type AssignAudienceContactsData = {
+  body: AudienceContactsAddRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+  };
+  query?: never;
+  url: "/v1/audiences/{audience_id}/contacts";
+};
+
+export type AssignAudienceContactsErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type AssignAudienceContactsError =
+  AssignAudienceContactsErrors[keyof AssignAudienceContactsErrors];
+
+export type AssignAudienceContactsResponses = {
+  /**
+   * Contacts added to the audience.
+   */
+  204: void;
+};
+
+export type AssignAudienceContactsResponse =
+  AssignAudienceContactsResponses[keyof AssignAudienceContactsResponses];
+
+export type UnassignAudienceContactsData = {
+  body: AudienceContactsRemoveRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+  };
+  query?: never;
+  url: "/v1/audiences/{audience_id}/contacts/remove";
+};
+
+export type UnassignAudienceContactsErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UnassignAudienceContactsError =
+  UnassignAudienceContactsErrors[keyof UnassignAudienceContactsErrors];
+
+export type UnassignAudienceContactsResponses = {
+  /**
+   * Contacts removed from the audience.
+   */
+  204: void;
+};
+
+export type UnassignAudienceContactsResponse =
+  UnassignAudienceContactsResponses[keyof UnassignAudienceContactsResponses];
+
+export type UnassignAudienceContactData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Audience ID.
+     */
+    audience_id: AudienceId;
+    /**
+     * Contact ID.
+     */
+    contact_id: ContactId;
+  };
+  query?: never;
+  url: "/v1/audiences/{audience_id}/contacts/{contact_id}";
+};
+
+export type UnassignAudienceContactErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UnassignAudienceContactError =
+  UnassignAudienceContactErrors[keyof UnassignAudienceContactErrors];
+
+export type UnassignAudienceContactResponses = {
+  /**
+   * Contact removed from the audience, or was already not a member (no effect).
+   */
+  204: void;
+};
+
+export type UnassignAudienceContactResponse =
+  UnassignAudienceContactResponses[keyof UnassignAudienceContactResponses];
+
 export type ListSmsMessagesData = {
   body?: never;
   path?: never;
@@ -4245,7 +6018,7 @@ export type ListSmsTemplatesData = {
     /**
      * Keep only templates available in this language, as a BCP-47 tag.
      */
-    locale?: string;
+    language?: string;
   };
   url: "/v1/sms/templates";
 };
@@ -4286,7 +6059,7 @@ export type GetSmsTemplateData = {
   body?: never;
   path: {
     /**
-     * The template's alias or id.
+     * The template's name or id.
      */
     template_ref: string;
   };

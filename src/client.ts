@@ -19,7 +19,6 @@ import { EmailResource, type EmailChannelDefaults } from "./resources/email.js";
 import { AudiencesResource } from "./resources/audiences.js";
 import { ContactPropertiesResource } from "./resources/contactProperties.js";
 import { ContactsResource } from "./resources/contacts.js";
-import { EmailTemplatesResource } from "./resources/emailTemplates.js";
 import { SmsResource } from "./resources/sms.js";
 import { SmsTemplatesResource } from "./resources/smsTemplates.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
@@ -154,8 +153,6 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** The email channel — `bird.email.send(...)`, `.get(...)`, `.list(...)`. */
   readonly email: EmailResource<EmailDefaultsOf<O>>;
 
-  /** Email templates — `bird.emailTemplates.create(...)`, `.list(...)`, `.publish(...)`, … */
-  readonly emailTemplates: EmailTemplatesResource;
 
   /** The SMS channel — `bird.sms.send(...)`, `.get(...)`, `.list(...)`. */
   readonly sms: SmsResource;
@@ -211,7 +208,6 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       this.#client,
       opts.email as EmailDefaultsOf<O>,
     );
-    this.emailTemplates = new EmailTemplatesResource(this.core, this.#client);
     this.sms = new SmsResource(this.core, this.#client);
     this.smsTemplates = new SmsTemplatesResource(this.core, this.#client);
     this.contacts = new ContactsResource(this.core, this.#client);

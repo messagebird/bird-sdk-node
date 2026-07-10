@@ -66,6 +66,18 @@ export interface ErrorNextAction {
   scope?: string;
 }
 
+/** One verification requirement blocking the action, with the flow that resolves it. */
+export interface UnmetGate {
+  /** Stable identifier for the verification requirement. */
+  slug: string;
+  /** Human-readable name of the verification requirement. */
+  name: string;
+  /** The requirement's current state. */
+  status: string;
+  /** How to resolve this requirement. */
+  remediation_kind: string;
+}
+
 /** Constructor fields shared by every API error, mapped from the wire body. */
 export interface BirdAPIErrorFields {
   statusCode: number;
@@ -88,6 +100,8 @@ export interface BirdAPIErrorFields {
   remediation?: string;
   /** Operations that resolve this error, in the order to try them (ADR-0073). */
   next?: ErrorNextAction[];
+  /** Verification requirements blocking this action, when it is blocked pending verification. */
+  unmetGates?: UnmetGate[];
 }
 
 /** The server returned an error body. Base for every `type`-specific class. */
@@ -102,6 +116,7 @@ export class BirdAPIError extends BirdError {
   readonly vendorCode?: string;
   readonly remediation?: string;
   readonly next?: ErrorNextAction[];
+  readonly unmetGates?: UnmetGate[];
 
   constructor(fields: BirdAPIErrorFields) {
     super(fields.message);
@@ -116,6 +131,7 @@ export class BirdAPIError extends BirdError {
     this.vendorCode = fields.vendorCode;
     this.remediation = fields.remediation;
     this.next = fields.next;
+    this.unmetGates = fields.unmetGates;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
@@ -267,6 +283,7 @@ interface WireErrorBody {
   details?: ErrorDetail[];
   remediation?: string;
   next?: ErrorNextAction[];
+  unmet_gates?: UnmetGate[];
 }
 
 /**
@@ -349,6 +366,7 @@ export function mapResponseToError(
     vendorCode: b.vendor_code,
     remediation: b.remediation,
     next: b.next ?? [], // normalize a null/absent wire `next` to [] so callers can always iterate
+    unmetGates: b.unmet_gates ?? [], // normalize a null/absent wire `unmet_gates` to [] so callers can always iterate
   };
 
   switch (fields.type) {

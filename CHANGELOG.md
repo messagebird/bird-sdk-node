@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+- Remove the email templates collection (`emailTemplates.create`, `.get`, `.update`, `.delete`, `.publish`, `.list`, `.listVersions`, `.getVersion`), added in 0.3.0. Template management is no longer part of the public API. Sending a published template with `email.send` (pass `template` as an `emt_…` ID or name handle) is unchanged.
+
 ## 0.4.2
 
 - Fix the package entry points so the SDK is importable: the build emits `dist/index.mjs`/`.d.mts`, but `main`/`types`/`exports` still pointed at `dist/index.js`/`.d.ts`, so 0.4.0 and 0.4.1 failed with `ERR_MODULE_NOT_FOUND`. 0.4.1 is deprecated; use 0.4.2.

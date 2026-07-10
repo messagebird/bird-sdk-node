@@ -9,6 +9,9 @@ import type {
   AssignAudienceContactsData,
   AssignAudienceContactsErrors,
   AssignAudienceContactsResponses,
+  CancelEmailMessageData,
+  CancelEmailMessageErrors,
+  CancelEmailMessageResponses,
   CreateAudienceData,
   CreateAudienceErrors,
   CreateAudienceResponses,
@@ -27,9 +30,6 @@ import type {
   CreateEmailMessageData,
   CreateEmailMessageErrors,
   CreateEmailMessageResponses,
-  CreateEmailTemplateData,
-  CreateEmailTemplateErrors,
-  CreateEmailTemplateResponses,
   CreateSmsMessageBatchData,
   CreateSmsMessageBatchErrors,
   CreateSmsMessageBatchResponses,
@@ -42,9 +42,6 @@ import type {
   DeleteContactData,
   DeleteContactErrors,
   DeleteContactResponses,
-  DeleteEmailTemplateData,
-  DeleteEmailTemplateErrors,
-  DeleteEmailTemplateResponses,
   GetAudienceData,
   GetAudienceErrors,
   GetAudienceResponses,
@@ -57,12 +54,6 @@ import type {
   GetEmailMessageData,
   GetEmailMessageErrors,
   GetEmailMessageResponses,
-  GetEmailTemplateData,
-  GetEmailTemplateErrors,
-  GetEmailTemplateResponses,
-  GetEmailTemplateVersionData,
-  GetEmailTemplateVersionErrors,
-  GetEmailTemplateVersionResponses,
   GetSmsMessageData,
   GetSmsMessageErrors,
   GetSmsMessageResponses,
@@ -84,21 +75,12 @@ import type {
   ListEmailMessagesData,
   ListEmailMessagesErrors,
   ListEmailMessagesResponses,
-  ListEmailTemplatesData,
-  ListEmailTemplatesErrors,
-  ListEmailTemplatesResponses,
-  ListEmailTemplateVersionsData,
-  ListEmailTemplateVersionsErrors,
-  ListEmailTemplateVersionsResponses,
   ListSmsMessagesData,
   ListSmsMessagesErrors,
   ListSmsMessagesResponses,
   ListSmsTemplatesData,
   ListSmsTemplatesErrors,
   ListSmsTemplatesResponses,
-  PublishEmailTemplateData,
-  PublishEmailTemplateErrors,
-  PublishEmailTemplateResponses,
   UnarchiveContactPropertyData,
   UnarchiveContactPropertyErrors,
   UnarchiveContactPropertyResponses,
@@ -117,9 +99,6 @@ import type {
   UpdateContactPropertyErrors,
   UpdateContactPropertyResponses,
   UpdateContactResponses,
-  UpdateEmailTemplateData,
-  UpdateEmailTemplateErrors,
-  UpdateEmailTemplateResponses,
 } from "./types.gen";
 
 export type Options<
@@ -250,6 +229,32 @@ export const getEmailMessage = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/email/messages/{message_id}",
+    ...options,
+  });
+
+/**
+ * Cancel a scheduled message
+ *
+ * Cancels a message that was scheduled with `scheduled_at` before it sends. Only a message that is still scheduled can be canceled; a message that already started sending, was delivered, or was previously canceled returns a conflict error. The message's status becomes `canceled` and an `email.canceled` webhook event fires. Canceling does not return consumed scheduled-send quota.
+ *
+ */
+export const cancelEmailMessage = <ThrowOnError extends boolean = false>(
+  options: Options<CancelEmailMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CancelEmailMessageResponses,
+    CancelEmailMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/messages/{message_id}/cancel",
     ...options,
   });
 
@@ -585,7 +590,8 @@ export const unarchiveContactProperty = <ThrowOnError extends boolean = false>(
 /**
  * List audiences
  *
- * Returns a paginated list of audiences in the workspace, newest first.
+ * Returns a paginated list of audiences in the workspace, newest first. Filter to audiences whose name contains a substring with `search`.
+ *
  */
 export const listAudiences = <ThrowOnError extends boolean = false>(
   options?: Options<ListAudiencesData, ThrowOnError>,
@@ -987,220 +993,5 @@ export const getSmsTemplate = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/sms/templates/{template_ref}",
-    ...options,
-  });
-
-/**
- * List email templates
- *
- * Returns a paginated list of the workspace's email templates, newest first. Filter by category, source, or a case-insensitive search that matches the template's name or description.
- *
- */
-export const listEmailTemplates = <ThrowOnError extends boolean = false>(
-  options?: Options<ListEmailTemplatesData, ThrowOnError>,
-) =>
-  (options?.client ?? client).get<
-    ListEmailTemplatesResponses,
-    ListEmailTemplatesErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates",
-    ...options,
-  });
-
-/**
- * Create an email template
- *
- * Creates a template and its initial editable draft. The body carries the template's name, category, authoring format (`source`), and the draft's content (`subject`, `html`, `text`). A name already used in the workspace returns a conflict.
- *
- */
-export const createEmailTemplate = <ThrowOnError extends boolean = false>(
-  options: Options<CreateEmailTemplateData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    CreateEmailTemplateResponses,
-    CreateEmailTemplateErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-/**
- * Delete an email template
- *
- * Deletes the template and all its versions. The name becomes available for reuse within the workspace.
- *
- */
-export const deleteEmailTemplate = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteEmailTemplateData, ThrowOnError>,
-) =>
-  (options.client ?? client).delete<
-    DeleteEmailTemplateResponses,
-    DeleteEmailTemplateErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates/{template_id}",
-    ...options,
-  });
-
-/**
- * Get an email template
- *
- * Returns a single email template with its current draft content (subject, HTML, and plain text), the draft revision, and its draft and published version ids.
- *
- */
-export const getEmailTemplate = <ThrowOnError extends boolean = false>(
-  options: Options<GetEmailTemplateData, ThrowOnError>,
-) =>
-  (options.client ?? client).get<
-    GetEmailTemplateResponses,
-    GetEmailTemplateErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates/{template_id}",
-    ...options,
-  });
-
-/**
- * Update an email template
- *
- * Updates a template's metadata and its draft content. Only the fields you send are changed. Send the draft `revision` you last read; if it is stale (someone else edited the draft first) the request returns a conflict so you can reload and retry.
- *
- */
-export const updateEmailTemplate = <ThrowOnError extends boolean = false>(
-  options: Options<UpdateEmailTemplateData, ThrowOnError>,
-) =>
-  (options.client ?? client).patch<
-    UpdateEmailTemplateResponses,
-    UpdateEmailTemplateErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates/{template_id}",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-/**
- * List email template versions
- *
- * Returns every version of the template — the current draft plus all published versions — newest first.
- *
- */
-export const listEmailTemplateVersions = <ThrowOnError extends boolean = false>(
-  options: Options<ListEmailTemplateVersionsData, ThrowOnError>,
-) =>
-  (options.client ?? client).get<
-    ListEmailTemplateVersionsResponses,
-    ListEmailTemplateVersionsErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates/{template_id}/versions",
-    ...options,
-  });
-
-/**
- * Get an email template version
- *
- * Returns a single version of an email template.
- */
-export const getEmailTemplateVersion = <ThrowOnError extends boolean = false>(
-  options: Options<GetEmailTemplateVersionData, ThrowOnError>,
-) =>
-  (options.client ?? client).get<
-    GetEmailTemplateVersionResponses,
-    GetEmailTemplateVersionErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates/{template_id}/versions/{version_id}",
-    ...options,
-  });
-
-/**
- * Publish an email template
- *
- * Publishes the template's current draft as a new immutable, numbered version and makes it the live version used by sends. The draft remains editable for future changes. The draft must have a subject and a body; an empty draft is rejected.
- *
- */
-export const publishEmailTemplate = <ThrowOnError extends boolean = false>(
-  options: Options<PublishEmailTemplateData, ThrowOnError>,
-) =>
-  (options.client ?? client).post<
-    PublishEmailTemplateResponses,
-    PublishEmailTemplateErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/email/templates/{template_id}/publish",
     ...options,
   });

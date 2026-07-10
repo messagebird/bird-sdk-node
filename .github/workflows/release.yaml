@@ -37,13 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
         with:
-          version: 9
-      - uses: actions/setup-node@v4
+          version: 11.1.1
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 22.19.0
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -68,11 +68,9 @@ jobs:
             npm publish --provenance --access public
           fi
 
-      # Only on a tag push, where GITHUB_REF_NAME is the vX.Y.Z just published.
-      - name: Smoke test (install from npm)
-        if: github.event_name == 'push'
-        run: ./scripts/smoke.sh "${GITHUB_REF_NAME#v}"
-
+      # The GitHub Release runs BEFORE the smoke test so a post-publish npm
+      # registry propagation flake in smoke can never drop the release notes for
+      # a version that is already published.
       - name: GitHub Release
         if: github.event_name == 'push'
         env:
@@ -83,3 +81,8 @@ jobs:
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --notes-from-tag --verify-tag
+
+      # Only on a tag push, where GITHUB_REF_NAME is the vX.Y.Z just published.
+      - name: Smoke test (install from npm)
+        if: github.event_name == 'push'
+        run: ./scripts/smoke.sh "${GITHUB_REF_NAME#v}"

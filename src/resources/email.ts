@@ -3,6 +3,7 @@
 // Calls the generated hey-api SDK functions through the lifecycle core.
 
 import {
+  cancelEmailMessage,
   createEmailMessage,
   createEmailMessageBatch,
   getEmailMessage,
@@ -205,6 +206,29 @@ export class EmailResource<
         headers,
         signal,
       }),
+    );
+  }
+
+  /**
+   * Cancel a message scheduled with `scheduled_at` before it sends. Only a
+   * message that is still scheduled can be canceled; one that already started
+   * sending — or was previously canceled — rejects with a conflict error.
+   * Canceling does not return consumed scheduled-send quota.
+   *
+   * @example
+   * await bird.email.cancel("em_abc123");
+   */
+  cancel(messageId: string, options?: RequestOptions): APIPromise<void> {
+    return this.call<void>(
+      "POST",
+      options,
+      ({ signal, headers }) =>
+        cancelEmailMessage({
+          client: this.client,
+          path: { message_id: messageId },
+          headers,
+          signal,
+        }),
     );
   }
 

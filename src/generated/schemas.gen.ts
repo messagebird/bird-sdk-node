@@ -242,10 +242,11 @@ export const SMSErrorCodeSchema = {
     "sender_unregistered",
     "recipient_opted_out",
     "provider_unavailable",
+    "insufficient_balance",
     "unknown",
   ],
   description:
-    "Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `unknown` — an unmapped failure.\n",
+    "Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `insufficient_balance` — the workspace wallet had insufficient balance to send the message. `unknown` — an unmapped failure.\n",
 } as const;
 
 export const SMSErrorSchema = {
@@ -5014,510 +5015,6 @@ export const InboundAddressSchema = {
   },
 } as const;
 
-export const EmailTemplateVersionListSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["data"],
-  properties: {
-    data: {
-      type: "array",
-      description: "All versions of the template, newest first.",
-      items: {
-        $ref: "#/components/schemas/EmailTemplateVersion",
-      },
-    },
-  },
-} as const;
-
-export const TemplateVariableSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "A single variable slot a template fills in from the values supplied when sending. Shared across channels (SMS, email) so template introspection reads the same everywhere.\n",
-  required: ["key", "type", "required", "constraint"],
-  properties: {
-    key: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "The parameters key this slot is filled with.",
-    },
-    type: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      "x-extensible-enum": [
-        "code",
-        "ttl",
-        "count",
-        "ref",
-        "date",
-        "date_time",
-        "amount",
-        "currency",
-        "text",
-      ],
-      description:
-        "The value type this slot accepts. Open enum — treat any unrecognized value as a future type rather than an error. SMS templates use the typed slots (`code`, `amount`, …); email templates use `text`.\n",
-    },
-    required: {
-      type: "boolean",
-      readOnly: true,
-      description:
-        "Whether the slot must be supplied when sending. Advisory for email templates, where a missing value renders as empty rather than rejecting the send.\n",
-    },
-    constraint: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "A human-readable description of the accepted values.",
-    },
-  },
-} as const;
-
-export const EmailTemplateIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^emt_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "emt_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const EmailTemplateVersionIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^emv_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "emv_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const EmailTemplateVersionSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "id",
-    "template_id",
-    "status",
-    "revision",
-    "variables",
-    "created_at",
-  ],
-  properties: {
-    id: {
-      readOnly: true,
-      description: "Template version ID.",
-      $ref: "#/components/schemas/EmailTemplateVersionID",
-    },
-    template_id: {
-      readOnly: true,
-      description: "The template this version belongs to.",
-      $ref: "#/components/schemas/EmailTemplateID",
-    },
-    version_number: {
-      type: ["integer", "null"],
-      minimum: 1,
-      readOnly: true,
-      description:
-        "Sequential published-version number (1, 2, 3…). Null while the version is a draft.",
-    },
-    status: {
-      type: "string",
-      minLength: 1,
-      enum: ["draft", "published"],
-      readOnly: true,
-      description: "Lifecycle status of this version.",
-    },
-    revision: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description: "The version's revision counter.",
-    },
-    variables: {
-      type: "array",
-      readOnly: true,
-      items: {
-        $ref: "#/components/schemas/TemplateVariable",
-      },
-      description:
-        "The variable slots this version's content fills in from the values you supply when sending.",
-    },
-    created_at: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      readOnly: true,
-      description: "When this version was created.",
-    },
-    published_at: {
-      type: ["string", "null"],
-      format: "date-time",
-      readOnly: true,
-      description:
-        "When this version was published, or null if it has not been published.",
-    },
-  },
-} as const;
-
-export const EmailTemplateUpdateSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "Partial update of a template's metadata and its draft content. Only the fields you send are changed; the rest are left as-is. Include the draft `revision` you last read so concurrent edits are detected.\n",
-  required: ["revision"],
-  properties: {
-    revision: {
-      type: "integer",
-      minimum: 0,
-      description:
-        "The draft revision you last read (from the template's `revision` field). A stale value returns a conflict so you can reload and retry.\n",
-    },
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      description:
-        "New workspace-unique slug handle. Must stay unique within the workspace. Lowercase letters, numbers, and hyphens.\n",
-    },
-    description: {
-      type: ["string", "null"],
-      description:
-        "New description of the template's purpose. Send null to clear it.",
-    },
-    subject: {
-      type: ["string", "null"],
-      description:
-        "New email subject line for the draft. Send null to clear it.",
-    },
-    html: {
-      type: "string",
-      description:
-        "New HTML body — the source markup for the template's format.",
-    },
-    text: {
-      type: ["string", "null"],
-      description: "New plain-text body for the draft. Send null to clear it.",
-    },
-    brand_kit_id: {
-      description: "Brand kit to apply to the draft.",
-      $ref: "#/components/schemas/BrandKitID",
-    },
-  },
-} as const;
-
-export const BrandKitIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^bk_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "bk_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const EmailTemplateSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "id",
-    "workspace_id",
-    "name",
-    "scope",
-    "category",
-    "source",
-    "variables",
-    "draft_version_id",
-    "revision",
-    "created_at",
-    "updated_at",
-  ],
-  properties: {
-    id: {
-      readOnly: true,
-      description: "Template ID.",
-      $ref: "#/components/schemas/EmailTemplateID",
-    },
-    workspace_id: {
-      readOnly: true,
-      description: "Workspace that owns the template.",
-      $ref: "#/components/schemas/WorkspaceID",
-    },
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      description:
-        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
-      example: "welcome-email",
-    },
-    description: {
-      type: ["string", "null"],
-      description:
-        "Optional description of the template's purpose. Null when unset.",
-    },
-    scope: {
-      $ref: "#/components/schemas/TemplateScope",
-    },
-    category: {
-      $ref: "#/components/schemas/EmailTemplateCategory",
-    },
-    source: {
-      $ref: "#/components/schemas/EmailTemplateSource",
-    },
-    variables: {
-      type: "array",
-      readOnly: true,
-      items: {
-        $ref: "#/components/schemas/TemplateVariable",
-      },
-      description:
-        "The variable slots this template's current draft fills in from the values you supply when sending.",
-    },
-    draft_version_id: {
-      readOnly: true,
-      description: "The current editable draft version.",
-      $ref: "#/components/schemas/EmailTemplateVersionID",
-    },
-    published_version_id: {
-      readOnly: true,
-      description:
-        "The currently published version, or null if the template has never been published.",
-      oneOf: [
-        {
-          $ref: "#/components/schemas/EmailTemplateVersionID",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    revision: {
-      type: "integer",
-      readOnly: true,
-      minimum: 0,
-      description:
-        "The draft's revision counter. Send it back on the next update to detect concurrent edits.",
-    },
-    subject: {
-      type: ["string", "null"],
-      description: "The draft's email subject line. Null when unset.",
-    },
-    html: {
-      type: ["string", "null"],
-      description: "The draft's HTML body. Null when unset.",
-    },
-    text: {
-      type: ["string", "null"],
-      description: "The draft's plain-text body. Null when unset.",
-    },
-    brand_kit_id: {
-      readOnly: true,
-      description: "The brand kit applied to the draft, or null if none.",
-      oneOf: [
-        {
-          $ref: "#/components/schemas/BrandKitID",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    created_at: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      readOnly: true,
-      description: "When the template was created.",
-    },
-    updated_at: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      readOnly: true,
-      description: "When the template was last modified.",
-    },
-  },
-} as const;
-
-export const EmailTemplateSourceSchema = {
-  type: "string",
-  minLength: 1,
-  enum: ["liquid", "handlebars", "html"],
-  description:
-    "The authoring format the template is written in. Fixed at creation.",
-} as const;
-
-export const EmailTemplateCategorySchema = {
-  type: "string",
-  minLength: 1,
-  enum: ["transactional", "marketing"],
-  description: "Whether the template is transactional or marketing email.",
-} as const;
-
-export const TemplateScopeSchema = {
-  type: "string",
-  minLength: 1,
-  readOnly: true,
-  enum: ["system", "workspace"],
-  description:
-    "Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).",
-} as const;
-
-export const EmailTemplateCreateSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "Parameters for creating an email template and its initial draft.",
-  required: ["name", "category", "source"],
-  properties: {
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      description:
-        "The template's workspace-unique slug handle — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.\n",
-      example: "welcome-email",
-    },
-    description: {
-      type: "string",
-      description: "Optional description of the template's purpose.",
-      example: "Sent to new customers after signup.",
-    },
-    category: {
-      $ref: "#/components/schemas/EmailTemplateCategory",
-    },
-    source: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailTemplateSource",
-        },
-      ],
-      description:
-        "The authoring format the template is written in, fixed at creation. `liquid` currently supports variable substitution only (e.g. `{{ first_name }}`); filters, tags, and control flow are not yet supported — fuller Liquid support is coming soon.\n",
-    },
-    subject: {
-      type: "string",
-      description: "The email subject line for the initial draft.",
-      example: "Welcome to Acme, {{ first_name }}!",
-    },
-    html: {
-      type: "string",
-      description: "The HTML body — the source markup for the chosen format.",
-      example: "<h1>Hi {{ first_name }}</h1>",
-    },
-    text: {
-      type: "string",
-      description: "The optional plain-text body.",
-    },
-    brand_kit_id: {
-      description: "Optional brand kit to apply to the draft.",
-      $ref: "#/components/schemas/BrandKitID",
-    },
-  },
-} as const;
-
-export const EmailTemplateListSchema = {
-  allOf: [
-    {
-      type: "object",
-      required: ["data"],
-      properties: {
-        data: {
-          type: "array",
-          description: "Page of email templates.",
-          items: {
-            $ref: "#/components/schemas/EmailTemplateSummary",
-          },
-        },
-      },
-    },
-    {
-      $ref: "#/components/schemas/_ListEnvelope",
-    },
-  ],
-} as const;
-
-export const EmailTemplateSummarySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "id",
-    "workspace_id",
-    "name",
-    "scope",
-    "category",
-    "source",
-    "draft_version_id",
-    "created_at",
-    "updated_at",
-  ],
-  properties: {
-    id: {
-      readOnly: true,
-      description: "Template ID.",
-      $ref: "#/components/schemas/EmailTemplateID",
-    },
-    workspace_id: {
-      readOnly: true,
-      description: "Workspace that owns the template.",
-      $ref: "#/components/schemas/WorkspaceID",
-    },
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      description:
-        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
-      example: "welcome-email",
-    },
-    description: {
-      type: ["string", "null"],
-      description:
-        "Optional description of the template's purpose. Null when unset.",
-    },
-    scope: {
-      $ref: "#/components/schemas/TemplateScope",
-    },
-    category: {
-      $ref: "#/components/schemas/EmailTemplateCategory",
-    },
-    source: {
-      $ref: "#/components/schemas/EmailTemplateSource",
-    },
-    draft_version_id: {
-      readOnly: true,
-      description: "The current editable draft version.",
-      $ref: "#/components/schemas/EmailTemplateVersionID",
-    },
-    published_version_id: {
-      readOnly: true,
-      description:
-        "The currently published version, or null if never published.",
-      oneOf: [
-        {
-          $ref: "#/components/schemas/EmailTemplateVersionID",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    created_at: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      readOnly: true,
-      description: "When the template was created.",
-    },
-    updated_at: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      readOnly: true,
-      description: "When the template was last modified.",
-    },
-  },
-} as const;
-
 export const SuppressionCreateSchema = {
   type: "object",
   additionalProperties: false,
@@ -5816,14 +5313,36 @@ export const WhatsAppTemplateCategorySchema = {
     "WhatsApp template category — Meta's content classification for a template. Open enum — Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error. The values below are the categories known at this version.",
 } as const;
 
+export const TemplateScopeSchema = {
+  type: "string",
+  minLength: 1,
+  readOnly: true,
+  enum: ["system", "workspace"],
+  description:
+    "Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).",
+} as const;
+
+export const TemplateNameSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 512,
+  pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
+  description:
+    "A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.\n",
+  example: "welcome-email",
+} as const;
+
 export const WhatsAppTemplateSchema = {
   type: "object",
   additionalProperties: false,
   required: ["name", "scope", "language", "category", "status", "components"],
   properties: {
     name: {
-      type: "string",
-      minLength: 1,
+      allOf: [
+        {
+          $ref: "#/components/schemas/TemplateName",
+        },
+      ],
       readOnly: true,
       description:
         "The template's stable handle. Pass it as the template reference when sending.",
@@ -5999,6 +5518,33 @@ export const SendWhatsAppMessageRequestSchema = {
         "The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are currently the only supported content type, so every send must include one; free-text content will be added in a future release.\n",
     },
   },
+  example: {
+    to: "+31612345678",
+    template: {
+      name: "bird_otp",
+      language: "en",
+      components: [
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              text: "1234",
+            },
+          ],
+        },
+        {
+          type: "button",
+          parameters: [
+            {
+              type: "text",
+              text: "1234",
+            },
+          ],
+        },
+      ],
+    },
+  },
 } as const;
 
 export const WhatsAppMessageTemplateComponentParameterSchema = {
@@ -6049,10 +5595,11 @@ export const SendWhatsAppMessageTemplateSchema = {
   required: ["name"],
   properties: {
     name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9_]*[a-z0-9])?$",
+      allOf: [
+        {
+          $ref: "#/components/schemas/TemplateName",
+        },
+      ],
       description:
         "The template to send, by its name (for example `bird_otp`).",
       example: "bird_otp",
@@ -6095,7 +5642,26 @@ export const SendWhatsAppMessageTemplateSchema = {
     {
       name: "bird_otp",
       language: "en",
-      components: [],
+      components: [
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              text: "1234",
+            },
+          ],
+        },
+        {
+          type: "button",
+          parameters: [
+            {
+              type: "text",
+              text: "1234",
+            },
+          ],
+        },
+      ],
     },
   ],
 } as const;
@@ -6146,8 +5712,11 @@ export const WhatsAppMessageTemplateSchema = {
   required: ["name", "language", "category", "components"],
   properties: {
     name: {
-      type: "string",
-      minLength: 1,
+      allOf: [
+        {
+          $ref: "#/components/schemas/TemplateName",
+        },
+      ],
       readOnly: true,
       description: "The template's stable handle (for example `bird_otp`).",
       example: "bird_otp",
@@ -6581,6 +6150,52 @@ export const SMSTemplateVersionIDSchema = {
   example: "smv_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
+export const TemplateVariableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A single variable slot a template fills in from the values supplied when sending. Shared across channels (SMS, email) so template introspection reads the same everywhere.\n",
+  required: ["key", "type", "required", "constraint"],
+  properties: {
+    key: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The parameters key this slot is filled with.",
+    },
+    type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      "x-extensible-enum": [
+        "code",
+        "ttl",
+        "count",
+        "ref",
+        "date",
+        "date_time",
+        "amount",
+        "currency",
+        "text",
+      ],
+      description:
+        "The value type this slot accepts. Open enum — treat any unrecognized value as a future type rather than an error. SMS templates use the typed slots (`code`, `amount`, …); email templates use `text`.\n",
+    },
+    required: {
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Whether the slot must be supplied when sending. Advisory for email templates, where a missing value renders as empty rather than rejecting the send.\n",
+    },
+    constraint: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "A human-readable description of the accepted values.",
+    },
+  },
+} as const;
+
 export const SMSMessageCategorySchema = {
   type: "string",
   minLength: 1,
@@ -6621,8 +6236,11 @@ export const SMSTemplateSchema = {
       $ref: "#/components/schemas/SMSTemplateID",
     },
     name: {
-      type: "string",
-      minLength: 1,
+      allOf: [
+        {
+          $ref: "#/components/schemas/TemplateName",
+        },
+      ],
       readOnly: true,
       description:
         "The template's stable handle. Pass it (or the id) as the template reference when sending.",
@@ -7061,10 +6679,11 @@ export const SMSTemplateSendSchema = {
       $ref: "#/components/schemas/SMSTemplateID",
     },
     name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9_]*[a-z0-9])?$",
+      allOf: [
+        {
+          $ref: "#/components/schemas/TemplateName",
+        },
+      ],
       description:
         "The template to send, by its name handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.\n",
       example: "bird_otp_verification_ttl",
@@ -7456,77 +7075,6 @@ export const AudienceCreateRequestSchema = {
   },
 } as const;
 
-export const AudienceListSchema = {
-  allOf: [
-    {
-      type: "object",
-      required: ["data"],
-      properties: {
-        data: {
-          type: "array",
-          description: "Page of audience objects.",
-          items: {
-            $ref: "#/components/schemas/Audience",
-          },
-        },
-      },
-    },
-    {
-      $ref: "#/components/schemas/_ListEnvelope",
-    },
-  ],
-} as const;
-
-export const AudienceIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^adn_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "adn_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const AudienceSchema = {
-  allOf: [
-    {
-      type: "object",
-      required: ["id", "name", "type", "created_at", "updated_at"],
-      properties: {
-        id: {
-          readOnly: true,
-          $ref: "#/components/schemas/AudienceID",
-          description: "Audience ID.",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 100,
-          description: "Display name for the audience.",
-        },
-        description: {
-          type: ["string", "null"],
-          maxLength: 500,
-          description: "Longer description of who this audience is.",
-        },
-        type: {
-          type: "string",
-          minLength: 1,
-          enum: ["static", "dynamic", "external"],
-          "x-enum-varnames": [
-            "AudienceTypeStatic",
-            "AudienceTypeDynamic",
-            "AudienceTypeExternal",
-          ],
-          default: "static",
-          description:
-            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
-        },
-      },
-    },
-    {
-      $ref: "#/components/schemas/Timestamps",
-    },
-  ],
-} as const;
-
 export const ContactPropertyUpdateRequestSchema = {
   type: "object",
   additionalProperties: false,
@@ -7649,6 +7197,77 @@ export const ContactPropertySchema = {
           readOnly: true,
           description:
             "Whether the property is archived. An archived property is rejected in new contact writes and stops rendering in templates, but every value already stored on contacts is preserved. Reactivate it with unarchive.",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/Timestamps",
+    },
+  ],
+} as const;
+
+export const AudienceListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of audience objects.",
+          items: {
+            $ref: "#/components/schemas/Audience",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const AudienceIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^adn_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "adn_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const AudienceSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["id", "name", "type", "created_at", "updated_at"],
+      properties: {
+        id: {
+          readOnly: true,
+          $ref: "#/components/schemas/AudienceID",
+          description: "Audience ID.",
+        },
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: 100,
+          description: "Display name for the audience.",
+        },
+        description: {
+          type: ["string", "null"],
+          maxLength: 500,
+          description: "Longer description of who this audience is.",
+        },
+        type: {
+          type: "string",
+          minLength: 1,
+          enum: ["static", "dynamic", "external"],
+          "x-enum-varnames": [
+            "AudienceTypeStatic",
+            "AudienceTypeDynamic",
+            "AudienceTypeExternal",
+          ],
+          default: "static",
+          description:
+            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
         },
       },
     },
@@ -8297,6 +7916,13 @@ export const EmailMessageBatchRequestSchema = {
   ],
 } as const;
 
+export const EmailTemplateIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^emt_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "emt_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const EmailTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
@@ -8316,10 +7942,11 @@ export const EmailTemplateSendSchema = {
       $ref: "#/components/schemas/EmailTemplateID",
     },
     name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      allOf: [
+        {
+          $ref: "#/components/schemas/TemplateName",
+        },
+      ],
       description:
         "The template to send, by its name handle (for example `welcome-email`).",
       example: "welcome-email",
@@ -8483,7 +8110,7 @@ export const EmailMessageSendRequestSchema = {
       type: "string",
       format: "date-time",
       description:
-        "Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Schedule the message to send at a future time instead of immediately. Must be at least 30 seconds and at most 30 days ahead — outside that range the request is rejected with `422`. The message returns with status `accepted` and shows as `scheduled` on reads until it sends; cancel it before then with the message cancel endpoint. Scheduled sends count against your plan's monthly scheduled-email allowance; exceeding it is rejected with a `422`.\n",
     },
     contact_id: {
       type: "string",
@@ -8979,6 +8606,46 @@ export const ErrorSchema = {
   },
 } as const;
 
+export const UnmetGateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A verification requirement that is not yet satisfied, blocking the requested action. Complete the corresponding verification flow, then retry.\n",
+  required: ["slug", "name", "status", "remediation_kind"],
+  properties: {
+    slug: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Stable identifier for the verification requirement.",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Human-readable name of the verification requirement.",
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The requirement's current state — for example, not yet started, in review, or previously revoked.",
+    },
+    remediation_kind: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "How to resolve this requirement.",
+      "x-extensible-enum": [
+        "hosted_verification",
+        "verify_flow",
+        "under_review",
+      ],
+    },
+  },
+} as const;
+
 export const ErrorNextActionSchema = {
   type: "object",
   additionalProperties: false,
@@ -9107,6 +8774,14 @@ export const ErrorBodySchema = {
         "Operations that resolve this error, in the order to try them. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.",
       items: {
         $ref: "#/components/schemas/ErrorNextAction",
+      },
+    },
+    unmet_gates: {
+      type: "array",
+      description:
+        "The verification requirements blocking this action, each with the flow that resolves it. Present only when an action is blocked pending verification.",
+      items: {
+        $ref: "#/components/schemas/UnmetGate",
       },
     },
   },
@@ -10242,107 +9917,6 @@ export const InboundAddressWritableSchema = {
   },
 } as const;
 
-export const EmailTemplateVersionListWritableSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["data"],
-  properties: {
-    data: {
-      type: "array",
-      description: "All versions of the template, newest first.",
-    },
-  },
-} as const;
-
-export const EmailTemplateWritableSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["name", "category", "source"],
-  properties: {
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      description:
-        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
-      example: "welcome-email",
-    },
-    description: {
-      type: ["string", "null"],
-      description:
-        "Optional description of the template's purpose. Null when unset.",
-    },
-    category: {
-      $ref: "#/components/schemas/EmailTemplateCategory",
-    },
-    source: {
-      $ref: "#/components/schemas/EmailTemplateSource",
-    },
-    subject: {
-      type: ["string", "null"],
-      description: "The draft's email subject line. Null when unset.",
-    },
-    html: {
-      type: ["string", "null"],
-      description: "The draft's HTML body. Null when unset.",
-    },
-    text: {
-      type: ["string", "null"],
-      description: "The draft's plain-text body. Null when unset.",
-    },
-  },
-} as const;
-
-export const EmailTemplateListWritableSchema = {
-  allOf: [
-    {
-      type: "object",
-      required: ["data"],
-      properties: {
-        data: {
-          type: "array",
-          description: "Page of email templates.",
-          items: {
-            $ref: "#/components/schemas/EmailTemplateSummaryWritable",
-          },
-        },
-      },
-    },
-    {
-      $ref: "#/components/schemas/_ListEnvelope",
-    },
-  ],
-} as const;
-
-export const EmailTemplateSummaryWritableSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["name", "category", "source"],
-  properties: {
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      description:
-        "The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.",
-      example: "welcome-email",
-    },
-    description: {
-      type: ["string", "null"],
-      description:
-        "Optional description of the template's purpose. Null when unset.",
-    },
-    category: {
-      $ref: "#/components/schemas/EmailTemplateCategory",
-    },
-    source: {
-      $ref: "#/components/schemas/EmailTemplateSource",
-    },
-  },
-} as const;
-
 export const SuppressionListWritableSchema = {
   allOf: [
     {
@@ -10753,62 +10327,6 @@ export const AudienceMemberWritableSchema = {
   },
 } as const;
 
-export const AudienceListWritableSchema = {
-  allOf: [
-    {
-      type: "object",
-      required: ["data"],
-      properties: {
-        data: {
-          type: "array",
-          description: "Page of audience objects.",
-          items: {
-            $ref: "#/components/schemas/AudienceWritable",
-          },
-        },
-      },
-    },
-    {
-      $ref: "#/components/schemas/_ListEnvelope",
-    },
-  ],
-} as const;
-
-export const AudienceWritableSchema = {
-  allOf: [
-    {
-      type: "object",
-      required: ["name", "type", "created_at", "updated_at"],
-      properties: {
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 100,
-          description: "Display name for the audience.",
-        },
-        description: {
-          type: ["string", "null"],
-          maxLength: 500,
-          description: "Longer description of who this audience is.",
-        },
-        type: {
-          type: "string",
-          minLength: 1,
-          enum: ["static", "dynamic", "external"],
-          "x-enum-varnames": [
-            "AudienceTypeStatic",
-            "AudienceTypeDynamic",
-            "AudienceTypeExternal",
-          ],
-          default: "static",
-          description:
-            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
-        },
-      },
-    },
-  ],
-} as const;
-
 export const ContactPropertyListWritableSchema = {
   allOf: [
     {
@@ -10860,6 +10378,62 @@ export const ContactPropertyWritableSchema = {
           maxLength: 500,
           description:
             "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const AudienceListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of audience objects.",
+          items: {
+            $ref: "#/components/schemas/AudienceWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const AudienceWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["name", "type", "created_at", "updated_at"],
+      properties: {
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: 100,
+          description: "Display name for the audience.",
+        },
+        description: {
+          type: ["string", "null"],
+          maxLength: 500,
+          description: "Longer description of who this audience is.",
+        },
+        type: {
+          type: "string",
+          minLength: 1,
+          enum: ["static", "dynamic", "external"],
+          "x-enum-varnames": [
+            "AudienceTypeStatic",
+            "AudienceTypeDynamic",
+            "AudienceTypeExternal",
+          ],
+          default: "static",
+          description:
+            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
         },
       },
     },
@@ -11234,6 +10808,117 @@ export const EmailMessageWritableSchema = {
     track_clicks: {
       type: "boolean",
       description: "Whether click tracking is enabled for this send.",
+    },
+  },
+} as const;
+
+export const ErrorWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["error"],
+  properties: {
+    error: {
+      $ref: "#/components/schemas/ErrorBodyWritable",
+    },
+  },
+} as const;
+
+export const ErrorBodyWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "code", "name", "message", "doc_url", "request_id"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      description: "Broad category for coarse client branching.",
+      enum: [
+        "auth_error",
+        "bad_request_error",
+        "billing_error",
+        "conflict_error",
+        "gone_error",
+        "internal_error",
+        "misdirected_error",
+        "not_found_error",
+        "not_implemented_error",
+        "payload_too_large_error",
+        "permission_error",
+        "precondition_error",
+        "rate_limit_error",
+        "service_unavailable_error",
+        "too_early_error",
+        "validation_error",
+      ],
+    },
+    code: {
+      type: "string",
+      minLength: 1,
+      pattern: "^E\\d{5}$",
+      description: "Opaque, stable, unique error identifier. Never reused.",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Human-readable slug for log readability. Paired with code, never replaces it.",
+    },
+    message: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Human-readable description. Not stable; clients must not parse it.",
+    },
+    param: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Identifies the offending field. Omitted when not applicable.",
+    },
+    doc_url: {
+      type: "string",
+      minLength: 1,
+      format: "uri",
+      description: "Stable link to the docs page for this error code.",
+    },
+    request_id: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Request correlation ID. Also returned as the X-Request-Id response header.",
+    },
+    vendor_code: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Verbatim error code returned by a downstream system (for example, an SMTP response code from a recipient's mail server, or a payment-provider decline code). Present only when Bird is surfacing a code from an external system that the caller may want to act on directly.\n",
+    },
+    details: {
+      type: "array",
+      description:
+        "Per-field validation errors. Present only on validation_error responses.",
+      items: {
+        $ref: "#/components/schemas/ErrorDetail",
+      },
+    },
+    remediation: {
+      type: "string",
+      minLength: 1,
+      description:
+        "A human-readable next step to resolve this error. Present when a recovery is known.",
+    },
+    next: {
+      type: "array",
+      description:
+        "Operations that resolve this error, in the order to try them. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.",
+      items: {
+        $ref: "#/components/schemas/ErrorNextAction",
+      },
+    },
+    unmet_gates: {
+      type: "array",
+      description:
+        "The verification requirements blocking this action, each with the flow that resolves it. Present only when an action is blocked pending verification.",
     },
   },
 } as const;

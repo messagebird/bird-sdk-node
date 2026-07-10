@@ -1,7 +1,7 @@
 // `bird.smsTemplates` — the SMS-template collection (ADR-0042 §8: a collection,
-// plural, with read verbs). A top-level resource, sibling to the `emailTemplates`
-// collection; the API scopes templates under /v1/sms/templates. Read-only:
-// Bird's built-in templates plus any the workspace authored.
+// plural, with read verbs). A top-level resource; the API scopes templates under
+// /v1/sms/templates. Read-only: Bird's built-in templates plus any the workspace
+// authored.
 // Calls the generated hey-api SDK functions through the lifecycle core.
 
 import { getSmsTemplate, listSmsTemplates } from "../generated/sdk.gen.js";

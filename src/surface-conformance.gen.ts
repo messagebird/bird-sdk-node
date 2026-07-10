@@ -4,8 +4,7 @@
 // Generated from backend/openapi/surfaces.ir.json.
 import type { BirdClient } from "./client.js";
 
-export type _Email = Pick<BirdClient["email"], "send" | "sendBatch" | "get" | "list">;
-export type _EmailTemplates = Pick<BirdClient["emailTemplates"], "create" | "list" | "get" | "update" | "delete" | "publish" | "listVersions" | "getVersion">;
+export type _Email = Pick<BirdClient["email"], "send" | "sendBatch" | "get" | "list" | "cancel">;
 export type _Sms = Pick<BirdClient["sms"], "send" | "sendBatch" | "get" | "list">;
 export type _SmsTemplates = Pick<BirdClient["smsTemplates"], "list" | "get">;
 export type _Webhooks = Pick<BirdClient["webhooks"], "unwrap">;

@@ -104,7 +104,7 @@ export type EventSmsUndeliveredData = EventSmsBase & {
 };
 
 /**
- * Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `unknown` — an unmapped failure.
+ * Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `insufficient_balance` — the workspace wallet had insufficient balance to send the message. `unknown` — an unmapped failure.
  *
  */
 export type SmsErrorCode =
@@ -117,6 +117,7 @@ export type SmsErrorCode =
   | "sender_unregistered"
   | "recipient_opted_out"
   | "provider_unavailable"
+  | "insufficient_balance"
   | "unknown";
 
 /**
@@ -2556,275 +2557,6 @@ export type InboundAddress = {
   readonly updated_at: string;
 };
 
-export type EmailTemplateVersionList = {
-  /**
-   * All versions of the template, newest first.
-   */
-  data: Array<EmailTemplateVersion>;
-};
-
-/**
- * A single variable slot a template fills in from the values supplied when sending. Shared across channels (SMS, email) so template introspection reads the same everywhere.
- *
- */
-export type TemplateVariable = {
-  /**
-   * The parameters key this slot is filled with.
-   */
-  readonly key: string;
-  /**
-   * The value type this slot accepts. Open enum — treat any unrecognized value as a future type rather than an error. SMS templates use the typed slots (`code`, `amount`, …); email templates use `text`.
-   *
-   */
-  readonly type: string;
-  /**
-   * Whether the slot must be supplied when sending. Advisory for email templates, where a missing value renders as empty rather than rejecting the send.
-   *
-   */
-  readonly required: boolean;
-  /**
-   * A human-readable description of the accepted values.
-   */
-  readonly constraint: string;
-};
-
-export type EmailTemplateId = string;
-
-export type EmailTemplateVersionId = string;
-
-export type EmailTemplateVersion = {
-  /**
-   * Template version ID.
-   */
-  readonly id: EmailTemplateVersionId;
-  /**
-   * The template this version belongs to.
-   */
-  readonly template_id: EmailTemplateId;
-  /**
-   * Sequential published-version number (1, 2, 3…). Null while the version is a draft.
-   */
-  readonly version_number?: number | null;
-  /**
-   * Lifecycle status of this version.
-   */
-  readonly status: "draft" | "published";
-  /**
-   * The version's revision counter.
-   */
-  readonly revision: number;
-  /**
-   * The variable slots this version's content fills in from the values you supply when sending.
-   */
-  readonly variables: Array<TemplateVariable>;
-  /**
-   * When this version was created.
-   */
-  readonly created_at: string;
-  /**
-   * When this version was published, or null if it has not been published.
-   */
-  readonly published_at?: string | null;
-};
-
-/**
- * Partial update of a template's metadata and its draft content. Only the fields you send are changed; the rest are left as-is. Include the draft `revision` you last read so concurrent edits are detected.
- *
- */
-export type EmailTemplateUpdate = {
-  /**
-   * The draft revision you last read (from the template's `revision` field). A stale value returns a conflict so you can reload and retry.
-   *
-   */
-  revision: number;
-  /**
-   * New workspace-unique slug handle. Must stay unique within the workspace. Lowercase letters, numbers, and hyphens.
-   *
-   */
-  name?: string;
-  /**
-   * New description of the template's purpose. Send null to clear it.
-   */
-  description?: string | null;
-  /**
-   * New email subject line for the draft. Send null to clear it.
-   */
-  subject?: string | null;
-  /**
-   * New HTML body — the source markup for the template's format.
-   */
-  html?: string;
-  /**
-   * New plain-text body for the draft. Send null to clear it.
-   */
-  text?: string | null;
-  /**
-   * Brand kit to apply to the draft.
-   */
-  brand_kit_id?: BrandKitId;
-};
-
-export type BrandKitId = string;
-
-export type EmailTemplate = {
-  /**
-   * Template ID.
-   */
-  readonly id: EmailTemplateId;
-  /**
-   * Workspace that owns the template.
-   */
-  readonly workspace_id: WorkspaceId;
-  /**
-   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
-   */
-  name: string;
-  /**
-   * Optional description of the template's purpose. Null when unset.
-   */
-  description?: string | null;
-  scope: TemplateScope;
-  category: EmailTemplateCategory;
-  source: EmailTemplateSource;
-  /**
-   * The variable slots this template's current draft fills in from the values you supply when sending.
-   */
-  readonly variables: Array<TemplateVariable>;
-  /**
-   * The current editable draft version.
-   */
-  readonly draft_version_id: EmailTemplateVersionId;
-  /**
-   * The currently published version, or null if the template has never been published.
-   */
-  readonly published_version_id?: EmailTemplateVersionId | null;
-  /**
-   * The draft's revision counter. Send it back on the next update to detect concurrent edits.
-   */
-  readonly revision: number;
-  /**
-   * The draft's email subject line. Null when unset.
-   */
-  subject?: string | null;
-  /**
-   * The draft's HTML body. Null when unset.
-   */
-  html?: string | null;
-  /**
-   * The draft's plain-text body. Null when unset.
-   */
-  text?: string | null;
-  /**
-   * The brand kit applied to the draft, or null if none.
-   */
-  readonly brand_kit_id?: BrandKitId | null;
-  /**
-   * When the template was created.
-   */
-  readonly created_at: string;
-  /**
-   * When the template was last modified.
-   */
-  readonly updated_at: string;
-};
-
-/**
- * The authoring format the template is written in. Fixed at creation.
- */
-export type EmailTemplateSource = "liquid" | "handlebars" | "html";
-
-/**
- * Whether the template is transactional or marketing email.
- */
-export type EmailTemplateCategory = "transactional" | "marketing";
-
-/**
- * Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).
- */
-export type TemplateScope = "system" | "workspace";
-
-/**
- * Parameters for creating an email template and its initial draft.
- */
-export type EmailTemplateCreate = {
-  /**
-   * The template's workspace-unique slug handle — a stable alternative to the template ID when sending by template. Lowercase letters, numbers, and hyphens.
-   *
-   */
-  name: string;
-  /**
-   * Optional description of the template's purpose.
-   */
-  description?: string;
-  category: EmailTemplateCategory;
-  /**
-   * The authoring format the template is written in, fixed at creation. `liquid` currently supports variable substitution only (e.g. `{{ first_name }}`); filters, tags, and control flow are not yet supported — fuller Liquid support is coming soon.
-   *
-   */
-  source: EmailTemplateSource;
-  /**
-   * The email subject line for the initial draft.
-   */
-  subject?: string;
-  /**
-   * The HTML body — the source markup for the chosen format.
-   */
-  html?: string;
-  /**
-   * The optional plain-text body.
-   */
-  text?: string;
-  /**
-   * Optional brand kit to apply to the draft.
-   */
-  brand_kit_id?: BrandKitId;
-};
-
-export type EmailTemplateList = {
-  /**
-   * Page of email templates.
-   */
-  data: Array<EmailTemplateSummary>;
-} & ListEnvelope;
-
-export type EmailTemplateSummary = {
-  /**
-   * Template ID.
-   */
-  readonly id: EmailTemplateId;
-  /**
-   * Workspace that owns the template.
-   */
-  readonly workspace_id: WorkspaceId;
-  /**
-   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
-   */
-  name: string;
-  /**
-   * Optional description of the template's purpose. Null when unset.
-   */
-  description?: string | null;
-  scope: TemplateScope;
-  category: EmailTemplateCategory;
-  source: EmailTemplateSource;
-  /**
-   * The current editable draft version.
-   */
-  readonly draft_version_id: EmailTemplateVersionId;
-  /**
-   * The currently published version, or null if never published.
-   */
-  readonly published_version_id?: EmailTemplateVersionId | null;
-  /**
-   * When the template was created.
-   */
-  readonly created_at: string;
-  /**
-   * When the template was last modified.
-   */
-  readonly updated_at: string;
-};
-
 export type SuppressionCreate = {
   /**
    * Email address to suppress. Normalized to lowercase before storage.
@@ -2949,11 +2681,22 @@ export type WhatsAppTemplateStatus = string;
  */
 export type WhatsAppTemplateCategory = string;
 
+/**
+ * Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).
+ */
+export type TemplateScope = "system" | "workspace";
+
+/**
+ * A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.
+ *
+ */
+export type TemplateName = string;
+
 export type WhatsAppTemplate = {
   /**
    * The template's stable handle. Pass it as the template reference when sending.
    */
-  readonly name: string;
+  readonly name: TemplateName;
   scope: TemplateScope;
   /**
    * The language code of this template variant (for example `en` or `pt_BR`).
@@ -3061,7 +2804,7 @@ export type SendWhatsAppMessageTemplate = {
   /**
    * The template to send, by its name (for example `bird_otp`).
    */
-  name: string;
+  name: TemplateName;
   /**
    * Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language.
    *
@@ -3101,7 +2844,7 @@ export type WhatsAppMessageTemplate = {
   /**
    * The template's stable handle (for example `bird_otp`).
    */
-  readonly name: string;
+  readonly name: TemplateName;
   /**
    * Content classification applied to messages sent from this template.
    */
@@ -3306,6 +3049,31 @@ export type SmsTemplateList = {
 export type SmsTemplateVersionId = string;
 
 /**
+ * A single variable slot a template fills in from the values supplied when sending. Shared across channels (SMS, email) so template introspection reads the same everywhere.
+ *
+ */
+export type TemplateVariable = {
+  /**
+   * The parameters key this slot is filled with.
+   */
+  readonly key: string;
+  /**
+   * The value type this slot accepts. Open enum — treat any unrecognized value as a future type rather than an error. SMS templates use the typed slots (`code`, `amount`, …); email templates use `text`.
+   *
+   */
+  readonly type: string;
+  /**
+   * Whether the slot must be supplied when sending. Advisory for email templates, where a missing value renders as empty rather than rejecting the send.
+   *
+   */
+  readonly required: boolean;
+  /**
+   * A human-readable description of the accepted values.
+   */
+  readonly constraint: string;
+};
+
+/**
  * Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance.
  */
 export type SmsMessageCategory =
@@ -3321,7 +3089,7 @@ export type SmsTemplate = {
   /**
    * The template's stable handle. Pass it (or the id) as the template reference when sending.
    */
-  readonly name: string;
+  readonly name: TemplateName;
   /**
    * Human-readable description of what the template is for.
    */
@@ -3558,7 +3326,7 @@ export type SmsTemplateSend = unknown & {
    * The template to send, by its name handle (for example `bird_otp_verification`). Browse the available templates and their variables with the templates endpoint.
    *
    */
-  name?: string;
+  name?: TemplateName;
   /**
    * Language tag (BCP 47, for example `fr` or `pt-BR`) selecting the localized body. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.
    *
@@ -3756,35 +3524,6 @@ export type AudienceCreateRequest = {
   type?: "static" | "dynamic" | "external";
 };
 
-export type AudienceList = {
-  /**
-   * Page of audience objects.
-   */
-  data: Array<Audience>;
-} & ListEnvelope;
-
-export type AudienceId = string;
-
-export type Audience = {
-  /**
-   * Audience ID.
-   */
-  readonly id: AudienceId;
-  /**
-   * Display name for the audience.
-   */
-  name: string;
-  /**
-   * Longer description of who this audience is.
-   */
-  description?: string | null;
-  /**
-   * How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.
-   *
-   */
-  type: "static" | "dynamic" | "external";
-} & Timestamps;
-
 export type ContactPropertyUpdateRequest = {
   /**
    * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters). Set to null to remove the fallback.
@@ -3837,6 +3576,35 @@ export type ContactProperty = {
    * Whether the property is archived. An archived property is rejected in new contact writes and stops rendering in templates, but every value already stored on contacts is preserved. Reactivate it with unarchive.
    */
   readonly archived?: boolean;
+} & Timestamps;
+
+export type AudienceList = {
+  /**
+   * Page of audience objects.
+   */
+  data: Array<Audience>;
+} & ListEnvelope;
+
+export type AudienceId = string;
+
+export type Audience = {
+  /**
+   * Audience ID.
+   */
+  readonly id: AudienceId;
+  /**
+   * Display name for the audience.
+   */
+  name: string;
+  /**
+   * Longer description of who this audience is.
+   */
+  description?: string | null;
+  /**
+   * How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.
+   *
+   */
+  type: "static" | "dynamic" | "external";
 } & Timestamps;
 
 export type ContactUpdateRequest = {
@@ -4186,6 +3954,8 @@ export type EmailMessageBatchItem = {
  */
 export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
 
+export type EmailTemplateId = string;
+
 export type EmailTemplateSend = unknown & {
   /**
    * The template to send, by its id.
@@ -4194,7 +3964,7 @@ export type EmailTemplateSend = unknown & {
   /**
    * The template to send, by its name handle (for example `welcome-email`).
    */
-  name?: string;
+  name?: TemplateName;
   /**
    * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Cap: 16 KB serialized.
    *
@@ -4297,7 +4067,8 @@ export type EmailMessageSendRequest = {
    */
   attachments?: Array<EmailAttachment>;
   /**
-   * Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 unsupported_feature`.
+   * Schedule the message to send at a future time instead of immediately. Must be at least 30 seconds and at most 30 days ahead — outside that range the request is rejected with `422`. The message returns with status `accepted` and shows as `scheduled` on reads until it sends; cancel it before then with the message cancel endpoint. Scheduled sends count against your plan's monthly scheduled-email allowance; exceeding it is rejected with a `422`.
+   *
    */
   scheduled_at?: string;
   /**
@@ -4561,6 +4332,29 @@ export type Error = {
   error: ErrorBody;
 };
 
+/**
+ * A verification requirement that is not yet satisfied, blocking the requested action. Complete the corresponding verification flow, then retry.
+ *
+ */
+export type UnmetGate = {
+  /**
+   * Stable identifier for the verification requirement.
+   */
+  readonly slug: string;
+  /**
+   * Human-readable name of the verification requirement.
+   */
+  readonly name: string;
+  /**
+   * The requirement's current state — for example, not yet started, in review, or previously revoked.
+   */
+  readonly status: string;
+  /**
+   * How to resolve this requirement.
+   */
+  readonly remediation_kind: string;
+};
+
 export type ErrorNextAction = {
   /**
    * The operationId of a follow-up operation that resolves this error. Call it, then retry the original request.
@@ -4645,6 +4439,10 @@ export type ErrorBody = {
    * Operations that resolve this error, in the order to try them. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
    */
   next?: Array<ErrorNextAction>;
+  /**
+   * The verification requirements blocking this action, each with the flow that resolves it. Present only when an action is blocked pending verification.
+   */
+  unmet_gates?: Array<UnmetGate>;
 };
 
 export type WebhookAttemptListWritable = {
@@ -5201,58 +4999,6 @@ export type InboundAddressWritable = {
   label: string | null;
 };
 
-export type EmailTemplateVersionListWritable = {
-  /**
-   * All versions of the template, newest first.
-   */
-  data: Array<unknown>;
-};
-
-export type EmailTemplateWritable = {
-  /**
-   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
-   */
-  name: string;
-  /**
-   * Optional description of the template's purpose. Null when unset.
-   */
-  description?: string | null;
-  category: EmailTemplateCategory;
-  source: EmailTemplateSource;
-  /**
-   * The draft's email subject line. Null when unset.
-   */
-  subject?: string | null;
-  /**
-   * The draft's HTML body. Null when unset.
-   */
-  html?: string | null;
-  /**
-   * The draft's plain-text body. Null when unset.
-   */
-  text?: string | null;
-};
-
-export type EmailTemplateListWritable = {
-  /**
-   * Page of email templates.
-   */
-  data: Array<EmailTemplateSummaryWritable>;
-} & ListEnvelope;
-
-export type EmailTemplateSummaryWritable = {
-  /**
-   * The template's workspace-unique slug handle. Pass it (or the id) as the template reference when sending.
-   */
-  name: string;
-  /**
-   * Optional description of the template's purpose. Null when unset.
-   */
-  description?: string | null;
-  category: EmailTemplateCategory;
-  source: EmailTemplateSource;
-};
-
 export type SuppressionListWritable = {
   data: Array<SuppressionWritable>;
 } & ListEnvelope;
@@ -5455,6 +5201,28 @@ export type AudienceMemberWritable = {
   contact: ContactWritable;
 };
 
+export type ContactPropertyListWritable = {
+  /**
+   * Page of contact property objects.
+   */
+  data: Array<ContactPropertyWritable>;
+} & ListEnvelope;
+
+export type ContactPropertyWritable = {
+  /**
+   * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
+   */
+  key: string;
+  /**
+   * The value type every contact must use for this property. Cannot be changed after creation.
+   */
+  type: "string" | "number" | "boolean";
+  /**
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
+   */
+  fallback_value?: unknown;
+};
+
 export type AudienceListWritable = {
   /**
    * Page of audience objects.
@@ -5476,28 +5244,6 @@ export type AudienceWritable = {
    *
    */
   type: "static" | "dynamic" | "external";
-};
-
-export type ContactPropertyListWritable = {
-  /**
-   * Page of contact property objects.
-   */
-  data: Array<ContactPropertyWritable>;
-} & ListEnvelope;
-
-export type ContactPropertyWritable = {
-  /**
-   * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
-   */
-  key: string;
-  /**
-   * The value type every contact must use for this property. Cannot be changed after creation.
-   */
-  type: "string" | "number" | "boolean";
-  /**
-   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
-   */
-  fallback_value?: unknown;
 };
 
 export type ContactListWritable = {
@@ -5715,6 +5461,78 @@ export type EmailMessageWritable = {
    * Whether click tracking is enabled for this send.
    */
   track_clicks: boolean;
+};
+
+export type ErrorWritable = {
+  error: ErrorBodyWritable;
+};
+
+export type ErrorBodyWritable = {
+  /**
+   * Broad category for coarse client branching.
+   */
+  type:
+    | "auth_error"
+    | "bad_request_error"
+    | "billing_error"
+    | "conflict_error"
+    | "gone_error"
+    | "internal_error"
+    | "misdirected_error"
+    | "not_found_error"
+    | "not_implemented_error"
+    | "payload_too_large_error"
+    | "permission_error"
+    | "precondition_error"
+    | "rate_limit_error"
+    | "service_unavailable_error"
+    | "too_early_error"
+    | "validation_error";
+  /**
+   * Opaque, stable, unique error identifier. Never reused.
+   */
+  code: string;
+  /**
+   * Human-readable slug for log readability. Paired with code, never replaces it.
+   */
+  name: string;
+  /**
+   * Human-readable description. Not stable; clients must not parse it.
+   */
+  message: string;
+  /**
+   * Identifies the offending field. Omitted when not applicable.
+   */
+  param?: string;
+  /**
+   * Stable link to the docs page for this error code.
+   */
+  doc_url: string;
+  /**
+   * Request correlation ID. Also returned as the X-Request-Id response header.
+   */
+  request_id: string;
+  /**
+   * Verbatim error code returned by a downstream system (for example, an SMTP response code from a recipient's mail server, or a payment-provider decline code). Present only when Bird is surfacing a code from an external system that the caller may want to act on directly.
+   *
+   */
+  vendor_code?: string;
+  /**
+   * Per-field validation errors. Present only on validation_error responses.
+   */
+  details?: Array<ErrorDetail>;
+  /**
+   * A human-readable next step to resolve this error. Present when a recovery is known.
+   */
+  remediation?: string;
+  /**
+   * Operations that resolve this error, in the order to try them. Present for errors with a well-defined recovery, such as unmet preconditions and conflicts.
+   */
+  next?: Array<ErrorNextAction>;
+  /**
+   * The verification requirements blocking this action, each with the flow that resolves it. Present only when an action is blocked pending verification.
+   */
+  unmet_gates?: Array<unknown>;
 };
 
 /**
@@ -6054,6 +5872,73 @@ export type GetEmailMessageResponses = {
 
 export type GetEmailMessageResponse =
   GetEmailMessageResponses[keyof GetEmailMessageResponses];
+
+export type CancelEmailMessageData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Message ID.
+     */
+    message_id: EmailId;
+  };
+  query?: never;
+  url: "/v1/email/messages/{message_id}/cancel";
+};
+
+export type CancelEmailMessageErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CancelEmailMessageError =
+  CancelEmailMessageErrors[keyof CancelEmailMessageErrors];
+
+export type CancelEmailMessageResponses = {
+  /**
+   * The message was canceled and will not send.
+   */
+  204: void;
+};
+
+export type CancelEmailMessageResponse =
+  CancelEmailMessageResponses[keyof CancelEmailMessageResponses];
 
 export type ListContactsData = {
   body?: never;
@@ -6812,6 +6697,10 @@ export type ListAudiencesData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Case-insensitive substring match against the audience's name.
+     */
+    search?: string;
     /**
      * Maximum number of items to return per page.
      */
@@ -7761,481 +7650,3 @@ export type GetSmsTemplateResponses = {
 
 export type GetSmsTemplateResponse =
   GetSmsTemplateResponses[keyof GetSmsTemplateResponses];
-
-export type ListEmailTemplatesData = {
-  body?: never;
-  path?: never;
-  query?: {
-    /**
-     * Filter by template category.
-     */
-    category?: EmailTemplateCategory;
-    /**
-     * Filter by authoring format.
-     */
-    source?: EmailTemplateSource;
-    /**
-     * Case-insensitive search matching the template's name or description (substring).
-     */
-    name?: string;
-    /**
-     * Maximum number of items to return per page.
-     */
-    limit?: number;
-    /**
-     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
-     */
-    starting_after?: string;
-    /**
-     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
-     */
-    ending_before?: string;
-  };
-  url: "/v1/email/templates";
-};
-
-export type ListEmailTemplatesErrors = {
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
-   *
-   */
-  422: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type ListEmailTemplatesError =
-  ListEmailTemplatesErrors[keyof ListEmailTemplatesErrors];
-
-export type ListEmailTemplatesResponses = {
-  /**
-   * Paginated list of email templates.
-   */
-  200: EmailTemplateList;
-};
-
-export type ListEmailTemplatesResponse =
-  ListEmailTemplatesResponses[keyof ListEmailTemplatesResponses];
-
-export type CreateEmailTemplateData = {
-  body: EmailTemplateCreate;
-  headers?: {
-    /**
-     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
-     * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
-     * processed by a concurrent request. Wait briefly and retry; the lock
-     * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
-     * against a different request body or method. Generate a new key.
-     *
-     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
-     *
-     */
-    "Idempotency-Key"?: string;
-  };
-  path?: never;
-  query?: never;
-  url: "/v1/email/templates";
-};
-
-export type CreateEmailTemplateErrors = {
-  /**
-   * Bad request
-   */
-  400: Error;
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource conflict
-   */
-  409: Error;
-  /**
-   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
-   *
-   */
-  422: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type CreateEmailTemplateError =
-  CreateEmailTemplateErrors[keyof CreateEmailTemplateErrors];
-
-export type CreateEmailTemplateResponses = {
-  /**
-   * Email template created.
-   */
-  201: EmailTemplate;
-};
-
-export type CreateEmailTemplateResponse =
-  CreateEmailTemplateResponses[keyof CreateEmailTemplateResponses];
-
-export type DeleteEmailTemplateData = {
-  body?: never;
-  headers?: {
-    /**
-     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
-     * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
-     * processed by a concurrent request. Wait briefly and retry; the lock
-     * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
-     * against a different request body or method. Generate a new key.
-     *
-     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
-     *
-     */
-    "Idempotency-Key"?: string;
-  };
-  path: {
-    template_id: EmailTemplateId;
-  };
-  query?: never;
-  url: "/v1/email/templates/{template_id}";
-};
-
-export type DeleteEmailTemplateErrors = {
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource not found
-   */
-  404: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type DeleteEmailTemplateError =
-  DeleteEmailTemplateErrors[keyof DeleteEmailTemplateErrors];
-
-export type DeleteEmailTemplateResponses = {
-  /**
-   * Email template deleted.
-   */
-  204: void;
-};
-
-export type DeleteEmailTemplateResponse =
-  DeleteEmailTemplateResponses[keyof DeleteEmailTemplateResponses];
-
-export type GetEmailTemplateData = {
-  body?: never;
-  path: {
-    template_id: EmailTemplateId;
-  };
-  query?: never;
-  url: "/v1/email/templates/{template_id}";
-};
-
-export type GetEmailTemplateErrors = {
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource not found
-   */
-  404: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type GetEmailTemplateError =
-  GetEmailTemplateErrors[keyof GetEmailTemplateErrors];
-
-export type GetEmailTemplateResponses = {
-  /**
-   * Email template object.
-   */
-  200: EmailTemplate;
-};
-
-export type GetEmailTemplateResponse =
-  GetEmailTemplateResponses[keyof GetEmailTemplateResponses];
-
-export type UpdateEmailTemplateData = {
-  body: EmailTemplateUpdate;
-  headers?: {
-    /**
-     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
-     * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
-     * processed by a concurrent request. Wait briefly and retry; the lock
-     * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
-     * against a different request body or method. Generate a new key.
-     *
-     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
-     *
-     */
-    "Idempotency-Key"?: string;
-  };
-  path: {
-    template_id: EmailTemplateId;
-  };
-  query?: never;
-  url: "/v1/email/templates/{template_id}";
-};
-
-export type UpdateEmailTemplateErrors = {
-  /**
-   * Bad request
-   */
-  400: Error;
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource not found
-   */
-  404: Error;
-  /**
-   * Resource conflict
-   */
-  409: Error;
-  /**
-   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
-   *
-   */
-  422: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type UpdateEmailTemplateError =
-  UpdateEmailTemplateErrors[keyof UpdateEmailTemplateErrors];
-
-export type UpdateEmailTemplateResponses = {
-  /**
-   * Updated email template object.
-   */
-  200: EmailTemplate;
-};
-
-export type UpdateEmailTemplateResponse =
-  UpdateEmailTemplateResponses[keyof UpdateEmailTemplateResponses];
-
-export type ListEmailTemplateVersionsData = {
-  body?: never;
-  path: {
-    template_id: EmailTemplateId;
-  };
-  query?: never;
-  url: "/v1/email/templates/{template_id}/versions";
-};
-
-export type ListEmailTemplateVersionsErrors = {
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource not found
-   */
-  404: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type ListEmailTemplateVersionsError =
-  ListEmailTemplateVersionsErrors[keyof ListEmailTemplateVersionsErrors];
-
-export type ListEmailTemplateVersionsResponses = {
-  /**
-   * The template's versions.
-   */
-  200: EmailTemplateVersionList;
-};
-
-export type ListEmailTemplateVersionsResponse =
-  ListEmailTemplateVersionsResponses[keyof ListEmailTemplateVersionsResponses];
-
-export type GetEmailTemplateVersionData = {
-  body?: never;
-  path: {
-    template_id: EmailTemplateId;
-    version_id: EmailTemplateVersionId;
-  };
-  query?: never;
-  url: "/v1/email/templates/{template_id}/versions/{version_id}";
-};
-
-export type GetEmailTemplateVersionErrors = {
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource not found
-   */
-  404: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type GetEmailTemplateVersionError =
-  GetEmailTemplateVersionErrors[keyof GetEmailTemplateVersionErrors];
-
-export type GetEmailTemplateVersionResponses = {
-  /**
-   * Email template version object.
-   */
-  200: EmailTemplateVersion;
-};
-
-export type GetEmailTemplateVersionResponse =
-  GetEmailTemplateVersionResponses[keyof GetEmailTemplateVersionResponses];
-
-export type PublishEmailTemplateData = {
-  body?: never;
-  headers?: {
-    /**
-     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
-     * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
-     * processed by a concurrent request. Wait briefly and retry; the lock
-     * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
-     * against a different request body or method. Generate a new key.
-     *
-     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
-     *
-     */
-    "Idempotency-Key"?: string;
-  };
-  path: {
-    template_id: EmailTemplateId;
-  };
-  query?: never;
-  url: "/v1/email/templates/{template_id}/publish";
-};
-
-export type PublishEmailTemplateErrors = {
-  /**
-   * Bad request
-   */
-  400: Error;
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Resource not found
-   */
-  404: Error;
-  /**
-   * Resource conflict
-   */
-  409: Error;
-  /**
-   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
-   *
-   */
-  422: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type PublishEmailTemplateError =
-  PublishEmailTemplateErrors[keyof PublishEmailTemplateErrors];
-
-export type PublishEmailTemplateResponses = {
-  /**
-   * The newly published version.
-   */
-  200: EmailTemplateVersion;
-};
-
-export type PublishEmailTemplateResponse =
-  PublishEmailTemplateResponses[keyof PublishEmailTemplateResponses];

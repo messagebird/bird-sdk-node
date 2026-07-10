@@ -27,6 +27,7 @@ export {
   BirdWebhookVerificationError,
   type ErrorDetail,
   type ErrorNextAction,
+  type UnmetGate,
 } from "./errors.js";
 export { regionFromApiKey, baseUrlForRegion } from "./region.js";
 export type {
@@ -45,14 +46,6 @@ export type {
   EmailListQuery,
   EmailChannelDefaults,
 } from "./resources/email.js";
-export type {
-  EmailTemplate,
-  EmailTemplateSummary,
-  EmailTemplateVersion,
-  EmailTemplateCreateParams,
-  EmailTemplateUpdateParams,
-  EmailTemplateListQuery,
-} from "./resources/emailTemplates.js";
 export type {
   SmsMessage,
   SmsSendParams,

@@ -8,3 +8,9 @@
 # examples' `@messagebird/sdk: workspace:*` resolve to the root SDK package.
 packages:
   - "examples"
+# pnpm 10+ blocks dependency build scripts unless allow-listed; the mirror's
+# release install runs --frozen-lockfile, which errors on the ignored builds.
+# esbuild and sharp need their postinstall (platform binary) for `pnpm run build`.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp

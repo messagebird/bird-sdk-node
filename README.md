@@ -64,6 +64,21 @@ for await (const message of bird.email.list()) {
 }
 ```
 
+## WhatsApp
+
+```ts
+await bird.whatsapp.send({ to, template }); // resolves when accepted (202); Bird picks the sender from the template's category
+await bird.whatsapp.get(messageId); // delivery status + failure detail
+
+// `await` yields the first page; `for await` walks every message across pages.
+for await (const message of bird.whatsapp.list()) {
+  console.log(message.id);
+}
+
+const { data } = await bird.whatsapp.listEvents(messageId); // full lifecycle timeline, not paginated
+const { data: templates } = await bird.whatsappTemplates.list(); // the workspace's Meta-approved templates
+```
+
 ## Webhooks
 
 `unwrap` verifies a delivery's Standard Webhooks signature and returns a typed, discriminated event. **Pass the raw request body** — never the parsed JSON. Set the signing secret once via `webhooks: { secret }` on the client (or pass `{ secret }` per call).

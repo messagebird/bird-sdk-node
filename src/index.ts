@@ -59,6 +59,17 @@ export type {
   SmsTemplateListQuery,
 } from "./resources/smsTemplates.js";
 export type {
+  WhatsAppMessage,
+  WhatsappSendParams,
+  WhatsappListQuery,
+  WhatsappListEventsQuery,
+  WhatsAppEventList,
+} from "./resources/whatsapp.js";
+export type {
+  WhatsAppTemplate,
+  WhatsAppTemplateList,
+} from "./resources/whatsappTemplates.js";
+export type {
   Contact,
   ContactCreateParams,
   ContactUpdateParams,

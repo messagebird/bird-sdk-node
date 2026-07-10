@@ -21,6 +21,8 @@ import { ContactPropertiesResource } from "./resources/contactProperties.js";
 import { ContactsResource } from "./resources/contacts.js";
 import { SmsResource } from "./resources/sms.js";
 import { SmsTemplatesResource } from "./resources/smsTemplates.js";
+import { WhatsappResource } from "./resources/whatsapp.js";
+import { WhatsappTemplatesResource } from "./resources/whatsappTemplates.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
@@ -160,6 +162,12 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** SMS templates — `bird.smsTemplates.list(...)`, `.get(...)`. */
   readonly smsTemplates: SmsTemplatesResource;
 
+  /** The WhatsApp channel — `bird.whatsapp.send(...)`, `.get(...)`, `.list(...)`, `.listEvents(...)`. */
+  readonly whatsapp: WhatsappResource;
+
+  /** WhatsApp templates — `bird.whatsappTemplates.list(...)`. */
+  readonly whatsappTemplates: WhatsappTemplatesResource;
+
   /** Contacts — `bird.contacts.create(...)`, `.list(...)`, `.get(...)`, `.batch(...)`, … */
   readonly contacts: ContactsResource;
 
@@ -210,6 +218,11 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     );
     this.sms = new SmsResource(this.core, this.#client);
     this.smsTemplates = new SmsTemplatesResource(this.core, this.#client);
+    this.whatsapp = new WhatsappResource(this.core, this.#client);
+    this.whatsappTemplates = new WhatsappTemplatesResource(
+      this.core,
+      this.#client,
+    );
     this.contacts = new ContactsResource(this.core, this.#client);
     this.audiences = new AudiencesResource(this.core, this.#client);
     this.contactProperties = new ContactPropertiesResource(

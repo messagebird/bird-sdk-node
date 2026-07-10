@@ -7650,3 +7650,293 @@ export type GetSmsTemplateResponses = {
 
 export type GetSmsTemplateResponse =
   GetSmsTemplateResponses[keyof GetSmsTemplateResponses];
+
+export type ListWhatsAppMessagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+    /**
+     * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
+     */
+    created_after?: string;
+    /**
+     * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
+     */
+    created_before?: string;
+    /**
+     * Filter by status. Repeat the parameter to match any of several statuses.
+     */
+    status?: Array<WhatsAppMessageStatus>;
+    /**
+     * Filter by contact phone number (E.164 exact match).
+     */
+    phone_number?: string;
+    /**
+     * Filter by business-scoped user ID (Meta identifier).
+     */
+    bsuid?: string;
+  };
+  url: "/v1/whatsapp/messages";
+};
+
+export type ListWhatsAppMessagesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type ListWhatsAppMessagesError =
+  ListWhatsAppMessagesErrors[keyof ListWhatsAppMessagesErrors];
+
+export type ListWhatsAppMessagesResponses = {
+  /**
+   * Paginated list of WhatsApp messages.
+   */
+  200: WhatsAppMessageList;
+};
+
+export type ListWhatsAppMessagesResponse =
+  ListWhatsAppMessagesResponses[keyof ListWhatsAppMessagesResponses];
+
+export type SendWhatsAppMessageData = {
+  body: SendWhatsAppMessageRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/whatsapp/messages";
+};
+
+export type SendWhatsAppMessageErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type SendWhatsAppMessageError =
+  SendWhatsAppMessageErrors[keyof SendWhatsAppMessageErrors];
+
+export type SendWhatsAppMessageResponses = {
+  /**
+   * Message accepted for asynchronous delivery.
+   */
+  202: WhatsAppMessage;
+};
+
+export type SendWhatsAppMessageResponse =
+  SendWhatsAppMessageResponses[keyof SendWhatsAppMessageResponses];
+
+export type GetWhatsAppMessageData = {
+  body?: never;
+  path: {
+    /**
+     * Message ID.
+     */
+    message_id: WhatsAppMessageId;
+  };
+  query?: never;
+  url: "/v1/whatsapp/messages/{message_id}";
+};
+
+export type GetWhatsAppMessageErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type GetWhatsAppMessageError =
+  GetWhatsAppMessageErrors[keyof GetWhatsAppMessageErrors];
+
+export type GetWhatsAppMessageResponses = {
+  /**
+   * WhatsApp message object.
+   */
+  200: WhatsAppMessage;
+};
+
+export type GetWhatsAppMessageResponse =
+  GetWhatsAppMessageResponses[keyof GetWhatsAppMessageResponses];
+
+export type ListWhatsAppMessageEventsData = {
+  body?: never;
+  path: {
+    /**
+     * Message ID.
+     */
+    message_id: WhatsAppMessageId;
+  };
+  query?: {
+    /**
+     * Filter by event type (e.g. `whatsapp.delivered`, `whatsapp.failed`).
+     */
+    type?: string;
+  };
+  url: "/v1/whatsapp/messages/{message_id}/events";
+};
+
+export type ListWhatsAppMessageEventsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type ListWhatsAppMessageEventsError =
+  ListWhatsAppMessageEventsErrors[keyof ListWhatsAppMessageEventsErrors];
+
+export type ListWhatsAppMessageEventsResponses = {
+  /**
+   * Event timeline for this WhatsApp message.
+   */
+  200: WhatsAppEventList;
+};
+
+export type ListWhatsAppMessageEventsResponse =
+  ListWhatsAppMessageEventsResponses[keyof ListWhatsAppMessageEventsResponses];
+
+export type ListWhatsAppTemplatesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/v1/whatsapp/templates";
+};
+
+export type ListWhatsAppTemplatesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListWhatsAppTemplatesError =
+  ListWhatsAppTemplatesErrors[keyof ListWhatsAppTemplatesErrors];
+
+export type ListWhatsAppTemplatesResponses = {
+  /**
+   * The message templates available to your workspace.
+   */
+  200: WhatsAppTemplateList;
+};
+
+export type ListWhatsAppTemplatesResponse =
+  ListWhatsAppTemplatesResponses[keyof ListWhatsAppTemplatesResponses];

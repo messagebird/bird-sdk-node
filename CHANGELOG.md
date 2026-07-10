@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- Add the WhatsApp channel: `whatsapp.send`, `.get`, `.list`, `.listEvents`. Add WhatsApp templates (read-only): `whatsappTemplates.list`.
+
 ## 0.5.0
 
 - Remove the email templates collection (`emailTemplates.create`, `.get`, `.update`, `.delete`, `.publish`, `.list`, `.listVersions`, `.getVersion`), added in 0.3.0. Template management is no longer part of the public API. Sending a published template with `email.send` (pass `template` as an `emt_…` ID or name handle) is unchanged.

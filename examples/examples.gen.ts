@@ -256,3 +256,37 @@ export async function _ex_37() {
 const event = bird.webhooks.unwrap(rawBody, headers);
 console.log(event.type); // discriminated union — narrow on event.type
 }
+
+export async function _ex_38() {
+const msg = await bird.whatsapp.get("wa_abc123");
+msg.status; // "accepted" | "delivered" | …
+}
+
+export async function _ex_39() {
+for await (const msg of bird.whatsapp.list({ status: ["delivered"] })) {
+  console.log(msg.id, msg.status);
+}
+}
+
+export async function _ex_40() {
+const { data } = await bird.whatsapp.listEvents("wa_abc123");
+for (const event of data) console.log(event.type, event.occurred_at);
+}
+
+export async function _ex_41() {
+const msg = await bird.whatsapp.send({
+  to: "+15551234567",
+  template: {
+    name: "bird_otp",
+    components: [
+      { type: "body", parameters: [{ type: "text", text: "123456" }] },
+    ],
+  },
+});
+console.log(msg.id, msg.status);
+}
+
+export async function _ex_42() {
+const { data } = await bird.whatsappTemplates.list();
+for (const tpl of data) console.log(tpl.name, tpl.status);
+}

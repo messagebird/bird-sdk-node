@@ -60,6 +60,9 @@ import type {
   GetSmsTemplateData,
   GetSmsTemplateErrors,
   GetSmsTemplateResponses,
+  GetWhatsAppMessageData,
+  GetWhatsAppMessageErrors,
+  GetWhatsAppMessageResponses,
   ListAudienceContactsData,
   ListAudienceContactsErrors,
   ListAudienceContactsResponses,
@@ -81,6 +84,18 @@ import type {
   ListSmsTemplatesData,
   ListSmsTemplatesErrors,
   ListSmsTemplatesResponses,
+  ListWhatsAppMessageEventsData,
+  ListWhatsAppMessageEventsErrors,
+  ListWhatsAppMessageEventsResponses,
+  ListWhatsAppMessagesData,
+  ListWhatsAppMessagesErrors,
+  ListWhatsAppMessagesResponses,
+  ListWhatsAppTemplatesData,
+  ListWhatsAppTemplatesErrors,
+  ListWhatsAppTemplatesResponses,
+  SendWhatsAppMessageData,
+  SendWhatsAppMessageErrors,
+  SendWhatsAppMessageResponses,
   UnarchiveContactPropertyData,
   UnarchiveContactPropertyErrors,
   UnarchiveContactPropertyResponses,
@@ -993,5 +1008,134 @@ export const getSmsTemplate = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/sms/templates/{template_ref}",
+    ...options,
+  });
+
+/**
+ * List WhatsApp messages
+ *
+ * Returns a paginated list of WhatsApp messages in the workspace, newest first.
+ */
+export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
+  options?: Options<ListWhatsAppMessagesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListWhatsAppMessagesResponses,
+    ListWhatsAppMessagesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/whatsapp/messages",
+    ...options,
+  });
+
+/**
+ * Send a message
+ *
+ * Sends a template message. Bird selects the sender number from the template's category.
+ */
+export const sendWhatsAppMessage = <ThrowOnError extends boolean = false>(
+  options: Options<SendWhatsAppMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendWhatsAppMessageResponses,
+    SendWhatsAppMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/whatsapp/messages",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get a WhatsApp message
+ *
+ * Returns a single WhatsApp message with its current delivery status and failure detail if applicable.
+ */
+export const getWhatsAppMessage = <ThrowOnError extends boolean = false>(
+  options: Options<GetWhatsAppMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetWhatsAppMessageResponses,
+    GetWhatsAppMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/whatsapp/messages/{message_id}",
+    ...options,
+  });
+
+/**
+ * List events for a WhatsApp message
+ *
+ * Returns the lifecycle event timeline for a WhatsApp message, in chronological order.
+ */
+export const listWhatsAppMessageEvents = <ThrowOnError extends boolean = false>(
+  options: Options<ListWhatsAppMessageEventsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListWhatsAppMessageEventsResponses,
+    ListWhatsAppMessageEventsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/whatsapp/messages/{message_id}/events",
+    ...options,
+  });
+
+/**
+ * List available message templates
+ *
+ * Returns the message templates available to this workspace.
+ */
+export const listWhatsAppTemplates = <ThrowOnError extends boolean = false>(
+  options?: Options<ListWhatsAppTemplatesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListWhatsAppTemplatesResponses,
+    ListWhatsAppTemplatesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/whatsapp/templates",
     ...options,
   });

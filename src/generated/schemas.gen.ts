@@ -7544,6 +7544,7 @@ export const EmailEventTypeSchema = {
   "x-extensible-enum": [
     "email.accepted",
     "email.bounced",
+    "email.canceled",
     "email.clicked",
     "email.complained",
     "email.deferred",
@@ -7553,6 +7554,7 @@ export const EmailEventTypeSchema = {
     "email.out_of_band_bounce",
     "email.processed",
     "email.rejected",
+    "email.scheduled",
     "email.unsubscribed",
   ],
   example: "email.delivered",

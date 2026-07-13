@@ -484,24 +484,7 @@ export type EventEmailMailboxMessageSent = {
 };
 
 /**
- * An email was received into a mailbox and stored with disposition unauthenticated — sender authentication could not be verified. Opt-in. Non-inbox dispositions fire only this mailbox variant, never email.received — existing email.received automations never start processing unauthenticated mail because a mailbox was attached. The payload carries identifiers, threading, authentication results, and the extracted text.
- */
-export type EventEmailMailboxMessageReceivedUnauthenticated = {
-  /**
-   * Event type.
-   */
-  type: "email_mailbox.message_received_unauthenticated";
-  /**
-   * When the event occurred.
-   */
-  timestamp: string;
-  data: EventEmailMailboxMessageReceivedData;
-};
-
-export type InboundEmailMessageId = string;
-
-/**
- * Payload shared by the email_mailbox.message_received event family. Carries identifiers, threading, disposition, authentication results, and the extracted text — enough for an agent to act without a fetch. Fetch original source (while within its 30-day window) via the thread-member endpoints.
+ * Payload for the email_mailbox.message_received event. Carries identifiers, threading, authentication results, and the extracted text — enough for an agent to act without a fetch. Fetch original source (while within its 30-day window) via the thread-member endpoints.
  */
 export type EventEmailMailboxMessageReceivedData = {
   /**
@@ -533,10 +516,6 @@ export type EventEmailMailboxMessageReceivedData = {
    */
   subject: string | null;
   /**
-   * Where the message landed after receive policy, rules, and scanning were applied.
-   */
-  disposition: "inbox" | "blocked" | "unauthenticated";
-  /**
    * Plain-text body with quoted history stripped, capped at 64 KB (see truncated_text). Null when extraction produced nothing. This copy is what the mailbox durably retains.
    */
   extracted_text?: string | null;
@@ -562,23 +541,10 @@ export type EventEmailMailboxMessageReceivedData = {
   dmarc_pass?: boolean | null;
 };
 
-/**
- * An email was received into a mailbox and stored with disposition blocked — it failed the mailbox receive policy or a block rule. Opt-in. Non-inbox dispositions fire only this mailbox variant, never email.received — existing email.received automations never start processing blocked mail because a mailbox was attached. The payload carries identifiers, threading, authentication results, and the extracted text.
- */
-export type EventEmailMailboxMessageReceivedBlocked = {
-  /**
-   * Event type.
-   */
-  type: "email_mailbox.message_received_blocked";
-  /**
-   * When the event occurred.
-   */
-  timestamp: string;
-  data: EventEmailMailboxMessageReceivedData;
-};
+export type InboundEmailMessageId = string;
 
 /**
- * An email was received into a mailbox, threaded, and stored with disposition inbox. The payload carries identifiers, threading, authentication results, and the extracted text — enough for an agent to act without a fetch. Dual-fire rule: mailbox-owned inbound with disposition inbox ALSO fires the unchanged email.received event; the streams are unordered relative to each other, so pick one family per automation and dedupe by message_id.
+ * An email arrived in a mailbox and was filed to its inbox, threaded and stored. The payload carries identifiers, threading, authentication results, and the extracted text — enough for an agent to act without a fetch. Dual-fire rule: the same message ALSO fires the unchanged email.received event; the streams are unordered relative to each other, so pick one family per automation and dedupe by message_id.
  */
 export type EventEmailMailboxMessageReceived = {
   /**
@@ -1294,12 +1260,6 @@ export type WebhookEvent =
       type: "email_mailbox.message_received";
     } & EventEmailMailboxMessageReceived)
   | ({
-      type: "email_mailbox.message_received_blocked";
-    } & EventEmailMailboxMessageReceivedBlocked)
-  | ({
-      type: "email_mailbox.message_received_unauthenticated";
-    } & EventEmailMailboxMessageReceivedUnauthenticated)
-  | ({
       type: "email_mailbox.message_sent";
     } & EventEmailMailboxMessageSent)
   | ({
@@ -1496,501 +1456,6 @@ export type EmailSmtpConfig = {
 } & Timestamps;
 
 /**
- * A new message sent from a mailbox, starting a new conversation. Mirrors the plain send request minus `from` — the mailbox is the sender identity — and minus `scheduled_at` (mailbox sends are immediate). Bird mints the RFC 5322 Message-ID so replies thread back to this conversation. At least one of `html` or `text` must be provided.
- *
- */
-export type EmailMailboxComposeRequest = {
-  /**
-   * Primary recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.
-   */
-  to: Array<EmailAddressInput>;
-  /**
-   * CC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.
-   */
-  cc?: Array<EmailAddressInput>;
-  /**
-   * BCC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.
-   */
-  bcc?: Array<EmailAddressInput>;
-  /**
-   * Message subject line.
-   */
-  subject: string;
-  /**
-   * HTML body. At least one of html or text must be provided.
-   */
-  html?: string;
-  /**
-   * Plain-text body. At least one of html or text must be provided.
-   */
-  text?: string;
-  /**
-   * Reply-To addresses. When omitted, the mailbox's `default_reply_to` applies (replies then come back to the mailbox itself).
-   *
-   */
-  reply_to?: Array<EmailAddressInput>;
-  /**
-   * File attachments. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Attachment metadata endures on the message's `attachment_manifest`; the bytes are downloadable for 30 days.
-   *
-   */
-  attachments?: Array<EmailAttachment>;
-  /**
-   * Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
-   *
-   */
-  tags?: Array<Tag>;
-  /**
-   * Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
-   *
-   */
-  metadata?: {
-    [key: string]: unknown;
-  };
-  /**
-   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
-   *
-   */
-  category?: "marketing" | "transactional";
-};
-
-/**
- * File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.
- * Inline images for `<img src="cid:..."/>` references in the HTML body use the `content_id` field together with `content`.
- * Bird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.
- * Recipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.
- * Batch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.
- *
- */
-export type EmailAttachment = {
-  /**
-   * Filename shown to the recipient. Required.
-   */
-  filename: string;
-  /**
-   * Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
-   *
-   */
-  content: string;
-  /**
-   * Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
-   *
-   */
-  path?: string;
-  /**
-   * MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.
-   *
-   */
-  content_type?: string;
-  /**
-   * RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.
-   *
-   */
-  content_id?: string;
-};
-
-/**
- * An email address with an optional display name.
- */
-export type EmailAddress = {
-  /**
-   * Email address.
-   */
-  email: string;
-  /**
-   * Display name shown alongside the address in mail clients.
-   */
-  name?: string;
-};
-
-/**
- * A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.
- *
- */
-export type EmailAddressInput = string | EmailAddress;
-
-/**
- * Forwards a conversation message to new recipients. The original body and attachments are sent as they were received or sent; the subject gains a `Fwd:` prefix. Forwarding requires the message's original rendered source, which is available for 30 days after the message occurred.
- *
- */
-export type EmailThreadMessageForwardRequest = {
-  /**
-   * Recipient addresses to forward the message to.
-   */
-  to: Array<string>;
-  /**
-   * Cc recipient addresses.
-   */
-  cc?: Array<string>;
-  /**
-   * Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
-   *
-   */
-  tags?: Array<Tag>;
-  /**
-   * Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
-   *
-   */
-  metadata?: {
-    [key: string]: unknown;
-  };
-  /**
-   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
-   *
-   */
-  category?: "marketing" | "transactional";
-};
-
-/**
- * A reply to a conversation message. Recipients are derived from the message being replied to: its Reply-To address when present, otherwise its From address. Set `reply_all` to also include the original To and Cc recipients (minus the mailbox's own address). The subject and threading headers are set automatically. At least one of `html` or `text` must be provided.
- *
- */
-export type EmailThreadMessageReplyRequest = {
-  /**
-   * HTML body of the reply. At least one of html or text must be provided.
-   */
-  html?: string;
-  /**
-   * Plain-text body of the reply. At least one of html or text must be provided.
-   */
-  text?: string;
-  /**
-   * Also send the reply to the original To and Cc recipients, minus the mailbox's own address.
-   */
-  reply_all?: boolean;
-  /**
-   * Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
-   *
-   */
-  tags?: Array<Tag>;
-  /**
-   * Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
-   *
-   */
-  metadata?: {
-    [key: string]: unknown;
-  };
-  /**
-   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
-   *
-   */
-  category?: "marketing" | "transactional";
-};
-
-/**
- * The attachments on a conversation message.
- */
-export type EmailThreadMessageAttachmentList = {
-  data: Array<EmailThreadMessageAttachment>;
-};
-
-/**
- * Attachment metadata on a conversation message. The metadata remains readable for the mailbox's retention period; the attachment bytes are downloadable for 30 days after the message occurred.
- *
- */
-export type EmailThreadMessageAttachment = {
-  /**
-   * Attachment ID, used to download the attachment bytes.
-   */
-  readonly id: string;
-  /**
-   * Original filename, or null when the attachment had none.
-   */
-  readonly filename: string | null;
-  /**
-   * MIME content type, or null when it could not be determined.
-   */
-  readonly content_type: string | null;
-  /**
-   * Attachment size in bytes.
-   */
-  readonly size: number;
-};
-
-/**
- * The original rendered body of a conversation message. Available for 30 days after the message occurred; after that the endpoint returns `410 Gone` while the message's extracted text remains readable on the message itself.
- *
- */
-export type EmailThreadMessageBody = {
-  /**
-   * The HTML body of the message, or null when the message had no HTML part.
-   */
-  html: string | null;
-  /**
-   * The plain-text body of the message, or null when the message had no text part.
-   */
-  text: string | null;
-};
-
-/**
- * Changes to apply to a conversation message. Omitted fields are left unchanged.
- */
-export type EmailThreadMessageUpdateRequest = {
-  /**
-   * Mark the message read (`true`) or unread (`false`). Only valid on received messages.
-   */
-  read?: boolean;
-  labels?: EmailLabelsUpdate;
-  /**
-   * Contact to link this message to, or null to unlink the current contact.
-   */
-  contact_id?: ContactId | null;
-  /**
-   * Set to `false` to restore a trashed message within its 30-day trash window (clears `trashed_at` and restores the original retention). To trash a message use `DELETE`; `true` is rejected.
-   *
-   */
-  trashed?: boolean;
-};
-
-export type ContactId = string;
-
-/**
- * Label changes to apply. Labels in `add` are applied and labels in `remove` are taken off; other labels are left untouched. Adding a label that is already present, or removing one that is not, has no effect.
- *
- */
-export type EmailLabelsUpdate = {
-  /**
-   * Labels to apply.
-   */
-  add?: Array<string>;
-  /**
-   * Labels to take off.
-   */
-  remove?: Array<string>;
-};
-
-export type EmailThreadMessageList = {
-  data: Array<EmailThreadMessage>;
-} & ListEnvelope;
-
-/**
- * Link to the message's entry in the received-message or sent-message log, which carries delivery analytics such as per-recipient events. Log entries expire 30 days after the message occurred.
- *
- */
-export type EmailThreadMessageSource = {
-  /**
-   * API path of the log entry for this message.
-   */
-  readonly resource: string;
-  /**
-   * When the log entry (and the message's original rendered source) expires.
-   */
-  readonly available_until: string;
-};
-
-/**
- * One recipient's terminal delivery outcome on a sent conversation message, folded into the message's durable memory when the outcome becomes known.
- *
- */
-export type EmailThreadMessageRecipient = {
-  /**
-   * Recipient address.
-   */
-  readonly address: string;
-  /**
-   * Terminal outcome: `delivered`, or `failed` (bounce or provider rejection).
-   */
-  readonly status: "delivered" | "failed";
-};
-
-/**
- * A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.
- *
- */
-export type EmailThreadMessage = {
-  /**
-   * Message ID. Received messages carry a `rem_` ID, sent messages an `em_` ID — the same IDs used by the received-message and sent-message logs.
-   *
-   */
-  readonly id: string;
-  /**
-   * Direction of the message — `inbound` for a received message, `outbound` for a sent one.
-   */
-  readonly direction: "inbound" | "outbound";
-  /**
-   * Channel this message was carried on. Always `email`.
-   */
-  readonly channel: string;
-  /**
-   * Conversation this message belongs to.
-   */
-  readonly thread_id: ThreadId;
-  /**
-   * Sender address.
-   */
-  readonly from: string;
-  /**
-   * Recipient addresses on the To line.
-   */
-  readonly to: Array<string>;
-  /**
-   * Recipient addresses on the Cc line. Empty when the message had none.
-   */
-  readonly cc: Array<string>;
-  /**
-   * Address the message was actually delivered to, when it differs from the mailbox address (for example mail routed in from another address). Null for sent messages and for mail addressed directly to the mailbox.
-   *
-   */
-  readonly delivered_to: string | null;
-  /**
-   * Message subject. Null when the message had no subject.
-   */
-  readonly subject: string | null;
-  /**
-   * Short plain-text preview of the message body.
-   */
-  readonly preview: string | null;
-  /**
-   * Plain-text content of the message with quoted history stripped — readable for the mailbox's full retention period, both directions. Always present when fetching a single message; on list endpoints it is included only when the request sets `include=extracted_text`. Null when no text could be extracted.
-   *
-   */
-  readonly extracted_text?: string | null;
-  /**
-   * Whether the message has been marked read. Null for sent messages.
-   */
-  read: boolean | null;
-  /**
-   * Where the message landed: `inbox` for accepted mail, `blocked` (receive policy or rules), or `unauthenticated` (failed sender authentication). Null for sent messages. Trash state is carried separately in `trashed_at`.
-   *
-   */
-  disposition: "inbox" | "blocked" | "unauthenticated" | null;
-  /**
-   * Folded delivery status of a sent message: `accepted`, `sent` (provider handoff), `delivered` (all attempted recipients delivered), or `failed` (terminal failure). Null for received messages.
-   *
-   */
-  readonly status: string | null;
-  /**
-   * Terminal per-recipient delivery outcomes of a sent message, folded in as they become known — part of the message's durable memory. Null for received messages and before any recipient reaches a terminal state. Per-recipient event detail lives on the sent-message log (`source`) for 30 days.
-   *
-   */
-  readonly recipients: Array<EmailThreadMessageRecipient> | null;
-  /**
-   * Whether SPF passed for the sender of a received message. Null for sent messages and when no verdict was computable. Part of the message's durable memory — readable for the mailbox's full retention period, so the verdict survives after the 30-day inbound log has expired.
-   *
-   */
-  readonly spf_pass: boolean | null;
-  /**
-   * Whether DKIM passed for the sender of a received message. Null for sent messages and when no verdict was computable. Durable for the mailbox's retention period.
-   *
-   */
-  readonly dkim_pass: boolean | null;
-  /**
-   * Whether DMARC passed for the sender of a received message. Null for sent messages and when no verdict was computable. Durable for the mailbox's retention period.
-   *
-   */
-  readonly dmarc_pass: boolean | null;
-  /**
-   * When the message was moved to the trash, or null when it is not trashed. Trashed messages are purged 30 days after trashing; restore it with `PATCH {"trashed": false}` before then.
-   *
-   */
-  readonly trashed_at: string | null;
-  /**
-   * Relevance rank of this result. Present only on search results, higher is more relevant.
-   *
-   */
-  readonly rank?: number;
-  /**
-   * Number of attachments on the message.
-   */
-  readonly attachment_count: number;
-  /**
-   * Attachment metadata (filename, content type, size). Remains readable for the mailbox's retention period even after the attachment bytes themselves have expired.
-   *
-   */
-  readonly attachment_manifest: Array<EmailThreadMessageAttachment>;
-  /**
-   * RFC 5322 References header entries used to thread the conversation.
-   */
-  readonly reference_ids: Array<string>;
-  /**
-   * Labels applied to this message. A message carries at most 20 labels.
-   */
-  labels: Array<string>;
-  /**
-   * Contact linked to this message, or null when none is linked.
-   */
-  contact_id: ContactId | null;
-  readonly source: EmailThreadMessageSource;
-  /**
-   * When the message was received or accepted for sending.
-   */
-  readonly occurred_at: string;
-};
-
-/**
- * Changes to apply to a thread. Omitted fields are left unchanged.
- */
-export type EmailThreadUpdateRequest = {
-  labels?: EmailLabelsUpdate;
-  /**
-   * Contact to link this conversation to, or null to unlink the current contact.
-   */
-  contact_id?: ContactId | null;
-};
-
-export type EmailThreadList = {
-  data: Array<EmailThread>;
-} & ListEnvelope;
-
-/**
- * A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.
- *
- */
-export type EmailThread = {
-  /**
-   * Thread ID.
-   */
-  readonly id: ThreadId;
-  /**
-   * Mailbox this conversation belongs to.
-   */
-  readonly mailbox_id: MailboxId;
-  /**
-   * Channel this conversation lives on. Always `email`.
-   */
-  readonly channel: string;
-  /**
-   * Contact linked to this conversation, or null when none is linked.
-   */
-  contact_id: ContactId | null;
-  /**
-   * Subject of the conversation, taken from its first message. Null when that message had no subject.
-   */
-  readonly subject: string | null;
-  /**
-   * Addresses that appear on the retained messages in this conversation, including the mailbox's own address.
-   */
-  readonly participants: Array<string>;
-  /**
-   * Number of retained messages in this conversation, both directions.
-   */
-  readonly message_count: number;
-  /**
-   * Number of retained received messages in the inbox that are still unread.
-   */
-  readonly unread_count: number;
-  /**
-   * When the most recent retained message in this conversation was received or sent.
-   */
-  readonly last_message_at: string;
-  /**
-   * Direction of the most recent message — `inbound` for a received message, `outbound` for a sent one.
-   */
-  readonly last_direction: "inbound" | "outbound";
-  /**
-   * Labels applied to this conversation. A thread carries at most 20 labels.
-   */
-  labels: Array<string>;
-  /**
-   * When the thread was created.
-   */
-  readonly created_at: string;
-  /**
-   * When the thread last changed.
-   */
-  readonly updated_at: string;
-};
-
-/**
  * Fields to update on an inbound route. Omitted fields are unchanged. The domain is immutable.
  */
 export type InboundRouteUpdate = {
@@ -2025,7 +1490,7 @@ export type InboundRouteUpdate = {
  */
 export type InboundRouteCreate = {
   /**
-   * The domain the route applies to — your agent domain or one of your inbound-enabled custom domains.
+   * The domain the route applies to — one of your inbound-enabled custom domains.
    */
   domain: string;
   /**
@@ -2108,285 +1573,6 @@ export type InboundRoute = {
 };
 
 /**
- * Parameters for adding a receive rule to a mailbox.
- */
-export type ReceiveRuleCreate = {
-  /**
-   * What the rule does when it matches. Block rules always win. To flip an entry's action, delete the existing rule and re-create it.
-   */
-  action: "allow" | "block";
-  /**
-   * The sender address (`alice@example.com`) or domain (`example.com`) to match. Domains also match their subdomains. Stored lowercase.
-   */
-  entry: string;
-  /**
-   * Your own note about why the rule exists.
-   */
-  note?: string;
-};
-
-export type ReceiveRuleList = {
-  data: Array<ReceiveRule>;
-} & ListEnvelope;
-
-export type ReceiveRuleId = string;
-
-/**
- * An allow or block entry on a mailbox, evaluated when inbound mail arrives. Matching is against the message's envelope sender; domain entries also match subdomains. A given entry can be allow or block, never both.
- *
- */
-export type ReceiveRule = {
-  /**
-   * Receive rule ID.
-   */
-  readonly id: ReceiveRuleId;
-  /**
-   * The mailbox the rule applies to.
-   */
-  readonly mailbox_id: MailboxId;
-  /**
-   * What the rule does when it matches. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes.
-   */
-  readonly action: "allow" | "block";
-  /**
-   * The sender address or domain the rule matches. Domains also match their subdomains.
-   */
-  readonly entry: string;
-  /**
-   * Whether the entry is a full address or a domain.
-   */
-  readonly entry_type: "address" | "domain";
-  /**
-   * Your own note about why the rule exists. Null when unset.
-   */
-  readonly note: string | null;
-  /**
-   * When the rule was created.
-   */
-  readonly created_at: string;
-};
-
-/**
- * Fields to update on a mailbox. Omitted fields are unchanged; fields set to null are cleared. The address and domain are immutable.
- */
-export type MailboxUpdate = {
-  /**
-   * Display name used as the sender name on mail from this mailbox. Null clears it.
-   */
-  display_name?: string | null;
-  /**
-   * Default Reply-To address stamped on mail sent from this mailbox. Null clears it.
-   */
-  default_reply_to?: string | null;
-  /**
-   * Which inbound mail the mailbox accepts.
-   */
-  receive_policy?: "open" | "replies_only" | "allowlist" | "drop";
-  /**
-   * How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. `3y` and `10y` are reserved future tiers.
-   */
-  retention_tier?: "30d" | "90d" | "1y";
-  /**
-   * The contact this mailbox is associated with. Null clears it.
-   */
-  contact_id?: ContactId | null;
-  /**
-   * Replaces the mailbox's key/value data. Up to 2 KB; keys starting with `__bird` are reserved.
-   */
-  metadata?: {
-    [key: string]: unknown;
-  };
-};
-
-/**
- * Parameters for creating a mailbox.
- */
-export type MailboxCreate = {
-  /**
-   * The local part of the mailbox address (the part before `@`). Letters, digits, dots, underscores, and hyphens; stored lowercase. Omit to have Bird generate a random local part.
-   */
-  local_part?: string;
-  /**
-   * The domain the address lives under. Defaults to your workspace's agent domain. May also name one of your inbound-enabled custom domains.
-   */
-  domain?: string;
-  /**
-   * Display name used as the sender name on mail from this mailbox.
-   */
-  display_name?: string;
-  /**
-   * Default Reply-To address stamped on mail sent from this mailbox.
-   */
-  default_reply_to?: string;
-  /**
-   * Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule; `drop` stores nothing.
-   */
-  receive_policy?: "open" | "replies_only" | "allowlist" | "drop";
-  /**
-   * How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.
-   */
-  retention_tier?: "30d" | "90d" | "1y";
-  /**
-   * A contact to associate the mailbox with.
-   */
-  contact_id?: ContactId;
-  /**
-   * Your own key/value data to attach to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.
-   */
-  metadata?: {
-    [key: string]: unknown;
-  };
-};
-
-export type MailboxList = {
-  data: Array<Mailbox>;
-} & ListEnvelope;
-
-export type InboundAddressId = string;
-
-/**
- * The principal that owns the mailbox. Always the workspace.
- */
-export type MailboxOwner = {
-  /**
-   * Owner principal type.
-   */
-  readonly type: "workspace";
-  /**
-   * Owner principal ID.
-   */
-  readonly id: WorkspaceId;
-};
-
-/**
- * A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.
- *
- */
-export type Mailbox = {
-  /**
-   * Mailbox ID.
-   */
-  readonly id: MailboxId;
-  /**
-   * The mailbox's email address. Immutable once created.
-   */
-  readonly address: string;
-  /**
-   * Display name used as the sender name on mail from this mailbox. Null when unset.
-   */
-  display_name: string | null;
-  /**
-   * Default Reply-To address stamped on mail sent from this mailbox. Null when unset.
-   */
-  default_reply_to: string | null;
-  /**
-   * Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.
-   */
-  receive_policy: "open" | "replies_only" | "allowlist" | "drop";
-  /**
-   * Lifecycle state. Suspended mailboxes stop emitting events; inbound mail is retained as blocked.
-   */
-  readonly state: "active" | "suspended";
-  /**
-   * The channel this mailbox receives on. Always `email`.
-   */
-  readonly channel: "email";
-  readonly owner: MailboxOwner;
-  /**
-   * The contact this mailbox is associated with. Null when unset.
-   */
-  contact_id: ContactId | null;
-  /**
-   * The underlying inbound address that receives this mailbox's mail.
-   */
-  readonly inbound_address_id: InboundAddressId;
-  /**
-   * Logical size of the mailbox's retained memory, in bytes.
-   */
-  readonly storage_bytes: number;
-  /**
-   * How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.
-   */
-  retention_tier: "30d" | "90d" | "1y";
-  /**
-   * Number of retained messages across all threads.
-   */
-  readonly message_count: number;
-  /**
-   * Number of retained threads.
-   */
-  readonly thread_count: number;
-  /**
-   * Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.
-   */
-  metadata: {
-    [key: string]: unknown;
-  };
-  /**
-   * When the mailbox was created.
-   */
-  readonly created_at: string;
-  /**
-   * When the mailbox was last updated.
-   */
-  readonly updated_at: string;
-};
-
-/**
- * Parameters for claiming your workspace's agent domain.
- */
-export type AgentDomainCreate = {
-  /**
-   * The handle to claim. Lowercase letters, digits, and hyphens; must start and end with a letter or digit. Handles are globally unique, immutable, and checked against a reserved list — brand, financial, and infrastructure terms cannot be claimed.
-   */
-  handle: string;
-};
-
-/**
- * The workspace's agent domains. Contains at most one active domain, plus any released domains whose handles remain reserved to this workspace.
- */
-export type AgentDomainList = {
-  data: Array<AgentDomain>;
-};
-
-export type AgentDomainId = string;
-
-/**
- * Your workspace's agent domain — a Bird-hosted subdomain (`{handle}.{region}.mailbox.bird.com`) that mailbox addresses live under. Each workspace can hold one active agent domain; the handle is globally unique and immutable once claimed.
- *
- */
-export type AgentDomain = {
-  /**
-   * Agent domain ID.
-   */
-  readonly id: AgentDomainId;
-  /**
-   * The claimed handle — the leftmost label of the agent domain. Immutable.
-   */
-  readonly handle: string;
-  /**
-   * The full agent domain that mailbox addresses live under.
-   */
-  readonly domain: string;
-  /**
-   * Lifecycle status. `provisioning` domains are being set up and become `active` shortly — poll the domain until it does. `active` domains receive mail. `releasing` domains are being released; once `released` they no longer receive mail, and the handle stays reserved to this workspace.
-   */
-  readonly status: "provisioning" | "active" | "releasing" | "released";
-  /**
-   * When the domain was released. Null while active.
-   */
-  readonly released_at?: string | null;
-  /**
-   * When the domain was claimed.
-   */
-  readonly created_at: string;
-  /**
-   * When the domain was last updated.
-   */
-  readonly updated_at: string;
-};
-
-/**
  * The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.
  */
 export type InboundAttachmentList = {
@@ -2438,6 +1624,20 @@ export type InboundEmailMessageBody = {
 export type InboundEmailMessageList = {
   data: Array<InboundEmailMessage>;
 } & ListEnvelope;
+
+/**
+ * An email address with an optional display name.
+ */
+export type EmailAddress = {
+  /**
+   * Email address.
+   */
+  email: string;
+  /**
+   * Display name shown alongside the address in mail clients.
+   */
+  name?: string;
+};
 
 /**
  * An email Bird received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.
@@ -2529,6 +1729,8 @@ export type InboundAddressCreate = {
 export type InboundAddressList = {
   data: Array<InboundAddress>;
 } & ListEnvelope;
+
+export type InboundAddressId = string;
 
 /**
  * A Bird-minted email address that receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address and Bird parses every message it receives into a received email.
@@ -3445,6 +2647,8 @@ export type AudienceContactsRemoveRequest = {
   contact_ids: Array<ContactId>;
 };
 
+export type ContactId = string;
+
 export type AudienceContactsAddRequest = {
   /**
    * Contacts to add to the audience. Adding a contact that is already a member has no effect. If any ID does not exist, the whole request fails and no contacts are added.
@@ -3954,6 +3158,41 @@ export type EmailMessageBatchItem = {
  */
 export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
 
+/**
+ * File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.
+ * Inline images for `<img src="cid:..."/>` references in the HTML body use the `content_id` field together with `content`.
+ * Bird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.
+ * Recipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.
+ * Batch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.
+ *
+ */
+export type EmailAttachment = {
+  /**
+   * Filename shown to the recipient. Required.
+   */
+  filename: string;
+  /**
+   * Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
+   *
+   */
+  content: string;
+  /**
+   * Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
+   *
+   */
+  path?: string;
+  /**
+   * MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.
+   *
+   */
+  content_type?: string;
+  /**
+   * RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.
+   *
+   */
+  content_id?: string;
+};
+
 export type EmailTemplateId = string;
 
 export type EmailTemplateSend = unknown & {
@@ -3973,6 +3212,12 @@ export type EmailTemplateSend = unknown & {
     [key: string]: unknown;
   };
 };
+
+/**
+ * A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.
+ *
+ */
+export type EmailAddressInput = string | EmailAddress;
 
 export type EmailMessageSendRequest = {
   /**
@@ -4666,12 +3911,6 @@ export type WebhookEventWritable =
       type: "email_mailbox.message_received";
     } & EventEmailMailboxMessageReceived)
   | ({
-      type: "email_mailbox.message_received_blocked";
-    } & EventEmailMailboxMessageReceivedBlocked)
-  | ({
-      type: "email_mailbox.message_received_unauthenticated";
-    } & EventEmailMailboxMessageReceivedUnauthenticated)
-  | ({
       type: "email_mailbox.message_sent";
     } & EventEmailMailboxMessageSent)
   | ({
@@ -4755,60 +3994,6 @@ export type EmailSmtpConfigWritable = {
   track_clicks: boolean;
 };
 
-/**
- * The attachments on a conversation message.
- */
-export type EmailThreadMessageAttachmentListWritable = {
-  data: Array<unknown>;
-};
-
-export type EmailThreadMessageListWritable = {
-  data: Array<EmailThreadMessageWritable>;
-} & ListEnvelope;
-
-/**
- * A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.
- *
- */
-export type EmailThreadMessageWritable = {
-  /**
-   * Whether the message has been marked read. Null for sent messages.
-   */
-  read: boolean | null;
-  /**
-   * Where the message landed: `inbox` for accepted mail, `blocked` (receive policy or rules), or `unauthenticated` (failed sender authentication). Null for sent messages. Trash state is carried separately in `trashed_at`.
-   *
-   */
-  disposition: "inbox" | "blocked" | "unauthenticated" | null;
-  /**
-   * Labels applied to this message. A message carries at most 20 labels.
-   */
-  labels: Array<string>;
-  /**
-   * Contact linked to this message, or null when none is linked.
-   */
-  contact_id: ContactId | null;
-};
-
-export type EmailThreadListWritable = {
-  data: Array<EmailThreadWritable>;
-} & ListEnvelope;
-
-/**
- * A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.
- *
- */
-export type EmailThreadWritable = {
-  /**
-   * Contact linked to this conversation, or null when none is linked.
-   */
-  contact_id: ContactId | null;
-  /**
-   * Labels applied to this conversation. A thread carries at most 20 labels.
-   */
-  labels: Array<string>;
-};
-
 export type InboundRouteListWritable = {
   data: Array<InboundRouteWritable>;
 } & ListEnvelope;
@@ -4842,54 +4027,6 @@ export type InboundRouteWritable = {
    * Whether the route is evaluated. Disabled routes are kept but skipped.
    */
   enabled: boolean;
-};
-
-export type ReceiveRuleListWritable = {
-  data: Array<unknown>;
-} & ListEnvelope;
-
-export type MailboxListWritable = {
-  data: Array<MailboxWritable>;
-} & ListEnvelope;
-
-/**
- * A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.
- *
- */
-export type MailboxWritable = {
-  /**
-   * Display name used as the sender name on mail from this mailbox. Null when unset.
-   */
-  display_name: string | null;
-  /**
-   * Default Reply-To address stamped on mail sent from this mailbox. Null when unset.
-   */
-  default_reply_to: string | null;
-  /**
-   * Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.
-   */
-  receive_policy: "open" | "replies_only" | "allowlist" | "drop";
-  /**
-   * The contact this mailbox is associated with. Null when unset.
-   */
-  contact_id: ContactId | null;
-  /**
-   * How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.
-   */
-  retention_tier: "30d" | "90d" | "1y";
-  /**
-   * Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.
-   */
-  metadata: {
-    [key: string]: unknown;
-  };
-};
-
-/**
- * The workspace's agent domains. Contains at most one active domain, plus any released domains whose handles remain reserved to this workspace.
- */
-export type AgentDomainListWritable = {
-  data: Array<unknown>;
 };
 
 /**

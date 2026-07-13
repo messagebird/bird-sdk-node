@@ -19,8 +19,6 @@ export const WebhookEventType = {
   EmailMailboxMessageDelivered: "email_mailbox.message_delivered",
   EmailMailboxMessageFailed: "email_mailbox.message_failed",
   EmailMailboxMessageReceived: "email_mailbox.message_received",
-  EmailMailboxMessageReceivedBlocked: "email_mailbox.message_received_blocked",
-  EmailMailboxMessageReceivedUnauthenticated: "email_mailbox.message_received_unauthenticated",
   EmailMailboxMessageSent: "email_mailbox.message_sent",
   EmailMailboxSuspended: "email_mailbox.suspended",
   EmailMailboxThreadCreated: "email_mailbox.thread_created",

@@ -5387,7 +5387,7 @@ export const SMSMessageSendRequestSchema = {
       minimum: 60,
       maximum: 172800,
       description:
-        "Preview feature — how long, in seconds (60–172800), Bird keeps trying to deliver before the message transitions to `expired`. Currently unavailable; supplying this field returns `422 unsupported_feature`.\n",
+        "Preview feature — how long, in seconds (60–172800), Bird keeps trying to deliver before the message transitions to `expired`. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.\n",
     },
     tags: {
       type: "array",
@@ -5410,18 +5410,18 @@ export const SMSMessageSendRequestSchema = {
         type: "string",
       },
       description:
-        "Preview feature — multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     messaging_profile_id: {
       type: "string",
       description:
-        "Preview feature — sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     scheduled_at: {
       type: "string",
       format: "date-time",
       description:
-        "Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     template: {
       allOf: [
@@ -5435,43 +5435,43 @@ export const SMSMessageSendRequestSchema = {
     broadcast_id: {
       type: "string",
       description:
-        "Preview feature — broadcast correlation. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — broadcast correlation. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     campaign_id: {
       type: "string",
       description:
-        "Preview feature — campaign correlation for analytics. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — campaign correlation for analytics. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     audience_id: {
       type: "string",
       description:
-        "Preview feature — audience-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — audience-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     contact_id: {
       type: "string",
       description:
-        "Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     topic_id: {
       type: "string",
       description:
-        "Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     max_price_per_segment: {
       type: "number",
       description:
-        "Preview feature — per-segment price ceiling. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — per-segment price ceiling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     personalization: {
       type: "object",
       additionalProperties: true,
       description:
-        "Preview feature — per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     track_clicks: {
       type: "boolean",
       description:
-        "Preview feature — link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 unsupported_feature`.",
+        "Preview feature — link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 SMSUnsupportedFeature`.",
     },
   },
   example: {
@@ -6576,7 +6576,7 @@ export const EmailAttachmentSchema = {
       type: "string",
       format: "uri",
       description:
-        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `unsupported_feature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
+        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `UnsupportedEmailFeature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
     },
     content_type: {
       type: "string",
@@ -6795,7 +6795,7 @@ export const EmailMessageSendRequestSchema = {
     in_reply_to_message_id: {
       $ref: "#/components/schemas/EmailID",
       description:
-        "Preview feature — threaded replies. Currently unavailable; supplying this field returns `422 unsupported_feature`. When generally available, sets In-Reply-To and References headers automatically.",
+        "Preview feature — threaded replies. Currently unavailable; supplying this field returns `422 UnsupportedEmailFeature`. When generally available, sets In-Reply-To and References headers automatically.",
     },
     attachments: {
       type: "array",
@@ -6815,13 +6815,13 @@ export const EmailMessageSendRequestSchema = {
     contact_id: {
       type: "string",
       description:
-        "Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 unsupported_feature`.",
+        "Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 UnsupportedEmailFeature`.",
     },
     topic_id: {
       type: "string",
       pattern: "^top_[0-9a-hjkmnp-tv-z]{26}$",
       description:
-        "Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 unsupported_feature`. When generally available, a non-empty `topic_id` gates delivery on the recipient's opt-in state for that topic — if the recipient is opt_out, the send is silently suppressed and an `email.suppressed` event fires with `reason: topic_opt_out`.\n",
+        "Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 UnsupportedEmailFeature`. When generally available, a non-empty `topic_id` gates delivery on the recipient's opt-in state for that topic — if the recipient is opt_out, the send is silently suppressed and an `email.suppressed` event fires with `reason: topic_opt_out`.\n",
     },
   },
   example: {

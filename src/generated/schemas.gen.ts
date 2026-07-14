@@ -4023,6 +4023,13 @@ export const WhatsAppErrorSchema = {
       description: "Human-readable explanation of the failure.",
       example: "Message could not be delivered.",
     },
+    meta_error_code: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.",
+      example: "131026",
+    },
     occurred_at: {
       type: "string",
       format: "date-time",

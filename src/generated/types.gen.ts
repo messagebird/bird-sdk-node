@@ -1990,6 +1990,10 @@ export type WhatsAppError = {
    */
   readonly description: string;
   /**
+   * Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.
+   */
+  readonly meta_error_code?: string | null;
+  /**
    * When the failure occurred.
    */
   readonly occurred_at: string;

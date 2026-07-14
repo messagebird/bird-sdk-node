@@ -70,6 +70,12 @@ export type {
   WhatsAppTemplateList,
 } from "./resources/whatsappTemplates.js";
 export type {
+  Verification,
+  VerificationCheckResult,
+  VerificationCreateParams,
+  VerificationCheckParams,
+} from "./resources/verify.js";
+export type {
   Contact,
   ContactCreateParams,
   ContactUpdateParams,

@@ -36,6 +36,12 @@ import type {
   CreateSmsMessageData,
   CreateSmsMessageErrors,
   CreateSmsMessageResponses,
+  CreateVerificationCheckData,
+  CreateVerificationCheckErrors,
+  CreateVerificationCheckResponses,
+  CreateVerificationData,
+  CreateVerificationErrors,
+  CreateVerificationResponses,
   DeleteAudienceData,
   DeleteAudienceErrors,
   DeleteAudienceResponses,
@@ -1009,6 +1015,66 @@ export const getSmsTemplate = <ThrowOnError extends boolean = false>(
     ],
     url: "/v1/sms/templates/{template_ref}",
     ...options,
+  });
+
+/**
+ * Create a verification
+ *
+ * Creates a verification for a recipient and sends them a one-time passcode. Provide a recipient in `to` — an email address (verified over email), a phone number (verified over SMS), or both. If a verification is already in progress for the same recipient, that one is reused and its passcode is re-sent once the resend cooldown has elapsed, rather than starting a second verification. The response includes the verification's current state; the passcode itself is never returned. Submit the passcode the recipient enters with the check endpoint.
+ *
+ */
+export const createVerification = <ThrowOnError extends boolean = false>(
+  options: Options<CreateVerificationData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateVerificationResponses,
+    CreateVerificationErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/verify/verifications",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Check a verification passcode
+ *
+ * Checks a passcode for a recipient and returns the outcome together with the verification's current state. Identify the verification by the same `to` recipient used to create it — you do not need to store a verification id. A wrong, expired, or already-used passcode is reported in the response body, with `success` set to `false` and a `reason` such as `incorrect_code` or `expired`, rather than as an HTTP error; only a missing verification, malformed input, or rate limiting return an error status.
+ *
+ */
+export const createVerificationCheck = <ThrowOnError extends boolean = false>(
+  options: Options<CreateVerificationCheckData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateVerificationCheckResponses,
+    CreateVerificationCheckErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/verify/verifications/check",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

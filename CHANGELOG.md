@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- Add the Verify product: `verify.verifications.create` sends a one-time passcode to a recipient and `verify.verifications.check` validates the code they submit.
+
 ## 0.6.0
 
 - Add the WhatsApp channel: `whatsapp.send`, `.get`, `.list`, `.listEvents`. Add WhatsApp templates (read-only): `whatsappTemplates.list`.

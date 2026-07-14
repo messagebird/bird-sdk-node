@@ -20,14 +20,17 @@ cd "$tmp"
 
 npm init -y >/dev/null 2>&1
 npm pkg set type=module >/dev/null
-# A just-published version can lag the registry/CDN, so retry before giving up.
-for attempt in 1 2 3 4 5; do
+# A just-published version can lag npm's registry read-replicas/CDN for a few
+# minutes, so retry over a ~5-minute budget before giving up — the publish has
+# already succeeded; this step only guards packaging (the "files" allowlist and
+# ESM entrypoint), so a short window would fail spuriously on propagation alone.
+for attempt in $(seq 1 10); do
 	if npm install --silent --registry "$registry" "@messagebird/sdk@${ver}"; then
 		break
 	fi
-	[ "$attempt" -eq 5 ] && { echo "smoke: @messagebird/sdk@${ver} not installable after 5 attempts" >&2; exit 1; }
-	echo "smoke: @messagebird/sdk@${ver} not available yet — retrying in 15s"
-	sleep 15
+	[ "$attempt" -eq 10 ] && { echo "smoke: @messagebird/sdk@${ver} not installable after 10 attempts (~5m of registry lag)" >&2; exit 1; }
+	echo "smoke: @messagebird/sdk@${ver} not available yet — retrying in 30s (attempt ${attempt}/10)"
+	sleep 30
 done
 
 node --input-type=module -e "

@@ -252,28 +252,43 @@ for (const tpl of data) console.log(tpl.id, tpl.name);
 }
 
 export async function _ex_37() {
+const result = await bird.verify.verifications.check({
+  to: { phone_number: "+15551234567" },
+  code: "123456",
+});
+console.log(result.success);
+}
+
+export async function _ex_38() {
+const verification = await bird.verify.verifications.create({
+  to: { phone_number: "+15551234567" },
+});
+console.log(verification.id, verification.status);
+}
+
+export async function _ex_39() {
 // Pass the RAW request body; set the secret via new BirdClient({ webhooks: { secret } }).
 const event = bird.webhooks.unwrap(rawBody, headers);
 console.log(event.type); // discriminated union — narrow on event.type
 }
 
-export async function _ex_38() {
+export async function _ex_40() {
 const msg = await bird.whatsapp.get("wa_abc123");
 msg.status; // "accepted" | "delivered" | …
 }
 
-export async function _ex_39() {
+export async function _ex_41() {
 for await (const msg of bird.whatsapp.list({ status: ["delivered"] })) {
   console.log(msg.id, msg.status);
 }
 }
 
-export async function _ex_40() {
+export async function _ex_42() {
 const { data } = await bird.whatsapp.listEvents("wa_abc123");
 for (const event of data) console.log(event.type, event.occurred_at);
 }
 
-export async function _ex_41() {
+export async function _ex_43() {
 const msg = await bird.whatsapp.send({
   to: "+15551234567",
   template: {
@@ -286,7 +301,7 @@ const msg = await bird.whatsapp.send({
 console.log(msg.id, msg.status);
 }
 
-export async function _ex_42() {
+export async function _ex_44() {
 const { data } = await bird.whatsappTemplates.list();
 for (const tpl of data) console.log(tpl.name, tpl.status);
 }

@@ -731,11 +731,54 @@ export const EventSMSAcceptedSchema = {
   },
 } as const;
 
+export const SuppressionIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^sup_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "sup_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventEmailSuppressionCreatedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the email_suppression.created event.",
+  required: ["suppression_id", "email", "reason", "workspace_id"],
+  properties: {
+    suppression_id: {
+      $ref: "#/components/schemas/SuppressionID",
+      "x-go-type": "domain.SuppressionID",
+      description: "The suppression entry that was created.",
+      example: "sup_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    email: {
+      type: "string",
+      minLength: 1,
+      format: "email",
+      description:
+        "The recipient address that was added to the suppression list.",
+      example: "user@example.com",
+    },
+    reason: {
+      type: "string",
+      minLength: 1,
+      enum: ["hard_bounce", "complaint", "unsubscribe", "manual"],
+      description: "Why the address was suppressed.",
+      example: "hard_bounce",
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      "x-go-type": "domain.WorkspaceID",
+      description: "The workspace the suppression belongs to.",
+      example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+  },
+} as const;
+
 export const EventEmailSuppressionCreatedSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce). Payload schema not yet finalized.",
+    "An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce).",
   "x-event-type-id": "email_suppression.created",
   "x-dedupe": {
     scope: "provider",
@@ -758,10 +801,7 @@ export const EventEmailSuppressionCreatedSchema = {
       example: {},
     },
     data: {
-      type: "object",
-      additionalProperties: false,
-      description:
-        "Event payload. The fields for this event are not yet finalized.",
+      $ref: "#/components/schemas/EventEmailSuppressionCreatedData",
     },
   },
 } as const;
@@ -2336,11 +2376,44 @@ export const EventEmailAcceptedSchema = {
   },
 } as const;
 
+export const EventDomainVerifiedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the domain.verified event.",
+  required: ["domain_id", "domain", "workspace_id"],
+  properties: {
+    domain_id: {
+      $ref: "#/components/schemas/DomainID",
+      "x-go-type": "domain.DomainID",
+      description: "The sending domain resource that verified.",
+      example: "dom_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      description: "The sending domain hostname.",
+      example: "mail.example.com",
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      "x-go-type": "domain.WorkspaceID",
+      description: "The workspace the domain is assigned to.",
+      example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+  },
+} as const;
+
+export const DomainIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^dom_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "dom_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const EventDomainVerifiedSchema = {
   type: "object",
   additionalProperties: false,
-  description:
-    "A sending domain completed DNS verification successfully. Payload schema not yet finalized.",
+  description: "A sending domain completed DNS verification successfully.",
   "x-event-type-id": "domain.verified",
   "x-dedupe": {
     scope: "provider",
@@ -2363,10 +2436,40 @@ export const EventDomainVerifiedSchema = {
       example: {},
     },
     data: {
-      type: "object",
-      additionalProperties: false,
+      $ref: "#/components/schemas/EventDomainVerifiedData",
+    },
+  },
+} as const;
+
+export const EventDomainFailedDataSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Payload of the domain.failed event.",
+  required: ["domain_id", "domain", "workspace_id"],
+  properties: {
+    domain_id: {
+      $ref: "#/components/schemas/DomainID",
+      "x-go-type": "domain.DomainID",
+      description: "The sending domain resource whose verification failed.",
+      example: "dom_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      description: "The sending domain hostname.",
+      example: "mail.example.com",
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      "x-go-type": "domain.WorkspaceID",
+      description: "The workspace the domain is assigned to.",
+      example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    failure_reason: {
+      type: ["string", "null"],
       description:
-        "Event payload. The fields for this event are not yet finalized.",
+        "Why verification failed, when a specific reason is available (for example, the DKIM record was not found at the expected selector).",
+      example: "DKIM record not found at the expected selector.",
     },
   },
 } as const;
@@ -2374,8 +2477,7 @@ export const EventDomainVerifiedSchema = {
 export const EventDomainFailedSchema = {
   type: "object",
   additionalProperties: false,
-  description:
-    "A sending domain failed DNS verification. Payload schema not yet finalized.",
+  description: "A sending domain failed DNS verification.",
   "x-event-type-id": "domain.failed",
   "x-dedupe": {
     scope: "provider",
@@ -2398,10 +2500,7 @@ export const EventDomainFailedSchema = {
       example: {},
     },
     data: {
-      type: "object",
-      additionalProperties: false,
-      description:
-        "Event payload. The fields for this event are not yet finalized.",
+      $ref: "#/components/schemas/EventDomainFailedData",
     },
   },
 } as const;
@@ -3565,13 +3664,6 @@ export const SuppressionScopeSchema = {
   },
 } as const;
 
-export const SuppressionIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^sup_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "sup_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
 export const SuppressionSchema = {
   type: "object",
   additionalProperties: false,
@@ -4009,6 +4101,21 @@ export const SendWhatsAppMessageRequestSchema = {
       description:
         "The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are currently the only supported content type, so every send must include one; free-text content will be added in a future release.\n",
     },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering. Tags become first-class query dimensions: filter the list endpoint by tag name. Maximum 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`). For arbitrary structured context you do not need as a filter dimension, use `metadata` instead.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the message and returned on API reads. Maximum 2 KB serialized. Use metadata for per-send context like internal IDs and foreign keys. For low-cardinality filterable labels, use `tags` instead.\n",
+    },
   },
   example: {
     to: "+31612345678",
@@ -4385,6 +4492,19 @@ export const WhatsAppMessageSchema = {
       description:
         "When the message was read by the recipient. Null until then.",
     },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      description:
+        "Structured `{name, value}` filter labels applied to this message.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description: "Arbitrary JSON metadata stored on the message.",
+    },
   },
 } as const;
 
@@ -4574,6 +4694,12 @@ export const VerificationCheckRequestSchema = {
       example: "123456",
     },
   },
+  example: {
+    to: {
+      phone_number: "+15551234567",
+    },
+    code: "123456",
+  },
 } as const;
 
 export const VerificationCreateRequestSchema = {
@@ -4592,6 +4718,14 @@ export const VerificationCreateRequestSchema = {
       additionalProperties: true,
       description:
         "Optional key/value pairs to attach to the verification, for example a correlation id. Returned on the verification.",
+    },
+  },
+  example: {
+    to: {
+      phone_number: "+15551234567",
+    },
+    metadata: {
+      correlation_id: "signup-7f3a",
     },
   },
 } as const;
@@ -6494,7 +6628,7 @@ export const EmailTemplateSendSchema = {
         },
       ],
       description:
-        "The template to send, by its name handle (for example `welcome-email`).",
+        "The template to send, by its name handle — a workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).",
       example: "welcome-email",
     },
     parameters: {
@@ -8412,6 +8546,19 @@ export const WhatsAppMessageWritableSchema = {
       $ref: "#/components/schemas/WhatsAppErrorWritable",
       description:
         "Failure detail for a message that did not reach the recipient. Null when there is no failure.",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      description:
+        "Structured `{name, value}` filter labels applied to this message.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description: "Arbitrary JSON metadata stored on the message.",
     },
   },
 } as const;

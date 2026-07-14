@@ -18,6 +18,8 @@ export const surfaceOps = [
   "GET /v1/whatsapp/messages",
   "GET /v1/whatsapp/messages/{message_id}/events",
   "GET /v1/whatsapp/templates",
+  "POST /v1/verify/verifications",
+  "POST /v1/verify/verifications/check",
   "GET /v1/contacts",
   "GET /v1/contacts/{contact_id}",
   "POST /v1/contacts",

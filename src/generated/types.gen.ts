@@ -358,8 +358,32 @@ export type EventSmsAccepted = {
   data: EventSmsAcceptedData;
 };
 
+export type SuppressionId = string;
+
 /**
- * An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce). Payload schema not yet finalized.
+ * Payload of the email_suppression.created event.
+ */
+export type EventEmailSuppressionCreatedData = {
+  /**
+   * The suppression entry that was created.
+   */
+  suppression_id: SuppressionId;
+  /**
+   * The recipient address that was added to the suppression list.
+   */
+  email: string;
+  /**
+   * Why the address was suppressed.
+   */
+  reason: "hard_bounce" | "complaint" | "unsubscribe" | "manual";
+  /**
+   * The workspace the suppression belongs to.
+   */
+  workspace_id: WorkspaceId;
+};
+
+/**
+ * An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce).
  */
 export type EventEmailSuppressionCreated = {
   /**
@@ -370,12 +394,7 @@ export type EventEmailSuppressionCreated = {
    * When the event occurred.
    */
   timestamp: string;
-  /**
-   * Event payload. The fields for this event are not yet finalized.
-   */
-  data: {
-    [key: string]: never;
-  };
+  data: EventEmailSuppressionCreatedData;
 };
 
 /**
@@ -1153,7 +1172,27 @@ export type EventEmailAccepted = {
 };
 
 /**
- * A sending domain completed DNS verification successfully. Payload schema not yet finalized.
+ * Payload of the domain.verified event.
+ */
+export type EventDomainVerifiedData = {
+  /**
+   * The sending domain resource that verified.
+   */
+  domain_id: DomainId;
+  /**
+   * The sending domain hostname.
+   */
+  domain: string;
+  /**
+   * The workspace the domain is assigned to.
+   */
+  workspace_id: WorkspaceId;
+};
+
+export type DomainId = string;
+
+/**
+ * A sending domain completed DNS verification successfully.
  */
 export type EventDomainVerified = {
   /**
@@ -1164,16 +1203,33 @@ export type EventDomainVerified = {
    * When the event occurred.
    */
   timestamp: string;
-  /**
-   * Event payload. The fields for this event are not yet finalized.
-   */
-  data: {
-    [key: string]: never;
-  };
+  data: EventDomainVerifiedData;
 };
 
 /**
- * A sending domain failed DNS verification. Payload schema not yet finalized.
+ * Payload of the domain.failed event.
+ */
+export type EventDomainFailedData = {
+  /**
+   * The sending domain resource whose verification failed.
+   */
+  domain_id: DomainId;
+  /**
+   * The sending domain hostname.
+   */
+  domain: string;
+  /**
+   * The workspace the domain is assigned to.
+   */
+  workspace_id: WorkspaceId;
+  /**
+   * Why verification failed, when a specific reason is available (for example, the DKIM record was not found at the expected selector).
+   */
+  failure_reason?: string | null;
+};
+
+/**
+ * A sending domain failed DNS verification.
  */
 export type EventDomainFailed = {
   /**
@@ -1184,12 +1240,7 @@ export type EventDomainFailed = {
    * When the event occurred.
    */
   timestamp: string;
-  /**
-   * Event payload. The fields for this event are not yet finalized.
-   */
-  data: {
-    [key: string]: never;
-  };
+  data: EventDomainFailedData;
 };
 
 /**
@@ -1783,8 +1834,6 @@ export type SuppressionScope = {
   id: string;
 };
 
-export type SuppressionId = string;
-
 export type Suppression = {
   readonly id: SuppressionId;
   email: string;
@@ -1978,6 +2027,18 @@ export type SendWhatsAppMessageRequest = {
    *
    */
   template?: SendWhatsAppMessageTemplate;
+  /**
+   * Structured `{name, value}` labels for filtering. Tags become first-class query dimensions: filter the list endpoint by tag name. Maximum 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`). For arbitrary structured context you do not need as a filter dimension, use `metadata` instead.
+   *
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON object stored on the message and returned on API reads. Maximum 2 KB serialized. Use metadata for per-send context like internal IDs and foreign keys. For low-cardinality filterable labels, use `tags` instead.
+   *
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
 };
 
 export type WhatsAppMessageTemplateComponentParameter = {
@@ -2129,6 +2190,16 @@ export type WhatsAppMessage = {
    * When the message was read by the recipient. Null until then.
    */
   readonly read_at?: string | null;
+  /**
+   * Structured `{name, value}` filter labels applied to this message.
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON metadata stored on the message.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
 };
 
 export type VerificationCheckResult = {
@@ -3201,7 +3272,7 @@ export type EmailTemplateSend = unknown & {
    */
   id?: EmailTemplateId;
   /**
-   * The template to send, by its name handle (for example `welcome-email`).
+   * The template to send, by its name handle — a workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).
    */
   name?: TemplateName;
   /**
@@ -4217,6 +4288,16 @@ export type WhatsAppMessageWritable = {
    * Failure detail for a message that did not reach the recipient. Null when there is no failure.
    */
   last_error?: WhatsAppErrorWritable;
+  /**
+   * Structured `{name, value}` filter labels applied to this message.
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON metadata stored on the message.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
 };
 
 export type VerificationCheckResultWritable = {
@@ -4673,6 +4754,12 @@ export type ErrorBodyWritable = {
 };
 
 /**
+ * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
+ *
+ */
+export type MessageTagFilter = Array<string>;
+
+/**
  * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
  */
 export type CreatedBefore = string;
@@ -4766,7 +4853,7 @@ export type ListEmailMessagesData = {
       | "rejected"
       | "canceled";
     /**
-     * Filter by tag. Accepts `name` to match any send carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
+     * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
      *
      */
     tag?: Array<string>;
@@ -6457,7 +6544,7 @@ export type ListSmsMessagesData = {
      */
     from?: string;
     /**
-     * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair. Repeat the parameter to AND-combine several tag filters.
+     * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
      *
      */
     tag?: Array<string>;
@@ -6788,6 +6875,154 @@ export type GetSmsTemplateResponses = {
 export type GetSmsTemplateResponse =
   GetSmsTemplateResponses[keyof GetSmsTemplateResponses];
 
+export type CreateVerificationData = {
+  body: VerificationCreateRequest;
+  headers?: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/verify/verifications";
+};
+
+export type CreateVerificationErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type CreateVerificationError =
+  CreateVerificationErrors[keyof CreateVerificationErrors];
+
+export type CreateVerificationResponses = {
+  /**
+   * The verification's current state, whether newly opened or reused.
+   */
+  200: Verification;
+};
+
+export type CreateVerificationResponse =
+  CreateVerificationResponses[keyof CreateVerificationResponses];
+
+export type CreateVerificationCheckData = {
+  body: VerificationCheckRequest;
+  headers?: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/verify/verifications/check";
+};
+
+export type CreateVerificationCheckErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type CreateVerificationCheckError =
+  CreateVerificationCheckErrors[keyof CreateVerificationCheckErrors];
+
+export type CreateVerificationCheckResponses = {
+  /**
+   * The check outcome and the verification's current state.
+   */
+  200: VerificationCheckResult;
+};
+
+export type CreateVerificationCheckResponse =
+  CreateVerificationCheckResponses[keyof CreateVerificationCheckResponses];
+
 export type ListWhatsAppMessagesData = {
   body?: never;
   path?: never;
@@ -6824,6 +7059,11 @@ export type ListWhatsAppMessagesData = {
      * Filter by business-scoped user ID (Meta identifier).
      */
     bsuid?: string;
+    /**
+     * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
+     *
+     */
+    tag?: Array<string>;
   };
   url: "/v1/whatsapp/messages";
 };

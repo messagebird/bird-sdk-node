@@ -23,6 +23,7 @@ import { SmsResource } from "./resources/sms.js";
 import { SmsTemplatesResource } from "./resources/smsTemplates.js";
 import { WhatsappResource } from "./resources/whatsapp.js";
 import { WhatsappTemplatesResource } from "./resources/whatsappTemplates.js";
+import { VerifyResource } from "./resources/verify.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
@@ -168,6 +169,9 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** WhatsApp templates — `bird.whatsappTemplates.list(...)`. */
   readonly whatsappTemplates: WhatsappTemplatesResource;
 
+  /** The Verify product — `bird.verify.verifications.create(...)`, `.check(...)`. */
+  readonly verify: VerifyResource;
+
   /** Contacts — `bird.contacts.create(...)`, `.list(...)`, `.get(...)`, `.batch(...)`, … */
   readonly contacts: ContactsResource;
 
@@ -223,6 +227,7 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       this.core,
       this.#client,
     );
+    this.verify = new VerifyResource(this.core, this.#client);
     this.contacts = new ContactsResource(this.core, this.#client);
     this.audiences = new AudiencesResource(this.core, this.#client);
     this.contactProperties = new ContactPropertiesResource(

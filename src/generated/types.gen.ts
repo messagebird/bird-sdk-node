@@ -1408,7 +1408,7 @@ export type WebhookEndpointCreate = {
    */
   url: string;
   /**
-   * Concrete event types to subscribe to.
+   * Event types to subscribe to. May combine platform types with `realtime.*` types on one endpoint, all signed with the endpoint's single secret. Server-enforced (returns 422 otherwise): a `realtime.*` type requires the `realtime` object, and `realtime` requires at least one `realtime.*` type.
    */
   events: Array<WebhookEventType>;
   /**

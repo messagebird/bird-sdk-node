@@ -44,6 +44,11 @@ export const WebhookEventTypeSchema = {
     "email_mailbox.suspended",
     "email_mailbox.thread_created",
     "email_suppression.created",
+    "realtime.cache_channels",
+    "realtime.channel_existence",
+    "realtime.client_events",
+    "realtime.presence",
+    "realtime.subscription_count",
     "sms.accepted",
     "sms.delivered",
     "sms.expired",
@@ -2825,7 +2830,8 @@ export const WebhookEndpointCreateSchema = {
         $ref: "#/components/schemas/WebhookEventType",
       },
       minItems: 1,
-      description: "Concrete event types to subscribe to.",
+      description:
+        "Event types to subscribe to. May combine platform types with `realtime.*` types on one endpoint, all signed with the endpoint's single secret. Server-enforced (returns 422 otherwise): a `realtime.*` type requires the `realtime` object, and `realtime` requires at least one `realtime.*` type.",
       example: ["email.delivered", "email.bounced"],
     },
     description: {

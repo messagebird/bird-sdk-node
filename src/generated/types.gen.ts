@@ -1861,6 +1861,357 @@ export type Suppression = {
   readonly created_at: string;
 };
 
+export type ShareDomainDnsRequest = {
+  /**
+   * Email recipients to send the domain's current DNS records to.
+   */
+  emails: Array<string>;
+};
+
+export type DomainEventList = {
+  /**
+   * Page of domain events, newest first by default.
+   */
+  data: Array<DomainEvent>;
+} & ListEnvelope;
+
+export type DomainEventId = string;
+
+export type DomainEvent = {
+  /**
+   * Event ID.
+   */
+  readonly id: DomainEventId;
+  /**
+   * Type of domain event. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.
+   */
+  type: string;
+  /**
+   * Human-readable summary of what changed.
+   */
+  summary: string;
+  /**
+   * Structured details for the event.
+   */
+  metadata: {
+    [key: string]: unknown;
+  };
+  /**
+   * When the event was recorded.
+   */
+  created_at: string;
+};
+
+/**
+ * Partial update. `settings` changes apply immediately. Changes to `return_path`, `tracking`, or `dkim` on a verified capability are staged: the current configuration keeps serving until the new one's DNS records verify, then the change is promoted automatically and the old records are marked `deprecated`. The staged value is visible under `capabilities.*.pending` and can be replaced by submitting another change.
+ *
+ */
+export type DomainUpdate = {
+  settings?: DomainSettings;
+  return_path?: DomainReturnPathConfig & unknown;
+  /**
+   * Set or change the tracking name part, or remove tracking by passing null. Removal requires `click_tracking` and `open_tracking` to be disabled first, and returns `409` otherwise. After removal, links in previously sent email keep resolving while the tracking records are reported as `deprecated`.
+   *
+   */
+  tracking?: DomainTrackingConfig | null;
+  dkim?: DomainDkimConfig & unknown;
+  inbound?: DomainInboundConfig & unknown;
+};
+
+/**
+ * Inbound (receiving) configuration. Enable inbound to receive email addressed to this domain: Bird returns MX records to publish, and once they verify, mail to any local-part at this domain is delivered as an inbound message and the `email.received` webhook fires. The capability is enabled on the domain's own registration, so use a dedicated subdomain (e.g. `inbound.acme.com`), never your apex — apex MX would capture your corporate mail.
+ *
+ */
+export type DomainInboundConfig = {
+  /**
+   * Set `true` to enable receiving on this domain, `false` to disable it. Disabling tears receiving down and removes the MX records from `dns_records`; this is immediate in the normal case, and if a step needs retrying the capability clears as soon as teardown finishes.
+   *
+   */
+  enabled: boolean;
+};
+
+/**
+ * DKIM signing configuration.
+ */
+export type DomainDkimConfig = {
+  /**
+   * How the DKIM public key is published in your DNS.
+   * - `txt` — you publish the DKIM public key as a TXT record. Key
+   * rotation requires updating the record.
+   * - `delegated` — preview, currently unavailable; supplying it returns
+   * `422`. When available, you publish a single CNAME and Bird hosts
+   * and rotates the key with no further DNS changes on your side.
+   *
+   */
+  mode?: "txt" | "delegated";
+};
+
+/**
+ * Tracking domain configuration for branded open and click tracking URLs. Provide only the name part; Bird adds the sending domain automatically. Defaults to `links` when omitted at creation. Tracked links are served over HTTPS once the tracking record verifies.
+ *
+ */
+export type DomainTrackingConfig = {
+  /**
+   * Name part to use for branded open and click tracking URLs. For example, `links` on `mail.acme.com` becomes `links.mail.acme.com`.
+   *
+   */
+  name: string;
+};
+
+/**
+ * Return-path (bounce) domain configuration. The return-path domain receives bounce and complaint notifications for mail sent from this domain and is what mailbox providers check for SPF. Provide only the name part; Bird adds the sending domain automatically.
+ *
+ */
+export type DomainReturnPathConfig = {
+  /**
+   * Name part to use for the return-path domain. For example, `send` on `mail.acme.com` becomes `send.mail.acme.com`. Defaults to `send` when omitted at creation.
+   *
+   */
+  name: string;
+};
+
+/**
+ * Per-domain behavior toggles. Changes apply immediately to new sends.
+ *
+ */
+export type DomainSettings = {
+  /**
+   * Rewrite links in HTML email through your tracking domain to record clicks. You can enable this before your tracking domain has verified — it begins working once verification completes. A tracking domain must be configured; enabling it without one returns `409`.
+   *
+   */
+  click_tracking?: boolean;
+  /**
+   * Insert a tracking pixel in HTML email to record opens. You can enable this before your tracking domain has verified — it begins working once verification completes. A tracking domain must be configured; enabling it without one returns `409`.
+   *
+   */
+  open_tracking?: boolean;
+};
+
+export type DomainCreate = {
+  /**
+   * The domain you will send from — the domain of your `from` addresses. Use a dedicated subdomain (e.g. `mail.acme.com`) rather than your registered domain so sending reputation stays separate from other services on the domain.
+   *
+   */
+  domain: string;
+  return_path?: DomainReturnPathConfig;
+  tracking?: DomainTrackingConfig;
+  dkim?: DomainDkimConfig;
+  settings?: DomainSettings;
+};
+
+export type DomainList = {
+  data: Array<Domain>;
+} & ListEnvelopeWithTotal;
+
+export type DnsRecord = {
+  type: "TXT" | "CNAME" | "MX";
+  /**
+   * The record name — the part you enter in your DNS provider's "Name" or "Host" field, relative to the DNS zone the record belongs in (your registered domain). For a sending domain `mail.acme.com` the DKIM record name is `bird1._domainkey.mail`, entered in the `acme.com` zone. `@` for records at the zone apex.
+   *
+   */
+  name: string;
+  /**
+   * The fully qualified hostname for this record (e.g. `bird1._domainkey.mail.acme.com`).
+   *
+   */
+  host: string;
+  value: string;
+  /**
+   * What this record is for.
+   * - `dkim` — signs outbound mail and proves domain ownership. - `return_path` — return-path (bounce) CNAME for sending. - `tracking` — branded open/click tracking CNAME (optional). - `dmarc` — advisory DMARC policy record. - `inbound_mx` — MX record routing mail to Bird for receiving. Always
+   * present wherever inbound is available, as a regional reference,
+   * regardless of whether receiving is enabled; publishing it does not
+   * enable receiving on its own — see `DomainUpdate.inbound`.
+   *
+   */
+  purpose: "dkim" | "return_path" | "tracking" | "inbound_mx" | "dmarc";
+  /**
+   * Lifecycle state of this record.
+   * - `active` — the record backs the domain's current configuration. - `pending` — the record belongs to a staged configuration change;
+   * publish it to complete the change.
+   * - `deprecated` — the record belonged to a previous configuration.
+   * Keep it in DNS until `safe_to_remove` is `true`; in-flight mail and
+   * previously sent tracked links may still resolve through it.
+   *
+   */
+  readonly state: "active" | "pending" | "deprecated";
+  /**
+   * Whether this record can be skipped. Optional records enable extra functionality (e.g. tracking) but are not required for sending.
+   *
+   */
+  readonly optional: boolean;
+  /**
+   * Verification status of this record's most recent DNS check.
+   * - `pending` — the record has not verified yet; publish it (or correct it)
+   * and it will verify on the next check.
+   * - `verified` — the most recent check matched the expected value. - `warning` — the record verified before and a recent check no longer
+   * matched, but it is still within the grace period. Sending is not yet
+   * affected; fix the record before the grace period ends to avoid it
+   * being blocked.
+   * - `failed` — the record verified before but later checks kept failing
+   * past the grace period; the configuration has regressed and needs
+   * attention.
+   *
+   */
+  readonly status: "pending" | "verified" | "warning" | "failed";
+  /**
+   * Human-readable detail for a failed check on this record — what was found in DNS and why it did not match. Null when the record is verified or not yet checked.
+   *
+   */
+  readonly error?: string | null;
+  /**
+   * Only set on `deprecated` records: `true` once the record is no longer referenced by in-flight mail or live tracked links and can be deleted from your DNS. Null on `active` and `pending` records.
+   *
+   */
+  readonly safe_to_remove?: boolean | null;
+};
+
+/**
+ * A staged configuration change awaiting DNS verification. The currently active configuration keeps serving until the staged one verifies, at which point it is promoted automatically. Submitting another change for the same capability replaces the staged value.
+ *
+ */
+export type DomainCapabilityPending = {
+  /**
+   * Hostname the capability will use once the staged change verifies.
+   */
+  readonly domain: string;
+  /**
+   * Verification status of the staged change. `pending` — waiting for the DNS records to be detected. `failed` — the records resolved with wrong values; correct them or submit a different change. `temporary_failure` — DNS lookup failed transiently and will be retried.
+   *
+   */
+  readonly status: "pending" | "failed" | "temporary_failure";
+};
+
+export type DomainCapability = {
+  /**
+   * Capability verification status.
+   * - `pending` — verification has not run, or is currently running. - `verified` — all DNS records for this capability resolved with the
+   * expected values.
+   * - `warning` — a record for this capability verified before and a recent
+   * check no longer matches, but it is still within the grace period.
+   * Sending is not yet affected; fix it before the grace period ends.
+   * - `failed` — DNS records resolved but at least one value is wrong.
+   * Update your DNS to recover.
+   * - `temporary_failure` — DNS lookup failed transiently. Verification is
+   * queued for retry; don't change DNS records yet.
+   * - `not_configured` — the capability is not set up on this domain
+   * (e.g. no tracking domain configured).
+   *
+   */
+  readonly status:
+    | "pending"
+    | "verified"
+    | "warning"
+    | "failed"
+    | "temporary_failure"
+    | "not_configured";
+  /**
+   * Hostname this capability is configured with — the return-path domain, the tracking domain, or the domain where the DMARC policy was found. Null when not applicable or not configured.
+   *
+   */
+  readonly domain?: string | null;
+  pending?: DomainCapabilityPending;
+  /**
+   * Machine-readable reason code for a failed capability status. Only set when `status` is `failed`. Use this to display a specific message to users rather than a generic failure message.
+   * - `tracking_domain_in_use` — the link tracking subdomain is already claimed
+   * by another organization.
+   *
+   */
+  readonly reason?: string | null;
+};
+
+export type DomainCapabilities = {
+  sending: DomainCapability & unknown;
+  return_path: DomainCapability & unknown;
+  dmarc: DomainCapability & unknown;
+  tracking: DomainCapability & unknown;
+  inbound?: DomainCapability & unknown;
+};
+
+/**
+ * Active DKIM signing configuration for the domain.
+ */
+export type DomainDkim = {
+  /**
+   * How the DKIM public key is published in your DNS. `txt` — you publish the key as a TXT record. `delegated` — you publish a single CNAME and Bird hosts and rotates the key.
+   *
+   */
+  readonly mode: "txt" | "delegated";
+  /**
+   * DKIM selector used to sign mail from this domain.
+   */
+  readonly selector: string;
+  /**
+   * RSA key size in bits.
+   */
+  readonly key_size: number;
+};
+
+export type Domain = {
+  readonly id: DomainId;
+  readonly workspace_id: WorkspaceId;
+  /**
+   * The sending domain name. Set at creation and immutable.
+   */
+  readonly domain: string;
+  /**
+   * The DNS provider hosting this domain's nameservers, so you know which provider's dashboard to manage the required DNS records in. Returns "other" when the provider has not been detected or is not recognized.
+   *
+   */
+  readonly vendor:
+    | "other"
+    | "cloudflare"
+    | "route53"
+    | "godaddy"
+    | "namecheap"
+    | "google"
+    | "azure"
+    | "digitalocean"
+    | "squarespace";
+  /**
+   * Domain ownership verification, proven by the DKIM record. Readiness to send or track is reported separately per capability under `capabilities.*.status`.
+   * - `pending` — the DKIM record has not been published yet. - `verified` — the DKIM record is in place; ownership is confirmed. - `failed` — a DKIM record exists but does not match the expected
+   * value (for example a stale record from an earlier setup), or a
+   * previously verified record was removed. Correct the record to
+   * recover.
+   * - `temporary_failure` — DNS resolution failed transiently (timeout,
+   * unreachable nameserver). Verification is queued for retry on a 72h
+   * cadence; customer should not edit DNS records before the retry runs.
+   * - `rejected` — the domain was refused for policy reasons and cannot be
+   * used for sending. Contact support if you believe this is an error.
+   *
+   */
+  readonly status:
+    "pending" | "verified" | "failed" | "temporary_failure" | "rejected";
+  settings: DomainSettings;
+  readonly dkim: DomainDkim;
+  capabilities: DomainCapabilities;
+  /**
+   * The domain's DNS records and their individual verification state, returned in full on both the list and single-domain responses. This is the complete set to publish across DKIM, return-path, DMARC, tracking, and inbound; records for a staged change carry `state: pending`. Inbound MX records are always included as a regional reference, even while receiving is off (`capabilities.inbound.status` is `not_configured`) — their presence alone does not mean receiving is enabled (see `DomainUpdate.inbound`).
+   *
+   */
+  readonly dns_records: Array<DnsRecord>;
+  /**
+   * When Bird last checked this domain's DNS records, whether or not the outcome changed. Updated on every verification — your manual refresh and the periodic automatic re-checks alike. Null if the domain has never been checked.
+   *
+   */
+  readonly last_checked_at?: string | null;
+  /**
+   * When the domain's ownership was confirmed — the moment `status` became `verified` via the DKIM record. Unchanged by later re-checks while it stays verified. Null if the domain has never been verified.
+   *
+   */
+  readonly verified_at?: string | null;
+  /**
+   * When the domain was added.
+   */
+  readonly created_at: string;
+  /**
+   * When the domain's configuration was last changed (such as a settings or return-path change). Verification re-checks do not change this; see `last_checked_at` and `verified_at` for verification timing.
+   *
+   */
+  readonly updated_at: string;
+};
+
 export type WhatsAppTemplateList = {
   /**
    * The templates available to your workspace.
@@ -2738,6 +3089,28 @@ export type AudienceMemberList = {
   data: Array<AudienceMember>;
 } & ListEnvelope;
 
+export type AudienceId = string;
+
+/**
+ * A compact reference to an audience -- its ID and display name.
+ */
+export type AudienceRef = {
+  /**
+   * Audience ID.
+   */
+  readonly id: AudienceId;
+  /**
+   * The audience's display name.
+   */
+  name: string;
+};
+
+/**
+ * A channel a contact can be reached on. Open enum — `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.
+ *
+ */
+export type ContactChannel = string;
+
 export type Contact = {
   /**
    * Contact ID.
@@ -2766,6 +3139,11 @@ export type Contact = {
   data?: {
     [key: string]: unknown;
   };
+  /**
+   * Channels this contact can be reached on, derived from the identifiers it has. A contact with an email address includes `email`. More values are added as a contact gains identifiers for other channels.
+   *
+   */
+  readonly channels?: Array<ContactChannel>;
 } & Timestamps;
 
 export type AudienceMember = {
@@ -2774,6 +3152,10 @@ export type AudienceMember = {
    * When this contact joined the audience. Members are listed in join order, most recent first.
    */
   readonly joined_at: string;
+  /**
+   * The audiences this contact belongs to, including the one being listed, most-recently-joined first.
+   */
+  readonly audiences?: Array<AudienceRef>;
 };
 
 export type AudienceUpdateRequest = {
@@ -2863,8 +3245,6 @@ export type AudienceList = {
    */
   data: Array<Audience>;
 } & ListEnvelope;
-
-export type AudienceId = string;
 
 export type Audience = {
   /**
@@ -4240,6 +4620,79 @@ export type SuppressionWritable = {
   source_recipient_id?: RecipientId | null;
 };
 
+export type DomainEventListWritable = {
+  /**
+   * Page of domain events, newest first by default.
+   */
+  data: Array<DomainEventWritable>;
+} & ListEnvelope;
+
+export type DomainEventWritable = {
+  /**
+   * Type of domain event. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.
+   */
+  type: string;
+  /**
+   * Human-readable summary of what changed.
+   */
+  summary: string;
+  /**
+   * Structured details for the event.
+   */
+  metadata: {
+    [key: string]: unknown;
+  };
+  /**
+   * When the event was recorded.
+   */
+  created_at: string;
+};
+
+export type DomainListWritable = {
+  data: Array<DomainWritable>;
+} & ListEnvelopeWithTotal;
+
+export type DnsRecordWritable = {
+  type: "TXT" | "CNAME" | "MX";
+  /**
+   * The record name — the part you enter in your DNS provider's "Name" or "Host" field, relative to the DNS zone the record belongs in (your registered domain). For a sending domain `mail.acme.com` the DKIM record name is `bird1._domainkey.mail`, entered in the `acme.com` zone. `@` for records at the zone apex.
+   *
+   */
+  name: string;
+  /**
+   * The fully qualified hostname for this record (e.g. `bird1._domainkey.mail.acme.com`).
+   *
+   */
+  host: string;
+  value: string;
+  /**
+   * What this record is for.
+   * - `dkim` — signs outbound mail and proves domain ownership. - `return_path` — return-path (bounce) CNAME for sending. - `tracking` — branded open/click tracking CNAME (optional). - `dmarc` — advisory DMARC policy record. - `inbound_mx` — MX record routing mail to Bird for receiving. Always
+   * present wherever inbound is available, as a regional reference,
+   * regardless of whether receiving is enabled; publishing it does not
+   * enable receiving on its own — see `DomainUpdate.inbound`.
+   *
+   */
+  purpose: "dkim" | "return_path" | "tracking" | "inbound_mx" | "dmarc";
+};
+
+export type DomainCapabilityWritable = {
+  [key: string]: never;
+};
+
+export type DomainCapabilitiesWritable = {
+  sending: DomainCapabilityWritable & unknown;
+  return_path: DomainCapabilityWritable & unknown;
+  dmarc: DomainCapabilityWritable & unknown;
+  tracking: DomainCapabilityWritable & unknown;
+  inbound?: DomainCapabilityWritable & unknown;
+};
+
+export type DomainWritable = {
+  settings: DomainSettings;
+  capabilities: DomainCapabilitiesWritable;
+};
+
 export type WhatsAppTemplateListWritable = {
   /**
    * The templates available to your workspace.
@@ -4392,6 +4845,16 @@ export type AudienceMemberListWritable = {
    */
   data: Array<AudienceMemberWritable>;
 } & ListEnvelope;
+
+/**
+ * A compact reference to an audience -- its ID and display name.
+ */
+export type AudienceRefWritable = {
+  /**
+   * The audience's display name.
+   */
+  name: string;
+};
 
 export type ContactWritable = {
   /**
@@ -6234,6 +6697,10 @@ export type ListAudienceContactsData = {
     audience_id: AudienceId;
   };
   query?: {
+    /**
+     * Case-insensitive substring match against the member's email address.
+     */
+    search?: string;
     /**
      * Maximum number of items to return per page.
      */

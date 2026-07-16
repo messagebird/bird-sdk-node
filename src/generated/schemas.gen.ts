@@ -3742,6 +3742,659 @@ export const SuppressionSchema = {
   },
 } as const;
 
+export const ShareDomainDnsRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["emails"],
+  properties: {
+    emails: {
+      type: "array",
+      minItems: 1,
+      maxItems: 3,
+      description:
+        "Email recipients to send the domain's current DNS records to.",
+      items: {
+        type: "string",
+        format: "email",
+        example: "alice@example.com",
+      },
+    },
+  },
+  example: {
+    emails: ["alice@example.com", "bob@example.com"],
+  },
+} as const;
+
+export const DomainEventListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of domain events, newest first by default.",
+          items: {
+            $ref: "#/components/schemas/DomainEvent",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const DomainEventIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^dev_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "dev_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const DomainEventSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "type", "summary", "metadata", "created_at"],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/DomainEventID",
+      description: "Event ID.",
+    },
+    type: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Type of domain event. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+      "x-extensible-enum": [
+        "domain.registered",
+        "domain.settings_updated",
+        "domain.return_path_changed",
+        "domain.tracking_changed",
+        "domain.tracking_removed",
+        "domain.status_changed",
+        "domain.sending_status_changed",
+        "domain.dkim_status_changed",
+        "domain.dmarc_status_changed",
+        "domain.return_path_status_changed",
+        "domain.tracking_status_changed",
+      ],
+      example: "domain.status_changed",
+    },
+    summary: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable summary of what changed.",
+      example: "Domain verified — ownership confirmed.",
+    },
+    metadata: {
+      type: "object",
+      description: "Structured details for the event.",
+      additionalProperties: true,
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      description: "When the event was recorded.",
+    },
+  },
+} as const;
+
+export const DomainUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Partial update. `settings` changes apply immediately. Changes to `return_path`, `tracking`, or `dkim` on a verified capability are staged: the current configuration keeps serving until the new one's DNS records verify, then the change is promoted automatically and the old records are marked `deprecated`. The staged value is visible under `capabilities.*.pending` and can be replaced by submitting another change.\n",
+  properties: {
+    settings: {
+      $ref: "#/components/schemas/DomainSettings",
+    },
+    return_path: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainReturnPathConfig",
+        },
+        {
+          description:
+            "Change the return-path name part. Cannot be removed — the return-path is required for sending.\n",
+        },
+      ],
+    },
+    tracking: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/DomainTrackingConfig",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Set or change the tracking name part, or remove tracking by passing null. Removal requires `click_tracking` and `open_tracking` to be disabled first, and returns `409` otherwise. After removal, links in previously sent email keep resolving while the tracking records are reported as `deprecated`.\n",
+    },
+    dkim: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainDKIMConfig",
+        },
+        {
+          description:
+            "Change how the DKIM key is published. The current key keeps signing until the new configuration verifies, so mail is never sent unsigned during the transition.\n",
+        },
+      ],
+    },
+    inbound: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainInboundConfig",
+        },
+        {
+          description:
+            "Enable or disable receiving on this domain. Enabling claims the domain for inbound and moves `capabilities.inbound.status` from `not_configured` to `pending`, then `verified` once the MX records resolve to Bird. The MX records to publish are always present under `dns_records` (`purpose: inbound_mx`) as a regional reference, so their presence does not mean receiving is on — a domain still needs enabling whenever `capabilities.inbound.status` is `not_configured`. Enabling requires the domain's DKIM to be verified first (ownership proof): a fresh enable on a domain whose DKIM is not verified returns `422` `E05019` and claims nothing. A domain already receiving inbound for another organization returns `422` `E05018`.\n",
+        },
+      ],
+    },
+  },
+  example: {
+    settings: {
+      click_tracking: true,
+      open_tracking: true,
+    },
+    tracking: {
+      name: "links",
+    },
+  },
+} as const;
+
+export const DomainInboundConfigSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["enabled"],
+  description:
+    "Inbound (receiving) configuration. Enable inbound to receive email addressed to this domain: Bird returns MX records to publish, and once they verify, mail to any local-part at this domain is delivered as an inbound message and the `email.received` webhook fires. The capability is enabled on the domain's own registration, so use a dedicated subdomain (e.g. `inbound.acme.com`), never your apex — apex MX would capture your corporate mail.\n",
+  properties: {
+    enabled: {
+      type: "boolean",
+      description:
+        "Set `true` to enable receiving on this domain, `false` to disable it. Disabling tears receiving down and removes the MX records from `dns_records`; this is immediate in the normal case, and if a step needs retrying the capability clears as soon as teardown finishes.\n",
+      example: true,
+    },
+  },
+} as const;
+
+export const DomainDKIMConfigSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "DKIM signing configuration.",
+  properties: {
+    mode: {
+      type: "string",
+      enum: ["txt", "delegated"],
+      default: "txt",
+      description:
+        "How the DKIM public key is published in your DNS.\n- `txt` — you publish the DKIM public key as a TXT record. Key\n  rotation requires updating the record.\n- `delegated` — preview, currently unavailable; supplying it returns\n  `422`. When available, you publish a single CNAME and Bird hosts\n  and rotates the key with no further DNS changes on your side.\n",
+    },
+  },
+} as const;
+
+export const DomainTrackingConfigSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  description:
+    "Tracking domain configuration for branded open and click tracking URLs. Provide only the name part; Bird adds the sending domain automatically. Defaults to `links` when omitted at creation. Tracked links are served over HTTPS once the tracking record verifies.\n",
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 63,
+      pattern: "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$",
+      description:
+        "Name part to use for branded open and click tracking URLs. For example, `links` on `mail.acme.com` becomes `links.mail.acme.com`.\n",
+      example: "links",
+    },
+  },
+} as const;
+
+export const DomainReturnPathConfigSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  description:
+    "Return-path (bounce) domain configuration. The return-path domain receives bounce and complaint notifications for mail sent from this domain and is what mailbox providers check for SPF. Provide only the name part; Bird adds the sending domain automatically.\n",
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 63,
+      pattern: "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$",
+      description:
+        "Name part to use for the return-path domain. For example, `send` on `mail.acme.com` becomes `send.mail.acme.com`. Defaults to `send` when omitted at creation.\n",
+      example: "send",
+    },
+  },
+} as const;
+
+export const DomainSettingsSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-domain behavior toggles. Changes apply immediately to new sends.\n",
+  properties: {
+    click_tracking: {
+      type: "boolean",
+      default: false,
+      description:
+        "Rewrite links in HTML email through your tracking domain to record clicks. You can enable this before your tracking domain has verified — it begins working once verification completes. A tracking domain must be configured; enabling it without one returns `409`.\n",
+    },
+    open_tracking: {
+      type: "boolean",
+      default: false,
+      description:
+        "Insert a tracking pixel in HTML email to record opens. You can enable this before your tracking domain has verified — it begins working once verification completes. A tracking domain must be configured; enabling it without one returns `409`.\n",
+    },
+  },
+} as const;
+
+export const DomainCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["domain"],
+  properties: {
+    domain: {
+      type: "string",
+      format: "hostname",
+      minLength: 1,
+      description:
+        "The domain you will send from — the domain of your `from` addresses. Use a dedicated subdomain (e.g. `mail.acme.com`) rather than your registered domain so sending reputation stays separate from other services on the domain.\n",
+      example: "mail.acme.com",
+    },
+    return_path: {
+      $ref: "#/components/schemas/DomainReturnPathConfig",
+    },
+    tracking: {
+      $ref: "#/components/schemas/DomainTrackingConfig",
+    },
+    dkim: {
+      $ref: "#/components/schemas/DomainDKIMConfig",
+    },
+    settings: {
+      $ref: "#/components/schemas/DomainSettings",
+    },
+  },
+  example: {
+    domain: "mail.acme.com",
+  },
+} as const;
+
+export const DomainListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Domain",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
+} as const;
+
+export const DNSRecordSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "type",
+    "name",
+    "host",
+    "value",
+    "purpose",
+    "state",
+    "optional",
+    "status",
+  ],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["TXT", "CNAME", "MX"],
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      description:
+        'The record name — the part you enter in your DNS provider\'s "Name" or "Host" field, relative to the DNS zone the record belongs in (your registered domain). For a sending domain `mail.acme.com` the DKIM record name is `bird1._domainkey.mail`, entered in the `acme.com` zone. `@` for records at the zone apex.\n',
+    },
+    host: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The fully qualified hostname for this record (e.g. `bird1._domainkey.mail.acme.com`).\n",
+    },
+    value: {
+      type: "string",
+      minLength: 1,
+    },
+    purpose: {
+      type: "string",
+      minLength: 1,
+      description:
+        "What this record is for.\n- `dkim` — signs outbound mail and proves domain ownership. - `return_path` — return-path (bounce) CNAME for sending. - `tracking` — branded open/click tracking CNAME (optional). - `dmarc` — advisory DMARC policy record. - `inbound_mx` — MX record routing mail to Bird for receiving. Always\n  present wherever inbound is available, as a regional reference,\n  regardless of whether receiving is enabled; publishing it does not\n  enable receiving on its own — see `DomainUpdate.inbound`.\n",
+      enum: ["dkim", "return_path", "tracking", "inbound_mx", "dmarc"],
+    },
+    state: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Lifecycle state of this record.\n- `active` — the record backs the domain's current configuration. - `pending` — the record belongs to a staged configuration change;\n  publish it to complete the change.\n- `deprecated` — the record belonged to a previous configuration.\n  Keep it in DNS until `safe_to_remove` is `true`; in-flight mail and\n  previously sent tracked links may still resolve through it.\n",
+      enum: ["active", "pending", "deprecated"],
+    },
+    optional: {
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Whether this record can be skipped. Optional records enable extra functionality (e.g. tracking) but are not required for sending.\n",
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Verification status of this record's most recent DNS check.\n- `pending` — the record has not verified yet; publish it (or correct it)\n  and it will verify on the next check.\n- `verified` — the most recent check matched the expected value. - `warning` — the record verified before and a recent check no longer\n  matched, but it is still within the grace period. Sending is not yet\n  affected; fix the record before the grace period ends to avoid it\n  being blocked.\n- `failed` — the record verified before but later checks kept failing\n  past the grace period; the configuration has regressed and needs\n  attention.\n",
+      enum: ["pending", "verified", "warning", "failed"],
+    },
+    error: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Human-readable detail for a failed check on this record — what was found in DNS and why it did not match. Null when the record is verified or not yet checked.\n",
+    },
+    safe_to_remove: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Only set on `deprecated` records: `true` once the record is no longer referenced by in-flight mail or live tracked links and can be deleted from your DNS. Null on `active` and `pending` records.\n",
+    },
+  },
+} as const;
+
+export const DomainCapabilityPendingSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A staged configuration change awaiting DNS verification. The currently active configuration keeps serving until the staged one verifies, at which point it is promoted automatically. Submitting another change for the same capability replaces the staged value.\n",
+  required: ["domain", "status"],
+  properties: {
+    domain: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description:
+        "Hostname the capability will use once the staged change verifies.",
+      example: "rp.mail.acme.com",
+    },
+    status: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description:
+        "Verification status of the staged change. `pending` — waiting for the DNS records to be detected. `failed` — the records resolved with wrong values; correct them or submit a different change. `temporary_failure` — DNS lookup failed transiently and will be retried.\n",
+      enum: ["pending", "failed", "temporary_failure"],
+      example: "pending",
+    },
+  },
+} as const;
+
+export const DomainCapabilitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status"],
+  properties: {
+    status: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Capability verification status.\n- `pending` — verification has not run, or is currently running. - `verified` — all DNS records for this capability resolved with the\n  expected values.\n- `warning` — a record for this capability verified before and a recent\n  check no longer matches, but it is still within the grace period.\n  Sending is not yet affected; fix it before the grace period ends.\n- `failed` — DNS records resolved but at least one value is wrong.\n  Update your DNS to recover.\n- `temporary_failure` — DNS lookup failed transiently. Verification is\n  queued for retry; don't change DNS records yet.\n- `not_configured` — the capability is not set up on this domain\n  (e.g. no tracking domain configured).\n",
+      enum: [
+        "pending",
+        "verified",
+        "warning",
+        "failed",
+        "temporary_failure",
+        "not_configured",
+      ],
+      example: "verified",
+    },
+    domain: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Hostname this capability is configured with — the return-path domain, the tracking domain, or the domain where the DMARC policy was found. Null when not applicable or not configured.\n",
+    },
+    pending: {
+      $ref: "#/components/schemas/DomainCapabilityPending",
+    },
+    reason: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Machine-readable reason code for a failed capability status. Only set when `status` is `failed`. Use this to display a specific message to users rather than a generic failure message.\n- `tracking_domain_in_use` — the link tracking subdomain is already claimed\n  by another organization.\n",
+    },
+  },
+} as const;
+
+export const DomainCapabilitiesSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["sending", "return_path", "dmarc", "tracking"],
+  properties: {
+    sending: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapability",
+        },
+        {
+          description:
+            "Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.\n",
+        },
+      ],
+    },
+    return_path: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapability",
+        },
+        {
+          description:
+            "Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.\n",
+        },
+      ],
+    },
+    dmarc: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapability",
+        },
+        {
+          description:
+            "DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.\n",
+        },
+      ],
+    },
+    tracking: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapability",
+        },
+        {
+          description:
+            "Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.\n",
+        },
+      ],
+    },
+    inbound: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapability",
+        },
+        {
+          description:
+            "Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.\n",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const DomainDKIMSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Active DKIM signing configuration for the domain.",
+  required: ["mode", "selector", "key_size"],
+  properties: {
+    mode: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      enum: ["txt", "delegated"],
+      description:
+        "How the DKIM public key is published in your DNS. `txt` — you publish the key as a TXT record. `delegated` — you publish a single CNAME and Bird hosts and rotates the key.\n",
+    },
+    selector: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "DKIM selector used to sign mail from this domain.",
+      example: "bird1",
+    },
+    key_size: {
+      type: "integer",
+      readOnly: true,
+      description: "RSA key size in bits.",
+      example: 2048,
+    },
+  },
+} as const;
+
+export const DomainSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "workspace_id",
+    "domain",
+    "vendor",
+    "status",
+    "settings",
+    "dkim",
+    "capabilities",
+    "dns_records",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/DomainID",
+    },
+    workspace_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/WorkspaceID",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The sending domain name. Set at creation and immutable.",
+      example: "mail.acme.com",
+    },
+    vendor: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The DNS provider hosting this domain's nameservers, so you know which provider's dashboard to manage the required DNS records in. Returns \"other\" when the provider has not been detected or is not recognized.\n",
+      enum: [
+        "other",
+        "cloudflare",
+        "route53",
+        "godaddy",
+        "namecheap",
+        "google",
+        "azure",
+        "digitalocean",
+        "squarespace",
+      ],
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Domain ownership verification, proven by the DKIM record. Readiness to send or track is reported separately per capability under `capabilities.*.status`.\n- `pending` — the DKIM record has not been published yet. - `verified` — the DKIM record is in place; ownership is confirmed. - `failed` — a DKIM record exists but does not match the expected\n  value (for example a stale record from an earlier setup), or a\n  previously verified record was removed. Correct the record to\n  recover.\n- `temporary_failure` — DNS resolution failed transiently (timeout,\n  unreachable nameserver). Verification is queued for retry on a 72h\n  cadence; customer should not edit DNS records before the retry runs.\n- `rejected` — the domain was refused for policy reasons and cannot be\n  used for sending. Contact support if you believe this is an error.\n",
+      enum: ["pending", "verified", "failed", "temporary_failure", "rejected"],
+    },
+    settings: {
+      $ref: "#/components/schemas/DomainSettings",
+    },
+    dkim: {
+      readOnly: true,
+      $ref: "#/components/schemas/DomainDKIM",
+    },
+    capabilities: {
+      $ref: "#/components/schemas/DomainCapabilities",
+    },
+    dns_records: {
+      type: "array",
+      readOnly: true,
+      description:
+        "The domain's DNS records and their individual verification state, returned in full on both the list and single-domain responses. This is the complete set to publish across DKIM, return-path, DMARC, tracking, and inbound; records for a staged change carry `state: pending`. Inbound MX records are always included as a regional reference, even while receiving is off (`capabilities.inbound.status` is `not_configured`) — their presence alone does not mean receiving is enabled (see `DomainUpdate.inbound`).\n",
+      items: {
+        $ref: "#/components/schemas/DNSRecord",
+      },
+    },
+    last_checked_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When Bird last checked this domain's DNS records, whether or not the outcome changed. Updated on every verification — your manual refresh and the periodic automatic re-checks alike. Null if the domain has never been checked.\n",
+    },
+    verified_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the domain's ownership was confirmed — the moment `status` became `verified` via the DKIM record. Unchanged by later re-checks while it stays verified. Null if the domain has never been verified.\n",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      readOnly: true,
+      description: "When the domain was added.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the domain's configuration was last changed (such as a settings or return-path change). Verification re-checks do not change this; see `last_checked_at` and `verified_at` for verification timing.\n",
+    },
+  },
+} as const;
+
 export const WhatsAppTemplateListSchema = {
   type: "object",
   additionalProperties: false,
@@ -5590,6 +6243,41 @@ export const AudienceMemberListSchema = {
   ],
 } as const;
 
+export const AudienceIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^adn_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "adn_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const AudienceRefSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name"],
+  description: "A compact reference to an audience -- its ID and display name.",
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/AudienceID",
+      description: "Audience ID.",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      description: "The audience's display name.",
+    },
+  },
+} as const;
+
+export const ContactChannelSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["email"],
+  description:
+    "A channel a contact can be reached on. Open enum — `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.\n",
+} as const;
+
 export const ContactSchema = {
   allOf: [
     {
@@ -5631,6 +6319,15 @@ export const ContactSchema = {
           description:
             "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.\n",
         },
+        channels: {
+          type: "array",
+          readOnly: true,
+          description:
+            "Channels this contact can be reached on, derived from the identifiers it has. A contact with an email address includes `email`. More values are added as a contact gains identifiers for other channels.\n",
+          items: {
+            $ref: "#/components/schemas/ContactChannel",
+          },
+        },
       },
     },
     {
@@ -5654,6 +6351,15 @@ export const AudienceMemberSchema = {
       readOnly: true,
       description:
         "When this contact joined the audience. Members are listed in join order, most recent first.",
+    },
+    audiences: {
+      type: "array",
+      readOnly: true,
+      description:
+        "The audiences this contact belongs to, including the one being listed, most-recently-joined first.",
+      items: {
+        $ref: "#/components/schemas/AudienceRef",
+      },
     },
   },
 } as const;
@@ -5865,13 +6571,6 @@ export const AudienceListSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
-} as const;
-
-export const AudienceIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^adn_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "adn_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const AudienceSchema = {
@@ -8453,6 +9152,210 @@ export const SuppressionWritableSchema = {
   },
 } as const;
 
+export const DomainEventListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          description: "Page of domain events, newest first by default.",
+          items: {
+            $ref: "#/components/schemas/DomainEventWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const DomainEventWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "summary", "metadata", "created_at"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Type of domain event. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+      "x-extensible-enum": [
+        "domain.registered",
+        "domain.settings_updated",
+        "domain.return_path_changed",
+        "domain.tracking_changed",
+        "domain.tracking_removed",
+        "domain.status_changed",
+        "domain.sending_status_changed",
+        "domain.dkim_status_changed",
+        "domain.dmarc_status_changed",
+        "domain.return_path_status_changed",
+        "domain.tracking_status_changed",
+      ],
+      example: "domain.status_changed",
+    },
+    summary: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable summary of what changed.",
+      example: "Domain verified — ownership confirmed.",
+    },
+    metadata: {
+      type: "object",
+      description: "Structured details for the event.",
+      additionalProperties: true,
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      description: "When the event was recorded.",
+    },
+  },
+} as const;
+
+export const DomainListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/DomainWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
+} as const;
+
+export const DNSRecordWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "name", "host", "value", "purpose"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["TXT", "CNAME", "MX"],
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      description:
+        'The record name — the part you enter in your DNS provider\'s "Name" or "Host" field, relative to the DNS zone the record belongs in (your registered domain). For a sending domain `mail.acme.com` the DKIM record name is `bird1._domainkey.mail`, entered in the `acme.com` zone. `@` for records at the zone apex.\n',
+    },
+    host: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The fully qualified hostname for this record (e.g. `bird1._domainkey.mail.acme.com`).\n",
+    },
+    value: {
+      type: "string",
+      minLength: 1,
+    },
+    purpose: {
+      type: "string",
+      minLength: 1,
+      description:
+        "What this record is for.\n- `dkim` — signs outbound mail and proves domain ownership. - `return_path` — return-path (bounce) CNAME for sending. - `tracking` — branded open/click tracking CNAME (optional). - `dmarc` — advisory DMARC policy record. - `inbound_mx` — MX record routing mail to Bird for receiving. Always\n  present wherever inbound is available, as a regional reference,\n  regardless of whether receiving is enabled; publishing it does not\n  enable receiving on its own — see `DomainUpdate.inbound`.\n",
+      enum: ["dkim", "return_path", "tracking", "inbound_mx", "dmarc"],
+    },
+  },
+} as const;
+
+export const DomainCapabilityWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+} as const;
+
+export const DomainCapabilitiesWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["sending", "return_path", "dmarc", "tracking"],
+  properties: {
+    sending: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapabilityWritable",
+        },
+        {
+          description:
+            "Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.\n",
+        },
+      ],
+    },
+    return_path: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapabilityWritable",
+        },
+        {
+          description:
+            "Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.\n",
+        },
+      ],
+    },
+    dmarc: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapabilityWritable",
+        },
+        {
+          description:
+            "DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.\n",
+        },
+      ],
+    },
+    tracking: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapabilityWritable",
+        },
+        {
+          description:
+            "Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.\n",
+        },
+      ],
+    },
+    inbound: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/DomainCapabilityWritable",
+        },
+        {
+          description:
+            "Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.\n",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const DomainWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["settings", "capabilities"],
+  properties: {
+    settings: {
+      $ref: "#/components/schemas/DomainSettings",
+    },
+    capabilities: {
+      $ref: "#/components/schemas/DomainCapabilitiesWritable",
+    },
+  },
+} as const;
+
 export const WhatsAppTemplateListWritableSchema = {
   type: "object",
   additionalProperties: false,
@@ -8741,6 +9644,21 @@ export const AudienceMemberListWritableSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
+} as const;
+
+export const AudienceRefWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  description: "A compact reference to an audience -- its ID and display name.",
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      description: "The audience's display name.",
+    },
+  },
 } as const;
 
 export const ContactWritableSchema = {

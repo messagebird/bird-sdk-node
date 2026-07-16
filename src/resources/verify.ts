@@ -47,8 +47,9 @@ export class VerificationsResource extends Resource {
 
   /**
    * Check a passcode the recipient submitted. Identify the verification by the same
-   * `to` recipient used to start it — no id needed. A wrong, expired, or already-used
-   * code resolves with `success: false` and a `reason`, not an error.
+   * `to` recipient used to start it — no id needed. A wrong or expired code resolves
+   * with `success: false` and a `reason`, not an error; a verification already
+   * resolved is no longer checkable and returns a 404 error.
    *
    * @example
    * const result = await bird.verify.verifications.check({

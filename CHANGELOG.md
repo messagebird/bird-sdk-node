@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.3
+
+- Correct the `verify.verifications.check` documentation: an already-resolved verification is no longer checkable and returns a 404, not a result with `success: false`. Documentation only; no API or behavior change.
+
 ## 0.7.2
 
 - WhatsApp failure detail now carries `meta_error_code`, the raw error code from the WhatsApp Cloud API, and a fuller `description` sourced from Meta's error details. Additive response fields; no breaking change.

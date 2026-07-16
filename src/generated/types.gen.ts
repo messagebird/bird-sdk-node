@@ -2250,7 +2250,7 @@ export type VerificationId = string;
 export type Verification = {
   readonly id: VerificationId;
   /**
-   * The verification's current state: pending (awaiting a valid passcode), verified, failed (too many incorrect attempts), or expired (the time window elapsed before a correct passcode).
+   * The verification's current state: pending (awaiting a valid passcode), verified (a correct passcode was submitted), failed (too many incorrect attempts), expired (the time window elapsed before a correct passcode), canceled (the verification was canceled before completing), or blocked (it was stopped by a fraud or abuse control).
    */
   readonly status:
     "pending" | "verified" | "failed" | "expired" | "canceled" | "blocked";

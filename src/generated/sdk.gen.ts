@@ -1020,7 +1020,7 @@ export const getSmsTemplate = <ThrowOnError extends boolean = false>(
 /**
  * Create a verification
  *
- * Creates a verification for a recipient and sends them a one-time passcode. Provide a recipient in `to` — an email address (verified over email), a phone number (verified over SMS), or both. If a verification is already in progress for the same recipient, that one is reused and its passcode is re-sent once the resend cooldown has elapsed, rather than starting a second verification. The response includes the verification's current state; the passcode itself is never returned. Submit the passcode the recipient enters with the check endpoint.
+ * Creates a verification for a recipient and sends them a one-time passcode. Provide a recipient in `to` — an email address (verified over email), a phone number (verified over SMS), or both. When you provide both, the passcode is sent over one channel and falls back to the other if that delivery fails; it is not sent to both at once. If a verification is already in progress for the same recipient, that one is reused and a fresh passcode is sent once the resend cooldown has elapsed, rather than starting a second verification. The response includes the verification's current state; the passcode itself is never returned. Submit the passcode the recipient enters with the check endpoint.
  *
  */
 export const createVerification = <ThrowOnError extends boolean = false>(
@@ -1050,7 +1050,7 @@ export const createVerification = <ThrowOnError extends boolean = false>(
 /**
  * Check a verification passcode
  *
- * Checks a passcode for a recipient and returns the outcome together with the verification's current state. Identify the verification by the same `to` recipient used to create it — you do not need to store a verification id. A wrong, expired, or already-used passcode is reported in the response body, with `success` set to `false` and a `reason` such as `incorrect_code` or `expired`, rather than as an HTTP error; only a missing verification, malformed input, or rate limiting return an error status.
+ * Checks a passcode for a recipient and returns the outcome together with the verification's current state. Identify the verification by the same `to` recipient used to create it — you do not need to store a verification id. A wrong or expired passcode is reported in the response body, with `success` set to `false` and a `reason` such as `incorrect_code` or `expired`, rather than as an HTTP error. Only a missing verification — including one that has already reached a final state, which is no longer checkable — malformed input, or rate limiting return an error status.
  *
  */
 export const createVerificationCheck = <ThrowOnError extends boolean = false>(

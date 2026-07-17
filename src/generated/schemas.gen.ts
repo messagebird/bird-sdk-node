@@ -7961,14 +7961,14 @@ export const DocsSearchResultSchema = {
       minLength: 1,
       readOnly: true,
       description:
-        "Relative path to the matching section, including the heading anchor.",
+        "Absolute URL of the matching section, including the heading anchor.",
     },
     doc_url: {
       type: "string",
       minLength: 1,
       readOnly: true,
       description:
-        "Relative path to the page, without the section anchor. Results from the same page share it, so it can be used to group them.",
+        "Absolute URL of the page, without the section anchor. Results from the same page share it, so it can be used to group them.",
     },
     markdown_url: {
       type: "string",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.6
+
+- Clarify that `DocsSearchResult.url` and `.doc_url` are absolute URLs, matching `.markdown_url` and the API's actual output. Documentation only; no API or behavior change.
+
 ## 0.7.5
 
 - Add the Realtime webhook event types: `realtime.cache_channels`, `realtime.channel_existence`, `realtime.client_events`, `realtime.presence`, and `realtime.subscription_count`. Additive; no breaking change.

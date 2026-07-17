@@ -3999,11 +3999,11 @@ export type DocsSearchResult = {
    */
   readonly section: string;
   /**
-   * Relative path to the matching section, including the heading anchor.
+   * Absolute URL of the matching section, including the heading anchor.
    */
   readonly url: string;
   /**
-   * Relative path to the page, without the section anchor. Results from the same page share it, so it can be used to group them.
+   * Absolute URL of the page, without the section anchor. Results from the same page share it, so it can be used to group them.
    */
   readonly doc_url: string;
   /**

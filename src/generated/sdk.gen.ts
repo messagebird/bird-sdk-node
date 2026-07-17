@@ -24,6 +24,9 @@ import type {
   CreateContactPropertyErrors,
   CreateContactPropertyResponses,
   CreateContactResponses,
+  CreateDomainData,
+  CreateDomainErrors,
+  CreateDomainResponses,
   CreateEmailMessageBatchData,
   CreateEmailMessageBatchErrors,
   CreateEmailMessageBatchResponses,
@@ -48,6 +51,9 @@ import type {
   DeleteContactData,
   DeleteContactErrors,
   DeleteContactResponses,
+  DeleteDomainData,
+  DeleteDomainErrors,
+  DeleteDomainResponses,
   GetAudienceData,
   GetAudienceErrors,
   GetAudienceResponses,
@@ -57,6 +63,9 @@ import type {
   GetContactPropertyErrors,
   GetContactPropertyResponses,
   GetContactResponses,
+  GetDomainData,
+  GetDomainErrors,
+  GetDomainResponses,
   GetEmailMessageData,
   GetEmailMessageErrors,
   GetEmailMessageResponses,
@@ -81,6 +90,9 @@ import type {
   ListContactsData,
   ListContactsErrors,
   ListContactsResponses,
+  ListDomainsData,
+  ListDomainsErrors,
+  ListDomainsResponses,
   ListEmailMessagesData,
   ListEmailMessagesErrors,
   ListEmailMessagesResponses,
@@ -120,6 +132,12 @@ import type {
   UpdateContactPropertyErrors,
   UpdateContactPropertyResponses,
   UpdateContactResponses,
+  UpdateDomainData,
+  UpdateDomainErrors,
+  UpdateDomainResponses,
+  VerifyDomainData,
+  VerifyDomainErrors,
+  VerifyDomainResponses,
 } from "./types.gen";
 
 export type Options<
@@ -1203,5 +1221,167 @@ export const listWhatsAppTemplates = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/whatsapp/templates",
+    ...options,
+  });
+
+/**
+ * List sending domains
+ *
+ * Returns all sending domains for the current workspace, ordered by creation date descending.
+ */
+export const listDomains = <ThrowOnError extends boolean = false>(
+  options?: Options<ListDomainsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListDomainsResponses,
+    ListDomainsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/domains",
+    ...options,
+  });
+
+/**
+ * Add a sending domain
+ *
+ * Registers a new sending domain and returns the DNS records required for verification: a DKIM TXT record, a return-path CNAME (which also covers SPF — no separate SPF record is needed), a DMARC policy, and, when a tracking domain is configured, a tracking CNAME. The domain starts in `pending` status; records are checked automatically once published, or on demand via the verify endpoint.
+ *
+ */
+export const createDomain = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDomainData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateDomainResponses,
+    CreateDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/domains",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a sending domain
+ *
+ * Removes the domain and revokes its sender authorization. New sends from a deleted domain are rejected. Historical statistics and events for past sends from this domain are preserved.
+ *
+ */
+export const deleteDomain = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDomainData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteDomainResponses,
+    DeleteDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/domains/{domain_id}",
+    ...options,
+  });
+
+/**
+ * Get a sending domain
+ *
+ * Returns the domain with current DNS verification status per record.
+ */
+export const getDomain = <ThrowOnError extends boolean = false>(
+  options: Options<GetDomainData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetDomainResponses,
+    GetDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/domains/{domain_id}",
+    ...options,
+  });
+
+/**
+ * Update a sending domain
+ *
+ * Updates settings and configuration on a sending domain. `settings` changes apply immediately. Changes to `return_path`, `tracking`, or `dkim` on a verified capability are staged: the current configuration keeps serving until the new one's DNS records verify, then the change is promoted automatically. Staged values are visible under `capabilities.*.pending`; the records to publish appear in `dns_records` with `state: pending`.
+ *
+ */
+export const updateDomain = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateDomainData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateDomainResponses,
+    UpdateDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/domains/{domain_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Trigger domain verification
+ *
+ * Triggers an immediate DNS check and returns the updated verification result. Rate-limited to prevent DNS abuse (max 5 calls per domain per hour).
+ *
+ */
+export const verifyDomain = <ThrowOnError extends boolean = false>(
+  options: Options<VerifyDomainData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    VerifyDomainResponses,
+    VerifyDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/domains/{domain_id}/verify",
     ...options,
   });

@@ -126,10 +126,41 @@ const contact = await bird.contacts.update("con_01krdgeqcxet5s7t44vh8rt9mg", {
 }
 
 export async function _ex_22() {
-await bird.email.cancel("em_abc123");
+const domain = await bird.domains.create({ domain: "mail.acme.com" });
+console.log(domain.id, domain.status); // "dom_…", "pending"
 }
 
 export async function _ex_23() {
+await bird.domains.delete("dom_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_24() {
+const domain = await bird.domains.get("dom_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function _ex_25() {
+for await (const domain of bird.domains.list()) {
+  console.log(domain.id, domain.status);
+}
+}
+
+export async function _ex_26() {
+await bird.domains.update("dom_01krdgeqcxet5s7t44vh8rt9mg", {
+  settings: { click_tracking: true, open_tracking: true },
+  tracking: { name: "links" },
+});
+}
+
+export async function _ex_27() {
+const domain = await bird.domains.verify("dom_01krdgeqcxet5s7t44vh8rt9mg");
+console.log(domain.status); // "verified" once DNS is in place
+}
+
+export async function _ex_28() {
+await bird.email.cancel("em_abc123");
+}
+
+export async function _ex_29() {
 
 try {
   await bird.email.send({
@@ -146,27 +177,27 @@ try {
 }
 }
 
-export async function _ex_24() {
+export async function _ex_30() {
 const msg = await bird.email.get("em_abc123");
 msg.status; // "accepted" | "processed" | "delivered" | "bounced" | …
 msg.delivered_count;
 msg.bounced_count;
 }
 
-export async function _ex_25() {
+export async function _ex_31() {
 for await (const message of bird.email.list({ status: "bounced" })) {
   console.log(message.id);
 }
 }
 
-export async function _ex_26() {
+export async function _ex_32() {
 for await (const message of bird.email.list({ status: "bounced" })) {
   console.log(message.id);
 }
 const page = await bird.email.list({ limit: 50 }); // page.data, page.next_cursor
 }
 
-export async function _ex_27() {
+export async function _ex_33() {
 const { data, error } = await bird.email
   .send({
     from: { email: "onboarding@messagebird.dev", name: "Bird" },
@@ -179,7 +210,7 @@ if (error) console.error(error.message);
 else console.log(data.id);
 }
 
-export async function _ex_28() {
+export async function _ex_34() {
 const msg = await bird.email.send({
   from: { email: "onboarding@messagebird.dev", name: "Bird" },
   to: ["delivered@messagebird.dev"],
@@ -189,7 +220,7 @@ const msg = await bird.email.send({
 console.log(msg.id, msg.status); // "em_…", "accepted"
 }
 
-export async function _ex_29() {
+export async function _ex_35() {
 const batch = await bird.email.sendBatch([
   {
     from: { email: "onboarding@messagebird.dev", name: "Bird" },
@@ -207,18 +238,18 @@ const batch = await bird.email.sendBatch([
 for (const item of batch.data) console.log(item.id, item.status);
 }
 
-export async function _ex_30() {
+export async function _ex_36() {
 const msg = await bird.sms.get("sms_abc123");
 msg.status; // "accepted" | "delivered" | …
 }
 
-export async function _ex_31() {
+export async function _ex_37() {
 for await (const msg of bird.sms.list({ direction: "outbound" })) {
   console.log(msg.id, msg.status);
 }
 }
 
-export async function _ex_32() {
+export async function _ex_38() {
 const msg = await bird.sms.send({
   to: "+15551234567",
   text: "Your verification code is 123456.",
@@ -227,31 +258,31 @@ const msg = await bird.sms.send({
 console.log(msg.id, msg.status);
 }
 
-export async function _ex_33() {
+export async function _ex_39() {
 const result = await bird.sms.sendBatch([
   { to: "+15551111111", text: "Hi Alice!", category: "marketing" },
   { to: "+15552222222", text: "Hi Bob!", category: "marketing" },
 ]);
 }
 
-export async function _ex_34() {
+export async function _ex_40() {
 await bird.sms.send({
   to: "+15551234567",
   template: { name: "bird_otp_verification", parameters: { code: "123456" } },
 });
 }
 
-export async function _ex_35() {
+export async function _ex_41() {
 const tpl = await bird.smsTemplates.get("bird_otp_verification");
 console.log(tpl.body, tpl.variables);
 }
 
-export async function _ex_36() {
+export async function _ex_42() {
 const { data } = await bird.smsTemplates.list({ scope: "system" });
 for (const tpl of data) console.log(tpl.id, tpl.name);
 }
 
-export async function _ex_37() {
+export async function _ex_43() {
 const result = await bird.verify.verifications.check({
   to: { phone_number: "+15551234567" },
   code: "123456",
@@ -259,36 +290,36 @@ const result = await bird.verify.verifications.check({
 console.log(result.success);
 }
 
-export async function _ex_38() {
+export async function _ex_44() {
 const verification = await bird.verify.verifications.create({
   to: { phone_number: "+15551234567" },
 });
 console.log(verification.id, verification.status);
 }
 
-export async function _ex_39() {
+export async function _ex_45() {
 // Pass the RAW request body; set the secret via new BirdClient({ webhooks: { secret } }).
 const event = bird.webhooks.unwrap(rawBody, headers);
 console.log(event.type); // discriminated union — narrow on event.type
 }
 
-export async function _ex_40() {
+export async function _ex_46() {
 const msg = await bird.whatsapp.get("wa_abc123");
 msg.status; // "accepted" | "delivered" | …
 }
 
-export async function _ex_41() {
+export async function _ex_47() {
 for await (const msg of bird.whatsapp.list({ status: ["delivered"] })) {
   console.log(msg.id, msg.status);
 }
 }
 
-export async function _ex_42() {
+export async function _ex_48() {
 const { data } = await bird.whatsapp.listEvents("wa_abc123");
 for (const event of data) console.log(event.type, event.occurred_at);
 }
 
-export async function _ex_43() {
+export async function _ex_49() {
 const msg = await bird.whatsapp.send({
   to: "+15551234567",
   template: {
@@ -301,7 +332,7 @@ const msg = await bird.whatsapp.send({
 console.log(msg.id, msg.status);
 }
 
-export async function _ex_44() {
+export async function _ex_50() {
 const { data } = await bird.whatsappTemplates.list();
 for (const tpl of data) console.log(tpl.name, tpl.status);
 }

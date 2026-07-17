@@ -100,6 +100,15 @@ export type {
   ContactPropertyListQuery,
 } from "./resources/contactProperties.js";
 export type {
+  Domain,
+  DnsRecord,
+  DomainDkim,
+  DomainCapabilities,
+  DomainCreateParams,
+  DomainUpdateParams,
+  DomainListQuery,
+} from "./resources/domains.js";
+export type {
   BirdWebhookEvent,
   WebhookHeaders,
   WebhookOptions,

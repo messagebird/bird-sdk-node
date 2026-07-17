@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+
+- Add the sending domains collection: `domains.create`, `.get`, `.list`, `.update`, `.delete`, and `.verify`. Register a sending domain, publish the DNS records it returns, then verify until it is usable as a sender. Requires an API key with the `domains` scope.
+
 ## 0.7.6
 
 - Clarify that `DocsSearchResult.url` and `.doc_url` are absolute URLs, matching `.markdown_url` and the API's actual output. Documentation only; no API or behavior change.

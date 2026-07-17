@@ -17,6 +17,7 @@ import {
 } from "./core/result.js";
 import { EmailResource, type EmailChannelDefaults } from "./resources/email.js";
 import { AudiencesResource } from "./resources/audiences.js";
+import { DomainsResource } from "./resources/domains.js";
 import { ContactPropertiesResource } from "./resources/contactProperties.js";
 import { ContactsResource } from "./resources/contacts.js";
 import { SmsResource } from "./resources/sms.js";
@@ -181,6 +182,9 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** Contact properties — `bird.contactProperties.create(...)`, `.list(...)`, `.archive(...)`, … */
   readonly contactProperties: ContactPropertiesResource;
 
+  /** Sending domains — `bird.domains.create(...)`, `.list(...)`, `.verify(...)`, … */
+  readonly domains: DomainsResource;
+
   /** Webhooks — `bird.webhooks.unwrap(payload, headers)` verifies an inbound delivery. */
   readonly webhooks: WebhooksResource;
 
@@ -234,6 +238,7 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       this.core,
       this.#client,
     );
+    this.domains = new DomainsResource(this.core, this.#client);
     this.webhooks = new WebhooksResource(opts.webhooks);
   }
 

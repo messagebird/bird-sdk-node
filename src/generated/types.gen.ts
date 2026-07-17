@@ -7788,3 +7788,387 @@ export type ListWhatsAppTemplatesResponses = {
 
 export type ListWhatsAppTemplatesResponse =
   ListWhatsAppTemplatesResponses[keyof ListWhatsAppTemplatesResponses];
+
+export type ListDomainsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Substring match against the domain name (case-insensitive).
+     */
+    name?: string;
+    /**
+     * Field to sort by.
+     */
+    sort?: "created_at" | "name";
+    /**
+     * Sort direction. Defaults to `desc` (newest/largest first).
+     *
+     */
+    order?: "asc" | "desc";
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+    /**
+     * When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
+     */
+    include_total?: boolean;
+  };
+  url: "/v1/email/domains";
+};
+
+export type ListDomainsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListDomainsError = ListDomainsErrors[keyof ListDomainsErrors];
+
+export type ListDomainsResponses = {
+  /**
+   * Paginated list of domains.
+   */
+  200: DomainList;
+};
+
+export type ListDomainsResponse =
+  ListDomainsResponses[keyof ListDomainsResponses];
+
+export type CreateDomainData = {
+  body: DomainCreate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/email/domains";
+};
+
+export type CreateDomainErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateDomainError = CreateDomainErrors[keyof CreateDomainErrors];
+
+export type CreateDomainResponses = {
+  /**
+   * Domain created.
+   */
+  201: Domain;
+};
+
+export type CreateDomainResponse =
+  CreateDomainResponses[keyof CreateDomainResponses];
+
+export type DeleteDomainData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Domain ID.
+     */
+    domain_id: DomainId;
+  };
+  query?: never;
+  url: "/v1/email/domains/{domain_id}";
+};
+
+export type DeleteDomainErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteDomainError = DeleteDomainErrors[keyof DeleteDomainErrors];
+
+export type DeleteDomainResponses = {
+  /**
+   * Domain deleted.
+   */
+  204: void;
+};
+
+export type DeleteDomainResponse =
+  DeleteDomainResponses[keyof DeleteDomainResponses];
+
+export type GetDomainData = {
+  body?: never;
+  path: {
+    /**
+     * Domain ID.
+     */
+    domain_id: DomainId;
+  };
+  query?: never;
+  url: "/v1/email/domains/{domain_id}";
+};
+
+export type GetDomainErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetDomainError = GetDomainErrors[keyof GetDomainErrors];
+
+export type GetDomainResponses = {
+  /**
+   * Domain object.
+   */
+  200: Domain;
+};
+
+export type GetDomainResponse = GetDomainResponses[keyof GetDomainResponses];
+
+export type UpdateDomainData = {
+  body: DomainUpdate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Domain ID.
+     */
+    domain_id: DomainId;
+  };
+  query?: never;
+  url: "/v1/email/domains/{domain_id}";
+};
+
+export type UpdateDomainErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateDomainError = UpdateDomainErrors[keyof UpdateDomainErrors];
+
+export type UpdateDomainResponses = {
+  /**
+   * Domain updated.
+   */
+  200: Domain;
+};
+
+export type UpdateDomainResponse =
+  UpdateDomainResponses[keyof UpdateDomainResponses];
+
+export type VerifyDomainData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Domain ID.
+     */
+    domain_id: DomainId;
+  };
+  query?: never;
+  url: "/v1/email/domains/{domain_id}/verify";
+};
+
+export type VerifyDomainErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type VerifyDomainError = VerifyDomainErrors[keyof VerifyDomainErrors];
+
+export type VerifyDomainResponses = {
+  /**
+   * Verification result.
+   */
+  200: Domain;
+};
+
+export type VerifyDomainResponse =
+  VerifyDomainResponses[keyof VerifyDomainResponses];

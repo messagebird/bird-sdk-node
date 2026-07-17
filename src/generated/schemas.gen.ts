@@ -56,6 +56,11 @@ export const WebhookEventTypeSchema = {
     "sms.rejected",
     "sms.sent",
     "sms.undelivered",
+    "whatsapp.accepted",
+    "whatsapp.delivered",
+    "whatsapp.failed",
+    "whatsapp.read",
+    "whatsapp.sent",
   ],
 } as const;
 
@@ -212,6 +217,420 @@ export const WebhookTestResponseSchema = {
   },
 } as const;
 
+export const EventWhatsAppSentDataSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.sent event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+  ],
+} as const;
+
+export const TagSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "value"],
+  description:
+    "Structured key/value label attached to a message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.\nTag count and per-tag size are capped to keep per-send tag payloads small — see the send request for the array maximum. Tag names are unique within a send; supplying the same name twice is rejected.\n",
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 32,
+      pattern: "^[A-Za-z0-9_-]+$",
+      description:
+        "Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.\n",
+      example: "category",
+    },
+    value: {
+      type: "string",
+      minLength: 1,
+      maxLength: 64,
+      pattern: "^[A-Za-z0-9_-]+$",
+      description:
+        "Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.\n",
+      example: "welcome",
+    },
+  },
+} as const;
+
+export const WhatsAppAddressSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Sender or recipient of a WhatsApp message — a phone number, a business-scoped user ID, or both.",
+  properties: {
+    phone_number: {
+      type: "string",
+      minLength: 1,
+      description: "Phone number in E.164 format, when known.",
+      example: "+15550001111",
+    },
+    bsuid: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Business-scoped user ID — Meta's identifier for the WhatsApp user. Present only on the WhatsApp-user side of the message.\n",
+      example: "NL.xxxx",
+    },
+  },
+} as const;
+
+export const WorkspaceIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ws_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const WhatsAppMessageIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^wam_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "wam_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventWhatsAppBaseSchema = {
+  type: "object",
+  "x-mixin": true,
+  description:
+    "Identity fields shared by every WhatsApp lifecycle event payload.",
+  required: [
+    "whatsapp_id",
+    "workspace_id",
+    "direction",
+    "from",
+    "to",
+    "tags",
+    "metadata",
+  ],
+  properties: {
+    whatsapp_id: {
+      $ref: "#/components/schemas/WhatsAppMessageID",
+      description: "ID of the WhatsApp message.",
+      "x-go-type": "domain.WhatsAppMessageID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "ID of the workspace.",
+      "x-go-type": "domain.WorkspaceID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    direction: {
+      type: "string",
+      minLength: 1,
+      enum: ["outbound", "inbound"],
+      description:
+        "Whether the message was sent by the business (`outbound`) or received from the contact (`inbound`).",
+      "x-go-type": "domain.WhatsAppDirection",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    from: {
+      $ref: "#/components/schemas/WhatsAppAddress",
+      description:
+        "Sender of the message. On outbound messages, the business number it was sent from.",
+    },
+    to: {
+      $ref: "#/components/schemas/WhatsAppAddress",
+      description:
+        "Recipient of the message. On outbound messages, the WhatsApp contact.",
+    },
+    tags: {
+      type: ["array", "null"],
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      description:
+        "Tags provided on the send request, echoed on every event for the message. Null when the message carried no tags.\n",
+    },
+    metadata: {
+      type: ["object", "null"],
+      additionalProperties: true,
+      description:
+        "The metadata object provided on the send request, echoed on every event for the message. Null when the message carried no metadata.\n",
+      example: {
+        order_id: "ord_123",
+      },
+    },
+  },
+} as const;
+
+export const EventWhatsAppSentSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Bird handed the message to Meta for delivery.",
+  "x-event-type-id": "whatsapp.sent",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.sent",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.sent"],
+      description: "Event type.",
+      example: "whatsapp.sent",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time Bird handed the message to Meta for delivery.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppSentData",
+    },
+  },
+} as const;
+
+export const EventWhatsAppReadDataSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.read event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+  ],
+} as const;
+
+export const EventWhatsAppReadSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The recipient read the message.",
+  "x-event-type-id": "whatsapp.read",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.read",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.read"],
+      description: "Event type.",
+      example: "whatsapp.read",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the recipient read the message.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppReadData",
+    },
+  },
+} as const;
+
+export const WhatsAppErrorCodeSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": [
+    "insufficient_balance",
+    "price_not_found",
+    "internal_error",
+    "undeliverable",
+    "service_window_expired",
+    "rate_limited",
+  ],
+  description:
+    "Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance` — the workspace could not afford the send. `price_not_found` — no price was configured for this destination/template combination. `internal_error` — an unexpected Bird-side failure. `undeliverable` — the recipient could not be reached (e.g. not on WhatsApp, number invalid). `service_window_expired` — the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited` — the send was throttled.\n",
+} as const;
+
+export const WhatsAppErrorSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code", "description", "occurred_at"],
+  description:
+    "Failure detail for a message that could not be delivered. Null when there is no failure.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/WhatsAppErrorCode",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Human-readable explanation of the failure.",
+      example: "Message could not be delivered.",
+    },
+    meta_error_code: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.",
+      example: "131026",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the failure occurred.",
+    },
+  },
+} as const;
+
+export const EventWhatsAppFailedDataSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.failed event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/WhatsAppError",
+          description: "Why the message terminally failed.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventWhatsAppFailedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The message terminally failed and will not be delivered.",
+  "x-event-type-id": "whatsapp.failed",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.failed",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.failed"],
+      description: "Event type.",
+      example: "whatsapp.failed",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the failure was recorded.",
+      example: "2026-07-16T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppFailedData",
+    },
+  },
+} as const;
+
+export const EventWhatsAppDeliveredDataSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.delivered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+  ],
+} as const;
+
+export const EventWhatsAppDeliveredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The message was delivered to the recipient's device.",
+  "x-event-type-id": "whatsapp.delivered",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.delivered",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.delivered"],
+      description: "Event type.",
+      example: "whatsapp.delivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the message was delivered to the recipient's device.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppDeliveredData",
+    },
+  },
+} as const;
+
+export const EventWhatsAppAcceptedDataSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.accepted event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+  ],
+} as const;
+
+export const EventWhatsAppAcceptedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Bird accepted and charged the send request.",
+  "x-event-type-id": "whatsapp.accepted",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.accepted",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.accepted"],
+      description: "Event type.",
+      example: "whatsapp.accepted",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time Bird accepted and charged the send request.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppAcceptedData",
+    },
+  },
+} as const;
+
 export const EventSMSUndeliveredDataSchema = {
   type: "object",
   description: "Payload of the sms.undelivered event.",
@@ -282,41 +701,6 @@ export const SMSErrorSchema = {
       description: "When the failure occurred.",
     },
   },
-} as const;
-
-export const TagSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["name", "value"],
-  description:
-    "Structured key/value label attached to a message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.\nTag count and per-tag size are capped to keep per-send tag payloads small — see the send request for the array maximum. Tag names are unique within a send; supplying the same name twice is rejected.\n",
-  properties: {
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 32,
-      pattern: "^[A-Za-z0-9_-]+$",
-      description:
-        "Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.\n",
-      example: "category",
-    },
-    value: {
-      type: "string",
-      minLength: 1,
-      maxLength: 64,
-      pattern: "^[A-Za-z0-9_-]+$",
-      description:
-        "Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.\n",
-      example: "welcome",
-    },
-  },
-} as const;
-
-export const WorkspaceIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^ws_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const SMSMessageIDSchema = {
@@ -2607,6 +2991,21 @@ export const WebhookEventSchema = {
     {
       $ref: "#/components/schemas/EventSMSUndelivered",
     },
+    {
+      $ref: "#/components/schemas/EventWhatsAppAccepted",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppFailed",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppRead",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppSent",
+    },
   ],
   discriminator: {
     propertyName: "type",
@@ -2651,6 +3050,11 @@ export const WebhookEventSchema = {
       "sms.rejected": "#/components/schemas/EventSMSRejected",
       "sms.sent": "#/components/schemas/EventSMSSent",
       "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
+      "whatsapp.accepted": "#/components/schemas/EventWhatsAppAccepted",
+      "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
+      "whatsapp.failed": "#/components/schemas/EventWhatsAppFailed",
+      "whatsapp.read": "#/components/schemas/EventWhatsAppRead",
+      "whatsapp.sent": "#/components/schemas/EventWhatsAppSent",
     },
   },
 } as const;
@@ -4649,56 +5053,6 @@ export const WhatsAppEventListSchema = {
   },
 } as const;
 
-export const WhatsAppErrorCodeSchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": [
-    "insufficient_balance",
-    "price_not_found",
-    "internal_error",
-    "undeliverable",
-    "service_window_expired",
-    "rate_limited",
-  ],
-  description:
-    "Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance` — the workspace could not afford the send. `price_not_found` — no price was configured for this destination/template combination. `internal_error` — an unexpected Bird-side failure. `undeliverable` — the recipient could not be reached (e.g. not on WhatsApp, number invalid). `service_window_expired` — the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited` — the send was throttled.\n",
-} as const;
-
-export const WhatsAppErrorSchema = {
-  type: ["object", "null"],
-  additionalProperties: false,
-  readOnly: true,
-  required: ["code", "description", "occurred_at"],
-  description:
-    "Failure detail for a message that could not be delivered. Null when there is no failure.",
-  properties: {
-    code: {
-      $ref: "#/components/schemas/WhatsAppErrorCode",
-    },
-    description: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "Human-readable explanation of the failure.",
-      example: "Message could not be delivered.",
-    },
-    meta_error_code: {
-      type: ["string", "null"],
-      readOnly: true,
-      description:
-        "Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.",
-      example: "131026",
-    },
-    occurred_at: {
-      type: "string",
-      format: "date-time",
-      minLength: 1,
-      readOnly: true,
-      description: "When the failure occurred.",
-    },
-  },
-} as const;
-
 export const WhatsAppEventIDSchema = {
   type: "string",
   minLength: 1,
@@ -4709,7 +5063,7 @@ export const WhatsAppEventIDSchema = {
 export const WhatsAppEventSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "type", "occurred_at", "error"],
+  required: ["id", "type", "occurred_at"],
   properties: {
     id: {
       readOnly: true,
@@ -5065,13 +5419,6 @@ export const WhatsAppMessageBusinessSchema = {
       example: "397968058767338",
     },
   },
-} as const;
-
-export const WhatsAppMessageIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^wam_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "wam_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const WhatsAppMessageSchema = {
@@ -8319,6 +8666,73 @@ export const WebhookTestResponseWritableSchema = {
   },
 } as const;
 
+export const WhatsAppErrorWritableSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code"],
+  description:
+    "Failure detail for a message that could not be delivered. Null when there is no failure.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/WhatsAppErrorCode",
+    },
+  },
+} as const;
+
+export const EventWhatsAppFailedDataWritableSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.failed event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/WhatsAppErrorWritable",
+          description: "Why the message terminally failed.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventWhatsAppFailedWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The message terminally failed and will not be delivered.",
+  "x-event-type-id": "whatsapp.failed",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.failed",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.failed"],
+      description: "Event type.",
+      example: "whatsapp.failed",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the failure was recorded.",
+      example: "2026-07-16T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppFailedDataWritable",
+    },
+  },
+} as const;
+
 export const EventSMSUndeliveredDataWritableSchema = {
   type: "object",
   description: "Payload of the sms.undelivered event.",
@@ -8610,6 +9024,21 @@ export const WebhookEventWritableSchema = {
     {
       $ref: "#/components/schemas/EventSMSUndeliveredWritable",
     },
+    {
+      $ref: "#/components/schemas/EventWhatsAppAccepted",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppFailedWritable",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppRead",
+    },
+    {
+      $ref: "#/components/schemas/EventWhatsAppSent",
+    },
   ],
   discriminator: {
     propertyName: "type",
@@ -8654,6 +9083,11 @@ export const WebhookEventWritableSchema = {
       "sms.rejected": "#/components/schemas/EventSMSRejectedWritable",
       "sms.sent": "#/components/schemas/EventSMSSent",
       "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
+      "whatsapp.accepted": "#/components/schemas/EventWhatsAppAccepted",
+      "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
+      "whatsapp.failed": "#/components/schemas/EventWhatsAppFailedWritable",
+      "whatsapp.read": "#/components/schemas/EventWhatsAppRead",
+      "whatsapp.sent": "#/components/schemas/EventWhatsAppSent",
     },
   },
 } as const;
@@ -9398,24 +9832,9 @@ export const WhatsAppEventListWritableSchema = {
   },
 } as const;
 
-export const WhatsAppErrorWritableSchema = {
-  type: ["object", "null"],
-  additionalProperties: false,
-  readOnly: true,
-  required: ["code"],
-  description:
-    "Failure detail for a message that could not be delivered. Null when there is no failure.",
-  properties: {
-    code: {
-      $ref: "#/components/schemas/WhatsAppErrorCode",
-    },
-  },
-} as const;
-
 export const WhatsAppEventWritableSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["error"],
   properties: {
     error: {
       $ref: "#/components/schemas/WhatsAppErrorWritable",

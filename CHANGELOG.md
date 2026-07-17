@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- Add the WhatsApp webhook event types: `whatsapp.accepted`, `whatsapp.sent`, `whatsapp.delivered`, `whatsapp.read`, and `whatsapp.failed`. Additive; no breaking change.
+
 ## 0.8.0
 
 - Add the sending domains collection: `domains.create`, `.get`, `.list`, `.update`, `.delete`, and `.verify`. Register a sending domain, publish the DNS records it returns, then verify until it is usable as a sender. Requires an API key with the `domains` scope.

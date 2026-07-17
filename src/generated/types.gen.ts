@@ -94,6 +94,211 @@ export type WebhookTestResponse = {
 };
 
 /**
+ * Payload of the whatsapp.sent event.
+ */
+export type EventWhatsAppSentData = EventWhatsAppBase;
+
+/**
+ * Structured key/value label attached to a message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.
+ * Tag count and per-tag size are capped to keep per-send tag payloads small — see the send request for the array maximum. Tag names are unique within a send; supplying the same name twice is rejected.
+ *
+ */
+export type Tag = {
+  /**
+   * Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
+   *
+   */
+  name: string;
+  /**
+   * Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
+   *
+   */
+  value: string;
+};
+
+/**
+ * Sender or recipient of a WhatsApp message — a phone number, a business-scoped user ID, or both.
+ */
+export type WhatsAppAddress = {
+  /**
+   * Phone number in E.164 format, when known.
+   */
+  phone_number?: string;
+  /**
+   * Business-scoped user ID — Meta's identifier for the WhatsApp user. Present only on the WhatsApp-user side of the message.
+   *
+   */
+  bsuid?: string;
+};
+
+export type WorkspaceId = string;
+
+export type WhatsAppMessageId = string;
+
+/**
+ * Identity fields shared by every WhatsApp lifecycle event payload.
+ */
+export type EventWhatsAppBase = {
+  /**
+   * ID of the WhatsApp message.
+   */
+  whatsapp_id: WhatsAppMessageId;
+  /**
+   * ID of the workspace.
+   */
+  workspace_id: WorkspaceId;
+  /**
+   * Whether the message was sent by the business (`outbound`) or received from the contact (`inbound`).
+   */
+  direction: "outbound" | "inbound";
+  /**
+   * Sender of the message. On outbound messages, the business number it was sent from.
+   */
+  from: WhatsAppAddress;
+  /**
+   * Recipient of the message. On outbound messages, the WhatsApp contact.
+   */
+  to: WhatsAppAddress;
+  /**
+   * Tags provided on the send request, echoed on every event for the message. Null when the message carried no tags.
+   *
+   */
+  tags: Array<Tag> | null;
+  /**
+   * The metadata object provided on the send request, echoed on every event for the message. Null when the message carried no metadata.
+   *
+   */
+  metadata: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * Bird handed the message to Meta for delivery.
+ */
+export type EventWhatsAppSent = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.sent";
+  /**
+   * Time Bird handed the message to Meta for delivery.
+   */
+  timestamp: string;
+  data: EventWhatsAppSentData;
+};
+
+/**
+ * Payload of the whatsapp.read event.
+ */
+export type EventWhatsAppReadData = EventWhatsAppBase;
+
+/**
+ * The recipient read the message.
+ */
+export type EventWhatsAppRead = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.read";
+  /**
+   * Time the recipient read the message.
+   */
+  timestamp: string;
+  data: EventWhatsAppReadData;
+};
+
+/**
+ * Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance` — the workspace could not afford the send. `price_not_found` — no price was configured for this destination/template combination. `internal_error` — an unexpected Bird-side failure. `undeliverable` — the recipient could not be reached (e.g. not on WhatsApp, number invalid). `service_window_expired` — the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited` — the send was throttled.
+ *
+ */
+export type WhatsAppErrorCode = string;
+
+/**
+ * Failure detail for a message that could not be delivered. Null when there is no failure.
+ */
+export type WhatsAppError = {
+  code: WhatsAppErrorCode;
+  /**
+   * Human-readable explanation of the failure.
+   */
+  readonly description: string;
+  /**
+   * Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.
+   */
+  readonly meta_error_code?: string | null;
+  /**
+   * When the failure occurred.
+   */
+  readonly occurred_at: string;
+} | null;
+
+/**
+ * Payload of the whatsapp.failed event.
+ */
+export type EventWhatsAppFailedData = EventWhatsAppBase & {
+  /**
+   * Why the message terminally failed.
+   */
+  error: WhatsAppError;
+};
+
+/**
+ * The message terminally failed and will not be delivered.
+ */
+export type EventWhatsAppFailed = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.failed";
+  /**
+   * Time the failure was recorded.
+   */
+  timestamp: string;
+  data: EventWhatsAppFailedData;
+};
+
+/**
+ * Payload of the whatsapp.delivered event.
+ */
+export type EventWhatsAppDeliveredData = EventWhatsAppBase;
+
+/**
+ * The message was delivered to the recipient's device.
+ */
+export type EventWhatsAppDelivered = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.delivered";
+  /**
+   * Time the message was delivered to the recipient's device.
+   */
+  timestamp: string;
+  data: EventWhatsAppDeliveredData;
+};
+
+/**
+ * Payload of the whatsapp.accepted event.
+ */
+export type EventWhatsAppAcceptedData = EventWhatsAppBase;
+
+/**
+ * Bird accepted and charged the send request.
+ */
+export type EventWhatsAppAccepted = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.accepted";
+  /**
+   * Time Bird accepted and charged the send request.
+   */
+  timestamp: string;
+  data: EventWhatsAppAcceptedData;
+};
+
+/**
  * Payload of the sms.undelivered event.
  */
 export type EventSmsUndeliveredData = EventSmsBase & {
@@ -138,26 +343,6 @@ export type SmsError = {
    */
   occurred_at: string;
 } | null;
-
-/**
- * Structured key/value label attached to a message. Surfaces in list filters, the event log, and webhook payloads. Use tags for low-cardinality filtering dimensions (category, experiment ID, template ID). For arbitrary per-send context that does not need to be filterable, use `metadata`.
- * Tag count and per-tag size are capped to keep per-send tag payloads small — see the send request for the array maximum. Tag names are unique within a send; supplying the same name twice is rejected.
- *
- */
-export type Tag = {
-  /**
-   * Tag name. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 32 characters.
-   *
-   */
-  name: string;
-  /**
-   * Tag value. ASCII letters, digits, underscore, and hyphen only. Case-sensitive. Maximum 64 characters.
-   *
-   */
-  value: string;
-};
-
-export type WorkspaceId = string;
 
 export type SmsMessageId = string;
 
@@ -1342,7 +1527,22 @@ export type WebhookEvent =
     } & EventSmsSent)
   | ({
       type: "sms.undelivered";
-    } & EventSmsUndelivered);
+    } & EventSmsUndelivered)
+  | ({
+      type: "whatsapp.accepted";
+    } & EventWhatsAppAccepted)
+  | ({
+      type: "whatsapp.delivered";
+    } & EventWhatsAppDelivered)
+  | ({
+      type: "whatsapp.failed";
+    } & EventWhatsAppFailed)
+  | ({
+      type: "whatsapp.read";
+    } & EventWhatsAppRead)
+  | ({
+      type: "whatsapp.sent";
+    } & EventWhatsAppSent);
 
 export type WebhookTestRequest = {
   /**
@@ -2325,31 +2525,6 @@ export type WhatsAppEventList = {
   data: Array<WhatsAppEvent>;
 };
 
-/**
- * Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance` — the workspace could not afford the send. `price_not_found` — no price was configured for this destination/template combination. `internal_error` — an unexpected Bird-side failure. `undeliverable` — the recipient could not be reached (e.g. not on WhatsApp, number invalid). `service_window_expired` — the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited` — the send was throttled.
- *
- */
-export type WhatsAppErrorCode = string;
-
-/**
- * Failure detail for a message that could not be delivered. Null when there is no failure.
- */
-export type WhatsAppError = {
-  code: WhatsAppErrorCode;
-  /**
-   * Human-readable explanation of the failure.
-   */
-  readonly description: string;
-  /**
-   * Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.
-   */
-  readonly meta_error_code?: string | null;
-  /**
-   * When the failure occurred.
-   */
-  readonly occurred_at: string;
-} | null;
-
 export type WhatsAppEventId = string;
 
 export type WhatsAppEvent = {
@@ -2369,7 +2544,7 @@ export type WhatsAppEvent = {
   /**
    * Failure detail. Present on `whatsapp.failed` events; null otherwise.
    */
-  error: WhatsAppError;
+  error?: WhatsAppError;
 };
 
 export type SendWhatsAppMessageRequest = {
@@ -2506,8 +2681,6 @@ export type WhatsAppMessageBusiness = {
    */
   readonly phone_number_id?: string;
 };
-
-export type WhatsAppMessageId = string;
 
 export type WhatsAppMessage = {
   /**
@@ -4205,6 +4378,38 @@ export type WebhookTestResponseWritable = {
 };
 
 /**
+ * Failure detail for a message that could not be delivered. Null when there is no failure.
+ */
+export type WhatsAppErrorWritable = {
+  code: WhatsAppErrorCode;
+} | null;
+
+/**
+ * Payload of the whatsapp.failed event.
+ */
+export type EventWhatsAppFailedDataWritable = EventWhatsAppBase & {
+  /**
+   * Why the message terminally failed.
+   */
+  error: WhatsAppErrorWritable;
+};
+
+/**
+ * The message terminally failed and will not be delivered.
+ */
+export type EventWhatsAppFailedWritable = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.failed";
+  /**
+   * Time the failure was recorded.
+   */
+  timestamp: string;
+  data: EventWhatsAppFailedDataWritable;
+};
+
+/**
  * Payload of the sms.undelivered event.
  */
 export type EventSmsUndeliveredDataWritable = EventSmsBase & {
@@ -4397,7 +4602,22 @@ export type WebhookEventWritable =
     } & EventSmsSent)
   | ({
       type: "sms.undelivered";
-    } & EventSmsUndeliveredWritable);
+    } & EventSmsUndeliveredWritable)
+  | ({
+      type: "whatsapp.accepted";
+    } & EventWhatsAppAccepted)
+  | ({
+      type: "whatsapp.delivered";
+    } & EventWhatsAppDelivered)
+  | ({
+      type: "whatsapp.failed";
+    } & EventWhatsAppFailedWritable)
+  | ({
+      type: "whatsapp.read";
+    } & EventWhatsAppRead)
+  | ({
+      type: "whatsapp.sent";
+    } & EventWhatsAppSent);
 
 export type WebhookEndpointCreatedWritable = WebhookEndpointWritable & {
   /**
@@ -4711,18 +4931,11 @@ export type WhatsAppEventListWritable = {
   data: Array<WhatsAppEventWritable>;
 };
 
-/**
- * Failure detail for a message that could not be delivered. Null when there is no failure.
- */
-export type WhatsAppErrorWritable = {
-  code: WhatsAppErrorCode;
-} | null;
-
 export type WhatsAppEventWritable = {
   /**
    * Failure detail. Present on `whatsapp.failed` events; null otherwise.
    */
-  error: WhatsAppErrorWritable;
+  error?: WhatsAppErrorWritable;
 };
 
 export type WhatsAppMessageListWritable = {

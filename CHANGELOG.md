@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2
+
+- Received messages and the `email.received` event now carry `authentication` (`pass`/`fail`/`unknown`), a single summary of sender authentication; treat `unknown` as not verified. The `spf_pass`/`dkim_pass`/`dmarc_pass` fields remain. Additive; no breaking change.
+
 ## 0.8.1
 
 - Add the WhatsApp webhook event types: `whatsapp.accepted`, `whatsapp.sent`, `whatsapp.delivered`, `whatsapp.read`, and `whatsapp.failed`. Additive; no breaking change.

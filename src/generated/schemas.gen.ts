@@ -1502,6 +1502,12 @@ export const EventEmailMailboxMessageReceivedDataSchema = {
         "Number of attachments on the message. Metadata is durable; bytes are fetchable while within the 30-day original-source window.",
       example: 1,
     },
+    authentication: {
+      type: ["string", "null"],
+      enum: ["pass", "fail", "unknown", null],
+      description:
+        "Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.\n",
+    },
     spf_pass: {
       type: ["boolean", "null"],
       description:
@@ -2068,6 +2074,12 @@ export const EventEmailReceivedDataSchema = {
       description:
         "In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.",
       example: "<previous-message@example.com>",
+    },
+    authentication: {
+      type: ["string", "null"],
+      enum: ["pass", "fail", "unknown", null],
+      description:
+        "Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.\n",
     },
     spf_pass: {
       type: ["boolean", "null"],
@@ -3809,6 +3821,7 @@ export const InboundEmailMessageSchema = {
     "message_id",
     "in_reply_to",
     "thread_id",
+    "authentication",
     "spf_pass",
     "dkim_pass",
     "dmarc_pass",
@@ -3870,6 +3883,12 @@ export const InboundEmailMessageSchema = {
       type: ["string", "null"],
       description:
         "Conversation this message belongs to. Always null until threading is available.",
+    },
+    authentication: {
+      type: ["string", "null"],
+      enum: ["pass", "fail", "unknown", null],
+      description:
+        "Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.\n",
     },
     spf_pass: {
       type: ["boolean", "null"],
@@ -9387,6 +9406,7 @@ export const InboundEmailMessageWritableSchema = {
     "message_id",
     "in_reply_to",
     "thread_id",
+    "authentication",
     "spf_pass",
     "dkim_pass",
     "dmarc_pass",
@@ -9442,6 +9462,12 @@ export const InboundEmailMessageWritableSchema = {
       type: ["string", "null"],
       description:
         "Conversation this message belongs to. Always null until threading is available.",
+    },
+    authentication: {
+      type: ["string", "null"],
+      enum: ["pass", "fail", "unknown", null],
+      description:
+        "Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.\n",
     },
     spf_pass: {
       type: ["boolean", "null"],

@@ -732,6 +732,11 @@ export type EventEmailMailboxMessageReceivedData = {
    */
   attachment_count: number;
   /**
+   * Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.
+   *
+   */
+  authentication?: "pass" | "fail" | "unknown" | null;
+  /**
    * Whether SPF passed for the sender, or null when no verdict was computable.
    */
   spf_pass?: boolean | null;
@@ -1016,6 +1021,11 @@ export type EventEmailReceivedData = {
    * In-Reply-To header — the Message-ID this message replies to, or null when it is not a reply.
    */
   in_reply_to?: string | null;
+  /**
+   * Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.
+   *
+   */
+  authentication?: "pass" | "fail" | "unknown" | null;
   /**
    * Whether SPF passed for the sender, or null when the result did not carry an SPF verdict.
    */
@@ -1931,6 +1941,11 @@ export type InboundEmailMessage = {
    * Conversation this message belongs to. Always null until threading is available.
    */
   thread_id: string | null;
+  /**
+   * Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.
+   *
+   */
+  authentication: "pass" | "fail" | "unknown" | null;
   /**
    * Whether SPF passed for the sender, parsed from the message's authentication results. Null when the result did not carry an SPF verdict.
    */
@@ -4774,6 +4789,11 @@ export type InboundEmailMessageWritable = {
    * Conversation this message belongs to. Always null until threading is available.
    */
   thread_id: string | null;
+  /**
+   * Whether the sender of the received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict is available and the sender should not be treated as verified.
+   *
+   */
+  authentication: "pass" | "fail" | "unknown" | null;
   /**
    * Whether SPF passed for the sender, parsed from the message's authentication results. Null when the result did not carry an SPF verdict.
    */

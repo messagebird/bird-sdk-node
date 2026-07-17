@@ -3935,7 +3935,7 @@ export const InboundAddressUpdateSchema = {
     label: {
       type: ["string", "null"],
       maxLength: 255,
-      description: "Your own label for this address. Pass null to clear it.",
+      description: "Your own label for this address.",
       example: "Support mailbox",
     },
   },

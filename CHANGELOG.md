@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3
+
+- Documentation clarifications.
+
 ## 0.8.2
 
 - Received messages and the `email.received` event now carry `authentication` (`pass`/`fail`/`unknown`), a single summary of sender authentication; treat `unknown` as not verified. The `spf_pass`/`dkim_pass`/`dmarc_pass` fields remain. Additive; no breaking change.

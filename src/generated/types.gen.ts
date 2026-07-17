@@ -1977,7 +1977,7 @@ export type InboundEmailMessage = {
  */
 export type InboundAddressUpdate = {
   /**
-   * Your own label for this address. Pass null to clear it.
+   * Your own label for this address.
    */
   label?: string | null;
 };

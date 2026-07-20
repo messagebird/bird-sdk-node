@@ -12,7 +12,7 @@ import {
 import type {
   ListWhatsAppMessageEventsData,
   ListWhatsAppMessagesData,
-  SendWhatsAppMessageRequest,
+  WhatsAppMessageSendRequest,
   WhatsAppEventList,
   WhatsAppMessage,
 } from "../generated/types.gen.js";
@@ -26,7 +26,7 @@ import type {
 /** A sent or received WhatsApp message with its status and template. */
 export type { WhatsAppMessage };
 /** Body for `bird.whatsapp.send` — a template send; Bird picks the sender from the template's category. */
-export type WhatsappSendParams = SendWhatsAppMessageRequest;
+export type WhatsappSendParams = WhatsAppMessageSendRequest;
 /** Filters and cursor params for `bird.whatsapp.list`. */
 export type WhatsappListQuery = NonNullable<ListWhatsAppMessagesData["query"]>;
 /** Filter for `bird.whatsapp.listEvents`. */

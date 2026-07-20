@@ -1,6 +1,6 @@
 {
   "name": "@messagebird/sdk",
-  "version": "0.8.5",
+  "version": "0.9.0",
   "description": "Official TypeScript SDK for the Bird API.",
   "license": "MIT",
   "author": "Bird",

@@ -215,7 +215,7 @@ export type EventWhatsAppRead = {
 export type WhatsAppErrorCode = string;
 
 /**
- * Failure detail for a message that could not be delivered. Null when there is no failure.
+ * Failure detail for a message that could not be delivered.
  */
 export type WhatsAppError = {
   code: WhatsAppErrorCode;
@@ -326,7 +326,7 @@ export type SmsErrorCode =
   | "unknown";
 
 /**
- * Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.
+ * Failure detail for a message that could not be delivered or was rejected.
  */
 export type SmsError = {
   code: SmsErrorCode;
@@ -2504,16 +2504,16 @@ export type WhatsAppTemplateCategory = string;
 export type TemplateScope = "system" | "workspace";
 
 /**
- * A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.
+ * A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.
  *
  */
-export type TemplateName = string;
+export type WhatsAppTemplateName = string;
 
 export type WhatsAppTemplate = {
   /**
    * The template's stable handle. Pass it as the template reference when sending.
    */
-  readonly name: TemplateName;
+  readonly name: WhatsAppTemplateName;
   scope: TemplateScope;
   /**
    * The language code of this template variant (for example `en` or `pt_BR`).
@@ -2557,12 +2557,12 @@ export type WhatsAppEvent = {
    */
   readonly occurred_at: string;
   /**
-   * Failure detail. Present on `whatsapp.failed` events; null otherwise.
+   * Failure detail. Present only on `whatsapp.failed` events.
    */
   error?: WhatsAppError;
 };
 
-export type SendWhatsAppMessageRequest = {
+export type WhatsAppMessageSendRequest = {
   /**
    * The message recipient's phone number in E.164 format (for example `+31612345678`).
    */
@@ -2571,7 +2571,7 @@ export type SendWhatsAppMessageRequest = {
    * The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are currently the only supported content type, so every send must include one; free-text content will be added in a future release.
    *
    */
-  template?: SendWhatsAppMessageTemplate;
+  template?: WhatsAppTemplateSend;
   /**
    * Structured `{name, value}` labels for filtering. Tags become first-class query dimensions: filter the list endpoint by tag name. Maximum 20 tags per send. Use tags for low-cardinality dimensions (`category`, `experiment_variant`). For arbitrary structured context you do not need as a filter dimension, use `metadata` instead.
    *
@@ -2608,11 +2608,11 @@ export type WhatsAppMessageTemplateComponent = {
   parameters?: Array<WhatsAppMessageTemplateComponentParameter>;
 };
 
-export type SendWhatsAppMessageTemplate = {
+export type WhatsAppTemplateSend = {
   /**
    * The template to send, by its name (for example `bird_otp`).
    */
-  name: TemplateName;
+  name: WhatsAppTemplateName;
   /**
    * Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language.
    *
@@ -2652,7 +2652,7 @@ export type WhatsAppMessageTemplate = {
   /**
    * The template's stable handle (for example `bird_otp`).
    */
-  readonly name: TemplateName;
+  readonly name: WhatsAppTemplateName;
   /**
    * Content classification applied to messages sent from this template.
    */
@@ -2668,35 +2668,6 @@ export type WhatsAppMessageTemplate = {
   readonly components: Array<WhatsAppMessageTemplateComponent>;
 };
 
-/**
- * Contact on the other end of the message. Fields are omitted when not available; at least one is always present.
- */
-export type WhatsAppMessageContact = {
-  /**
-   * Contact's phone number in E.164 format, when known.
-   */
-  readonly phone_number?: string;
-  /**
-   * Business-scoped user ID (Meta's WhatsApp identifier for this contact within the business account), when available.
-   */
-  readonly bsuid?: string;
-};
-
-/**
- * The business identity that sent the message. `phone_number` is always present; `phone_number_id` is included only for account-owned numbers.
- *
- */
-export type WhatsAppMessageBusiness = {
-  /**
-   * E.164 phone number of the WhatsApp business account that sent the message.
-   */
-  readonly phone_number?: string;
-  /**
-   * The WhatsApp phone number identifier. Present only for account-owned numbers.
-   */
-  readonly phone_number_id?: string;
-};
-
 export type WhatsAppMessage = {
   /**
    * Message ID.
@@ -2706,15 +2677,21 @@ export type WhatsAppMessage = {
    * Whether the message was sent by the business (`outbound`) or received from the contact (`inbound`).
    */
   readonly direction: "outbound" | "inbound";
-  readonly business: WhatsAppMessageBusiness;
-  readonly contact: WhatsAppMessageContact;
+  /**
+   * Sender of the message. On outbound messages, the business number it was sent from; on inbound, the WhatsApp contact.
+   */
+  readonly from: WhatsAppAddress;
+  /**
+   * Recipient of the message. On outbound messages, the WhatsApp contact; on inbound, the business number.
+   */
+  readonly to: WhatsAppAddress;
   /**
    * The template the message was sent from. For authentication templates the filled-in values are not returned.
    */
   readonly template?: WhatsAppMessageTemplate;
   readonly status: WhatsAppMessageStatus;
   /**
-   * Failure detail for a message that did not reach the recipient. Null when there is no failure.
+   * Failure detail for a message that did not reach the recipient. Present only when the message failed.
    */
   last_error?: WhatsAppError;
   /**
@@ -2894,6 +2871,12 @@ export type TemplateVariable = {
  */
 export type SmsMessageCategory =
   "transactional" | "marketing" | "authentication" | "service";
+
+/**
+ * A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.
+ *
+ */
+export type TemplateName = string;
 
 export type SmsTemplateId = string;
 
@@ -3111,7 +3094,7 @@ export type SmsMessage = {
    */
   readonly mcc_mnc?: string | null;
   /**
-   * Failure detail on a terminally failed or rejected message. Null otherwise.
+   * Failure detail on a terminally failed or rejected message. Present only when the message failed.
    */
   last_error?: SmsError;
   /**
@@ -4393,7 +4376,7 @@ export type WebhookTestResponseWritable = {
 };
 
 /**
- * Failure detail for a message that could not be delivered. Null when there is no failure.
+ * Failure detail for a message that could not be delivered.
  */
 export type WhatsAppErrorWritable = {
   code: WhatsAppErrorCode;
@@ -4435,7 +4418,7 @@ export type EventSmsUndeliveredDataWritable = EventSmsBase & {
 };
 
 /**
- * Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.
+ * Failure detail for a message that could not be delivered or was rejected.
  */
 export type SmsErrorWritable = {
   code: SmsErrorCode;
@@ -4953,7 +4936,7 @@ export type WhatsAppEventListWritable = {
 
 export type WhatsAppEventWritable = {
   /**
-   * Failure detail. Present on `whatsapp.failed` events; null otherwise.
+   * Failure detail. Present only on `whatsapp.failed` events.
    */
   error?: WhatsAppErrorWritable;
 };
@@ -4975,7 +4958,7 @@ export type WhatsAppMessageTemplateWritable = {
 
 export type WhatsAppMessageWritable = {
   /**
-   * Failure detail for a message that did not reach the recipient. Null when there is no failure.
+   * Failure detail for a message that did not reach the recipient. Present only when the message failed.
    */
   last_error?: WhatsAppErrorWritable;
   /**
@@ -5060,7 +5043,7 @@ export type SmsMessageWritable = {
     [key: string]: unknown;
   };
   /**
-   * Failure detail on a terminally failed or rejected message. Null otherwise.
+   * Failure detail on a terminally failed or rejected message. Present only when the message failed.
    */
   last_error?: SmsErrorWritable;
 };
@@ -7810,7 +7793,7 @@ export type ListWhatsAppMessagesResponse =
   ListWhatsAppMessagesResponses[keyof ListWhatsAppMessagesResponses];
 
 export type SendWhatsAppMessageData = {
-  body: SendWhatsAppMessageRequest;
+  body: WhatsAppMessageSendRequest;
   headers?: {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).

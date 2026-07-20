@@ -462,8 +462,7 @@ export const WhatsAppErrorSchema = {
   additionalProperties: false,
   readOnly: true,
   required: ["code", "description", "occurred_at"],
-  description:
-    "Failure detail for a message that could not be delivered. Null when there is no failure.",
+  description: "Failure detail for a message that could not be delivered.",
   properties: {
     code: {
       $ref: "#/components/schemas/WhatsAppErrorCode",
@@ -677,7 +676,7 @@ export const SMSErrorSchema = {
   readOnly: true,
   required: ["code", "description", "occurred_at"],
   description:
-    "Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.",
+    "Failure detail for a message that could not be delivered or was rejected.",
   properties: {
     code: {
       $ref: "#/components/schemas/SMSErrorCode",
@@ -4988,14 +4987,14 @@ export const TemplateScopeSchema = {
     "Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).",
 } as const;
 
-export const TemplateNameSchema = {
+export const WhatsAppTemplateNameSchema = {
   type: "string",
   minLength: 1,
-  maxLength: 63,
-  pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
+  maxLength: 512,
+  pattern: "^[a-z0-9_]+$",
   description:
-    "A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.\n",
-  example: "welcome-email",
+    "A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.\n",
+  example: "bird_otp",
 } as const;
 
 export const WhatsAppTemplateSchema = {
@@ -5006,7 +5005,7 @@ export const WhatsAppTemplateSchema = {
     name: {
       allOf: [
         {
-          $ref: "#/components/schemas/TemplateName",
+          $ref: "#/components/schemas/WhatsAppTemplateName",
         },
       ],
       readOnly: true,
@@ -5113,13 +5112,12 @@ export const WhatsAppEventSchema = {
     },
     error: {
       $ref: "#/components/schemas/WhatsAppError",
-      description:
-        "Failure detail. Present on `whatsapp.failed` events; null otherwise.",
+      description: "Failure detail. Present only on `whatsapp.failed` events.",
     },
   },
 } as const;
 
-export const SendWhatsAppMessageRequestSchema = {
+export const WhatsAppMessageSendRequestSchema = {
   type: "object",
   additionalProperties: false,
   required: ["to"],
@@ -5134,7 +5132,7 @@ export const SendWhatsAppMessageRequestSchema = {
     template: {
       allOf: [
         {
-          $ref: "#/components/schemas/SendWhatsAppMessageTemplate",
+          $ref: "#/components/schemas/WhatsAppTemplateSend",
         },
       ],
       description:
@@ -5227,7 +5225,7 @@ export const WhatsAppMessageTemplateComponentSchema = {
   },
 } as const;
 
-export const SendWhatsAppMessageTemplateSchema = {
+export const WhatsAppTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
   required: ["name"],
@@ -5235,7 +5233,7 @@ export const SendWhatsAppMessageTemplateSchema = {
     name: {
       allOf: [
         {
-          $ref: "#/components/schemas/TemplateName",
+          $ref: "#/components/schemas/WhatsAppTemplateName",
         },
       ],
       description:
@@ -5352,7 +5350,7 @@ export const WhatsAppMessageTemplateSchema = {
     name: {
       allOf: [
         {
-          $ref: "#/components/schemas/TemplateName",
+          $ref: "#/components/schemas/WhatsAppTemplateName",
         },
       ],
       readOnly: true,
@@ -5389,61 +5387,10 @@ export const WhatsAppMessageTemplateSchema = {
   },
 } as const;
 
-export const WhatsAppMessageContactSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "Contact on the other end of the message. Fields are omitted when not available; at least one is always present.",
-  properties: {
-    phone_number: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "Contact's phone number in E.164 format, when known.",
-      example: "+15551234567",
-    },
-    bsuid: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "Business-scoped user ID (Meta's WhatsApp identifier for this contact within the business account), when available.",
-      example: "NL.xxxx",
-    },
-  },
-} as const;
-
-export const WhatsAppMessageBusinessSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "The business identity that sent the message. `phone_number` is always present; `phone_number_id` is included only for account-owned numbers.\n",
-  properties: {
-    phone_number: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "E.164 phone number of the WhatsApp business account that sent the message.",
-      example: "+15557654321",
-    },
-    phone_number_id: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "The WhatsApp phone number identifier. Present only for account-owned numbers.",
-      example: "397968058767338",
-    },
-  },
-} as const;
-
 export const WhatsAppMessageSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "direction", "business", "contact", "status", "created_at"],
+  required: ["id", "direction", "from", "to", "status", "created_at"],
   properties: {
     id: {
       readOnly: true,
@@ -5458,21 +5405,25 @@ export const WhatsAppMessageSchema = {
       description:
         "Whether the message was sent by the business (`outbound`) or received from the contact (`inbound`).",
     },
-    business: {
+    from: {
       readOnly: true,
       allOf: [
         {
-          $ref: "#/components/schemas/WhatsAppMessageBusiness",
+          $ref: "#/components/schemas/WhatsAppAddress",
         },
       ],
+      description:
+        "Sender of the message. On outbound messages, the business number it was sent from; on inbound, the WhatsApp contact.",
     },
-    contact: {
+    to: {
       readOnly: true,
       allOf: [
         {
-          $ref: "#/components/schemas/WhatsAppMessageContact",
+          $ref: "#/components/schemas/WhatsAppAddress",
         },
       ],
+      description:
+        "Recipient of the message. On outbound messages, the WhatsApp contact; on inbound, the business number.",
     },
     template: {
       readOnly: true,
@@ -5495,7 +5446,7 @@ export const WhatsAppMessageSchema = {
     last_error: {
       $ref: "#/components/schemas/WhatsAppError",
       description:
-        "Failure detail for a message that did not reach the recipient. Null when there is no failure.",
+        "Failure detail for a message that did not reach the recipient. Present only when the message failed.",
     },
     created_at: {
       type: "string",
@@ -5860,6 +5811,16 @@ export const SMSMessageCategorySchema = {
   enum: ["transactional", "marketing", "authentication", "service"],
   description:
     "Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance.",
+} as const;
+
+export const TemplateNameSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 63,
+  pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
+  description:
+    "A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.\n",
+  example: "welcome-email",
 } as const;
 
 export const SMSTemplateIDSchema = {
@@ -6281,7 +6242,7 @@ export const SMSMessageSchema = {
     last_error: {
       $ref: "#/components/schemas/SMSError",
       description:
-        "Failure detail on a terminally failed or rejected message. Null otherwise.",
+        "Failure detail on a terminally failed or rejected message. Present only when the message failed.",
     },
     created_at: {
       type: "string",
@@ -8690,8 +8651,7 @@ export const WhatsAppErrorWritableSchema = {
   additionalProperties: false,
   readOnly: true,
   required: ["code"],
-  description:
-    "Failure detail for a message that could not be delivered. Null when there is no failure.",
+  description: "Failure detail for a message that could not be delivered.",
   properties: {
     code: {
       $ref: "#/components/schemas/WhatsAppErrorCode",
@@ -8778,7 +8738,7 @@ export const SMSErrorWritableSchema = {
   readOnly: true,
   required: ["code", "description", "occurred_at"],
   description:
-    "Failure detail for a message that could not be delivered or was rejected. Null when there is no failure.",
+    "Failure detail for a message that could not be delivered or was rejected.",
   properties: {
     code: {
       $ref: "#/components/schemas/SMSErrorCode",
@@ -9864,8 +9824,7 @@ export const WhatsAppEventWritableSchema = {
   properties: {
     error: {
       $ref: "#/components/schemas/WhatsAppErrorWritable",
-      description:
-        "Failure detail. Present on `whatsapp.failed` events; null otherwise.",
+      description: "Failure detail. Present only on `whatsapp.failed` events.",
     },
   },
 } as const;
@@ -9906,7 +9865,7 @@ export const WhatsAppMessageWritableSchema = {
     last_error: {
       $ref: "#/components/schemas/WhatsAppErrorWritable",
       description:
-        "Failure detail for a message that did not reach the recipient. Null when there is no failure.",
+        "Failure detail for a message that did not reach the recipient. Present only when the message failed.",
     },
     tags: {
       type: "array",
@@ -10049,7 +10008,7 @@ export const SMSMessageWritableSchema = {
     last_error: {
       $ref: "#/components/schemas/SMSErrorWritable",
       description:
-        "Failure detail on a terminally failed or rejected message. Null otherwise.",
+        "Failure detail on a terminally failed or rejected message. Present only when the message failed.",
     },
   },
 } as const;

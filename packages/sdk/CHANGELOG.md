@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0
+
+- **Breaking:** WhatsApp message reads now return `from` and `to` (each a phone number and/or business-scoped user ID) in place of `business` and `contact`, matching the SMS/email convention.
+
 ## 0.8.5
 
 - Verify: `whatsapp` is now a recognized verification channel — the open `channel` enum gained `whatsapp`, and a country route's per-channel settings accept a `whatsapp` key. Additive; no breaking change.

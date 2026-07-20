@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.4
+
+- **Breaking:** the contact list free-text filter is now `q` (was `search`), matching the API's renamed query parameter. Update `contacts.list({ search })` to `contacts.list({ q })`.
+
 ## 0.8.3
 
 - Documentation clarifications.

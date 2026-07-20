@@ -113,7 +113,7 @@ contact.email;
 }
 
 export async function _ex_20() {
-for await (const contact of bird.contacts.list({ search: "acme.com" })) {
+for await (const contact of bird.contacts.list({ q: "acme.com" })) {
   console.log(contact.id, contact.email);
 }
 const page = await bird.contacts.list({ limit: 50 }); // page.data, page.next_cursor

@@ -63,10 +63,10 @@ export class ContactsResource extends Resource {
   /**
    * List the workspace's contacts, newest first. `await` resolves the first page;
    * `for await` walks every contact across pages. Filter by `email`,
-   * `external_id`, or a `search` term.
+   * `external_id`, or a `q` search term.
    *
    * @example Iterate every contact, or take one page
-   * for await (const contact of bird.contacts.list({ search: "acme.com" })) {
+   * for await (const contact of bird.contacts.list({ q: "acme.com" })) {
    *   console.log(contact.id, contact.email);
    * }
    * const page = await bird.contacts.list({ limit: 50 }); // page.data, page.next_cursor

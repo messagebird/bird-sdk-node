@@ -5879,7 +5879,7 @@ export type ListContactsData = {
     /**
      * Case-insensitive substring match against the contact's email address.
      */
-    search?: string;
+    q?: string;
     /**
      * Maximum number of items to return per page.
      */
@@ -6624,7 +6624,7 @@ export type ListAudiencesData = {
     /**
      * Case-insensitive substring match against the audience's name.
      */
-    search?: string;
+    q?: string;
     /**
      * Maximum number of items to return per page.
      */
@@ -6933,7 +6933,7 @@ export type ListAudienceContactsData = {
     /**
      * Case-insensitive substring match against the member's email address.
      */
-    search?: string;
+    q?: string;
     /**
      * Maximum number of items to return per page.
      */

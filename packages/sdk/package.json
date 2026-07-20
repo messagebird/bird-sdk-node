@@ -1,0 +1,64 @@
+{
+  "name": "@messagebird/sdk",
+  "version": "0.8.5",
+  "description": "Official TypeScript SDK for the Bird API.",
+  "license": "MIT",
+  "author": "Bird",
+  "homepage": "https://bird.com/docs/sdks/typescript",
+  "bugs": {
+    "url": "https://github.com/messagebird/bird-sdk-node/issues"
+  },
+  "keywords": [
+    "bird",
+    "email",
+    "webhooks",
+    "sdk",
+    "api"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/messagebird/bird-sdk-node.git"
+  },
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "lint": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.json",
+    "generate": "openapi-ts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "standardwebhooks": "^1.0.0"
+  },
+  "//unrun": "tsdown's TypeScript-config loader, declared by tsdown as an optional peer. Keep it an explicit devDependency: clean installs omit optional peers, and the mirror build then fails to load tsdown.config.ts. Do not prune.",
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.97.3",
+    "tsdown": "0.22.3",
+    "typescript": "npm:@typescript/typescript6@^6",
+    "typescript-7": "npm:typescript@7.0.2",
+    "unrun": "0.3.1",
+    "vitest": "4.1.10"
+  }
+}

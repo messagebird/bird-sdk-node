@@ -5574,7 +5574,7 @@ export const VerificationCheckResultSchema = {
 export const VerificationChannelSchema = {
   type: "string",
   minLength: 1,
-  "x-extensible-enum": ["email", "sms"],
+  "x-extensible-enum": ["email", "sms", "whatsapp"],
   description:
     "The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
 } as const;

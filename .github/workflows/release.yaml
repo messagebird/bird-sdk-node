@@ -1,13 +1,17 @@
-# Publishes @messagebird/sdk to npm when a vX.Y.Z tag is pushed to this mirror.
+# Publishes the Bird JS/TS packages under packages/* to npm when a release tag
+# is pushed to this mirror. One workflow publishes every package in the
+# workspace; each package that is not yet on npm at its current version is
+# published, so releasing one package leaves the others untouched (idempotent).
 #
-# Source of truth: clients/sdk-typescript/.mirror/ in the Bird monorepo — do NOT
+# Source of truth: clients/typescript/.mirror/ in the Bird monorepo — do NOT
 # edit on the mirror; changes are synced from the monorepo by
 # scripts/dev/sdk-release.sh.
 #
-# Auth is npm trusted publishing (OIDC) — there is no NPM_TOKEN. It requires a
-# trusted publisher configured on npmjs.com for @messagebird/sdk pointing at
-# this repository and this workflow file (release.yaml). Provenance is attached
-# so the npm page shows a verified "built from this repo" badge.
+# Auth is npm trusted publishing (OIDC) — there is no NPM_TOKEN. Each published
+# package needs its own trusted publisher on npmjs.com pointing at this
+# repository and this workflow file (release.yaml); they may all point at the
+# same repo+workflow. Provenance is attached per package (it is scoped to the
+# repo+workflow, so publishing from a packages/<name> subdir is fine).
 #
 # workflow_dispatch runs a dry-run (build + pack validation, no publish) so the
 # pipeline can be exercised without cutting a release.
@@ -15,6 +19,9 @@ name: Release
 
 on:
   push:
+    # Mirror release tags are v-prefixed (scripts/dev/lib/sdk-release/mirror.sh
+    # pushes v<version>). The publish step then loops packages/* and ships only
+    # versions not yet on npm, so one tag can carry a release of any package.
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -52,37 +59,50 @@ jobs:
       # that release does not bundle), so `npm publish --provenance` fails.
       - run: npm install -g npm@11
 
-      - name: Publish (dry-run)
-        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
-        run: npm publish --provenance --access public --dry-run
-
-      # Skip if the registry already has this version, so re-running after a
-      # later step failed (smoke, GitHub Release) doesn't error on a re-publish.
-      - name: Publish to npm
-        if: github.event_name == 'push' || !inputs.dry_run
+      # Publish every package that is not already on npm at its current version.
+      # DRY_RUN validates the tarball without publishing. Idempotent: a package
+      # whose exact version is already on npm is skipped, so a re-run after a
+      # later-step failure never errors on a re-publish, and releasing one package
+      # leaves the already-published siblings alone.
+      - name: Publish packages
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
-          ver="$(npm pkg get version | tr -d '"')"
-          if npm view "@messagebird/sdk@${ver}" version >/dev/null 2>&1; then
-            echo "npm already has @messagebird/sdk@${ver} — skipping (idempotent)"
-          else
-            npm publish --provenance --access public
-          fi
+          for dir in packages/*/; do
+            [ -f "$dir/package.json" ] || continue
+            name="$(node -p "require('./$dir/package.json').name")"
+            ver="$(node -p "require('./$dir/package.json').version")"
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "dry-run: $name@$ver"
+              ( cd "$dir" && npm publish --provenance --access public --dry-run )
+            elif npm view "$name@$ver" version >/dev/null 2>&1; then
+              echo "npm already has $name@$ver — skipping (idempotent)"
+            else
+              echo "publishing $name@$ver"
+              ( cd "$dir" && npm publish --provenance --access public )
+            fi
+          done
 
       # The GitHub Release runs BEFORE the smoke test so a post-publish npm
       # registry propagation flake in smoke can never drop the release notes for
-      # a version that is already published.
+      # a version that is already published. --notes-from-tag reuses the annotated
+      # tag's message (the released package's CHANGELOG section, set by
+      # scripts/dev/sdk-release.sh).
       - name: GitHub Release
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Skip if the release already exists, so a re-run doesn't 422.
-        # --notes-from-tag reuses the annotated tag's message (this version's
-        # CHANGELOG section, set by scripts/dev/sdk-release.sh).
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --notes-from-tag --verify-tag
 
-      # Only on a tag push, where GITHUB_REF_NAME is the vX.Y.Z just published.
+      # Smoke-test each package that ships one (install from npm, import over the
+      # real entrypoint). Its version comes from that package's package.json.
       - name: Smoke test (install from npm)
         if: github.event_name == 'push'
-        run: ./scripts/smoke.sh "${GITHUB_REF_NAME#v}"
+        run: |
+          for dir in packages/*/; do
+            [ -f "$dir/scripts/smoke.sh" ] || continue
+            ver="$(node -p "require('./$dir/package.json').version")"
+            ( cd "$dir" && ./scripts/smoke.sh "$ver" )
+          done

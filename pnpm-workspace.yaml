@@ -1,13 +1,14 @@
-# Promoted to the export root on release (.mirror/ -> root). The published SDK
-# ships `examples/` as a nested pnpm package whose devDeps (bun-types, the web
-# framework typings) the example typecheck — `tsc -p examples/tsconfig.json`,
-# part of `pnpm run lint` — needs installed. In the monorepo that package is a
-# member of the repo-root workspace; the standalone mirror has no such root, so
-# without this file the examples package is never installed and the lint fails
-# (TS2688: cannot find type definition file for 'bun-types'). It also lets
-# examples' `@messagebird/sdk: workspace:*` resolve to the root SDK package.
+# Promoted to the export root on release (.mirror/ -> root). The mirror is a
+# pnpm workspace whose members are the published packages under packages/* and
+# each package's nested `examples` package. The examples package's devDeps
+# (bun-types, the web framework typings) are what the example typecheck
+# (`tsc -p examples/tsconfig.json`, part of a package's `pnpm run lint`) needs
+# installed; without it the lint fails (TS2688: cannot find type definition file
+# for 'bun-types'). It also lets `examples`' `workspace:*` dep resolve to its
+# sibling package within the workspace.
 packages:
-  - "examples"
+  - "packages/*"
+  - "packages/*/examples"
 # esbuild and sharp need their build scripts (native binary) for the release build.
 allowBuilds:
   esbuild: true

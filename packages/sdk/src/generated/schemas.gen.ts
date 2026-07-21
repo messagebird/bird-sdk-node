@@ -56,6 +56,9 @@ export const WebhookEventTypeSchema = {
     "sms.rejected",
     "sms.sent",
     "sms.undelivered",
+    "voice.call.answered",
+    "voice.call.ended",
+    "voice.call.initiated",
     "whatsapp.accepted",
     "whatsapp.delivered",
     "whatsapp.failed",
@@ -626,6 +629,271 @@ export const EventWhatsAppAcceptedSchema = {
     },
     data: {
       $ref: "#/components/schemas/EventWhatsAppAcceptedData",
+    },
+  },
+} as const;
+
+export const EventVoiceCallInitiatedDataSchema = {
+  type: "object",
+  description: "Payload of the voice.call.initiated event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVoiceBase",
+    },
+  ],
+} as const;
+
+export const VoiceCallDirectionSchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["inbound", "outbound"],
+  description:
+    "Whether the call originated from your PBX (outbound) or arrived from a remote party (inbound).",
+  example: "outbound",
+} as const;
+
+export const VoiceSessionIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^vcs_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "vcs_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const VoiceCallIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^vcl_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "vcl_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventVoiceBaseSchema = {
+  type: "object",
+  "x-mixin": true,
+  description:
+    "Identity fields shared by every voice call lifecycle event payload.",
+  required: [
+    "call_id",
+    "workspace_id",
+    "direction",
+    "src_number",
+    "dst_number",
+  ],
+  properties: {
+    call_id: {
+      $ref: "#/components/schemas/VoiceCallID",
+      description: "ID of the call record.",
+      "x-go-type": "domain.VoiceCallID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    session_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/VoiceSessionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Session identifier shared across all legs of a multi-party or transferred call. Use this to correlate related call records. Null when session correlation is not available for the call.",
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "ID of the workspace.",
+      "x-go-type": "domain.WorkspaceID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    direction: {
+      $ref: "#/components/schemas/VoiceCallDirection",
+    },
+    src_number: {
+      type: "string",
+      minLength: 1,
+      description: "Calling party number in E.164 format.",
+      example: "+14155551234",
+    },
+    dst_number: {
+      type: "string",
+      minLength: 1,
+      description: "Called party number in E.164 format.",
+      example: "+16505559876",
+    },
+  },
+} as const;
+
+export const EventVoiceCallInitiatedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A call was initiated — Bird received the INVITE and began routing it.",
+  "x-event-type-id": "voice.call.initiated",
+  "x-dedupe": {
+    scope: "message",
+    stage: "voice.call.initiated",
+    id: "call_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["voice.call.initiated"],
+      description: "Event type.",
+      example: "voice.call.initiated",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the call was initiated.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVoiceCallInitiatedData",
+    },
+  },
+} as const;
+
+export const VoiceCallStatusSchema = {
+  type: "string",
+  minLength: 1,
+  enum: [
+    "answered",
+    "no_answer",
+    "busy",
+    "canceled",
+    "failed",
+    "rejected",
+    "unknown",
+    "ringing",
+    "in_progress",
+  ],
+  description:
+    "Call status. v1 records are always terminal and carry one of answered, no_answer, failed, rejected, or unknown. The remaining values are declared ahead of planned features so their arrival is not a breaking contract change: busy and canceled arrive with inbound (DID) termination — today both outcomes are folded into failed — and ringing and in_progress with a live-calls surface.\n",
+  example: "answered",
+} as const;
+
+export const EventVoiceCallEndedDataSchema = {
+  type: "object",
+  description: "Payload of the voice.call.ended event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVoiceBase",
+    },
+    {
+      type: "object",
+      required: ["status", "sip_response_code", "duration_ms", "billable_ms"],
+      properties: {
+        status: {
+          $ref: "#/components/schemas/VoiceCallStatus",
+        },
+        sip_response_code: {
+          type: ["integer", "null"],
+          minimum: 100,
+          description:
+            "Final SIP response code received from the carrier. Null when no SIP response was received, for example on timeout or DNS failure.",
+          example: 200,
+        },
+        duration_ms: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "Total call duration in milliseconds, measured from the first INVITE to the BYE or final response.",
+          example: 65000,
+        },
+        billable_ms: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "Billable duration in milliseconds, measured from answer to call end. Zero for unanswered calls.",
+          example: 60000,
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventVoiceCallEndedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The call ended — a BYE or final non-2xx response was received and the call record was written.",
+  "x-event-type-id": "voice.call.ended",
+  "x-dedupe": {
+    scope: "message",
+    stage: "voice.call.ended",
+    id: "call_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["voice.call.ended"],
+      description: "Event type.",
+      example: "voice.call.ended",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "When the call ended (BYE or final non-2xx response).",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVoiceCallEndedData",
+    },
+  },
+} as const;
+
+export const EventVoiceCallAnsweredDataSchema = {
+  type: "object",
+  description: "Payload of the voice.call.answered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVoiceBase",
+    },
+  ],
+} as const;
+
+export const EventVoiceCallAnsweredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The called party answered — the carrier returned a 200 OK and media is flowing.",
+  "x-event-type-id": "voice.call.answered",
+  "x-dedupe": {
+    scope: "message",
+    stage: "voice.call.answered",
+    id: "call_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["voice.call.answered"],
+      description: "Event type.",
+      example: "voice.call.answered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the call was answered.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVoiceCallAnsweredData",
     },
   },
 } as const;
@@ -3003,6 +3271,15 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventSMSUndelivered",
     },
     {
+      $ref: "#/components/schemas/EventVoiceCallAnswered",
+    },
+    {
+      $ref: "#/components/schemas/EventVoiceCallEnded",
+    },
+    {
+      $ref: "#/components/schemas/EventVoiceCallInitiated",
+    },
+    {
       $ref: "#/components/schemas/EventWhatsAppAccepted",
     },
     {
@@ -3061,6 +3338,9 @@ export const WebhookEventSchema = {
       "sms.rejected": "#/components/schemas/EventSMSRejected",
       "sms.sent": "#/components/schemas/EventSMSSent",
       "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
+      "voice.call.answered": "#/components/schemas/EventVoiceCallAnswered",
+      "voice.call.ended": "#/components/schemas/EventVoiceCallEnded",
+      "voice.call.initiated": "#/components/schemas/EventVoiceCallInitiated",
       "whatsapp.accepted": "#/components/schemas/EventWhatsAppAccepted",
       "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
       "whatsapp.failed": "#/components/schemas/EventWhatsAppFailed",
@@ -9045,6 +9325,15 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventSMSUndeliveredWritable",
     },
     {
+      $ref: "#/components/schemas/EventVoiceCallAnswered",
+    },
+    {
+      $ref: "#/components/schemas/EventVoiceCallEnded",
+    },
+    {
+      $ref: "#/components/schemas/EventVoiceCallInitiated",
+    },
+    {
       $ref: "#/components/schemas/EventWhatsAppAccepted",
     },
     {
@@ -9103,6 +9392,9 @@ export const WebhookEventWritableSchema = {
       "sms.rejected": "#/components/schemas/EventSMSRejectedWritable",
       "sms.sent": "#/components/schemas/EventSMSSent",
       "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
+      "voice.call.answered": "#/components/schemas/EventVoiceCallAnswered",
+      "voice.call.ended": "#/components/schemas/EventVoiceCallEnded",
+      "voice.call.initiated": "#/components/schemas/EventVoiceCallInitiated",
       "whatsapp.accepted": "#/components/schemas/EventWhatsAppAccepted",
       "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
       "whatsapp.failed": "#/components/schemas/EventWhatsAppFailedWritable",

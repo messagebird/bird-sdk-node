@@ -299,6 +299,131 @@ export type EventWhatsAppAccepted = {
 };
 
 /**
+ * Payload of the voice.call.initiated event.
+ */
+export type EventVoiceCallInitiatedData = EventVoiceBase;
+
+/**
+ * Whether the call originated from your PBX (outbound) or arrived from a remote party (inbound).
+ */
+export type VoiceCallDirection = "inbound" | "outbound";
+
+export type VoiceSessionId = string;
+
+export type VoiceCallId = string;
+
+/**
+ * Identity fields shared by every voice call lifecycle event payload.
+ */
+export type EventVoiceBase = {
+  /**
+   * ID of the call record.
+   */
+  call_id: VoiceCallId;
+  /**
+   * Session identifier shared across all legs of a multi-party or transferred call. Use this to correlate related call records. Null when session correlation is not available for the call.
+   */
+  session_id?: VoiceSessionId | null;
+  /**
+   * ID of the workspace.
+   */
+  workspace_id: WorkspaceId;
+  direction: VoiceCallDirection;
+  /**
+   * Calling party number in E.164 format.
+   */
+  src_number: string;
+  /**
+   * Called party number in E.164 format.
+   */
+  dst_number: string;
+};
+
+/**
+ * A call was initiated — Bird received the INVITE and began routing it.
+ */
+export type EventVoiceCallInitiated = {
+  /**
+   * Event type.
+   */
+  type: "voice.call.initiated";
+  /**
+   * Time the call was initiated.
+   */
+  timestamp: string;
+  data: EventVoiceCallInitiatedData;
+};
+
+/**
+ * Call status. v1 records are always terminal and carry one of answered, no_answer, failed, rejected, or unknown. The remaining values are declared ahead of planned features so their arrival is not a breaking contract change: busy and canceled arrive with inbound (DID) termination — today both outcomes are folded into failed — and ringing and in_progress with a live-calls surface.
+ *
+ */
+export type VoiceCallStatus =
+  | "answered"
+  | "no_answer"
+  | "busy"
+  | "canceled"
+  | "failed"
+  | "rejected"
+  | "unknown"
+  | "ringing"
+  | "in_progress";
+
+/**
+ * Payload of the voice.call.ended event.
+ */
+export type EventVoiceCallEndedData = EventVoiceBase & {
+  status: VoiceCallStatus;
+  /**
+   * Final SIP response code received from the carrier. Null when no SIP response was received, for example on timeout or DNS failure.
+   */
+  sip_response_code: number | null;
+  /**
+   * Total call duration in milliseconds, measured from the first INVITE to the BYE or final response.
+   */
+  duration_ms: number;
+  /**
+   * Billable duration in milliseconds, measured from answer to call end. Zero for unanswered calls.
+   */
+  billable_ms: number;
+};
+
+/**
+ * The call ended — a BYE or final non-2xx response was received and the call record was written.
+ */
+export type EventVoiceCallEnded = {
+  /**
+   * Event type.
+   */
+  type: "voice.call.ended";
+  /**
+   * When the call ended (BYE or final non-2xx response).
+   */
+  timestamp: string;
+  data: EventVoiceCallEndedData;
+};
+
+/**
+ * Payload of the voice.call.answered event.
+ */
+export type EventVoiceCallAnsweredData = EventVoiceBase;
+
+/**
+ * The called party answered — the carrier returned a 200 OK and media is flowing.
+ */
+export type EventVoiceCallAnswered = {
+  /**
+   * Event type.
+   */
+  type: "voice.call.answered";
+  /**
+   * Time the call was answered.
+   */
+  timestamp: string;
+  data: EventVoiceCallAnsweredData;
+};
+
+/**
  * Payload of the sms.undelivered event.
  */
 export type EventSmsUndeliveredData = EventSmsBase & {
@@ -1538,6 +1663,15 @@ export type WebhookEvent =
   | ({
       type: "sms.undelivered";
     } & EventSmsUndelivered)
+  | ({
+      type: "voice.call.answered";
+    } & EventVoiceCallAnswered)
+  | ({
+      type: "voice.call.ended";
+    } & EventVoiceCallEnded)
+  | ({
+      type: "voice.call.initiated";
+    } & EventVoiceCallInitiated)
   | ({
       type: "whatsapp.accepted";
     } & EventWhatsAppAccepted)
@@ -4624,6 +4758,15 @@ export type WebhookEventWritable =
   | ({
       type: "sms.undelivered";
     } & EventSmsUndeliveredWritable)
+  | ({
+      type: "voice.call.answered";
+    } & EventVoiceCallAnswered)
+  | ({
+      type: "voice.call.ended";
+    } & EventVoiceCallEnded)
+  | ({
+      type: "voice.call.initiated";
+    } & EventVoiceCallInitiated)
   | ({
       type: "whatsapp.accepted";
     } & EventWhatsAppAccepted)

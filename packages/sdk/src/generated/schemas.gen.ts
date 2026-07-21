@@ -1417,8 +1417,14 @@ export const EventEmailSuppressionCreatedDataSchema = {
     reason: {
       type: "string",
       minLength: 1,
-      enum: ["hard_bounce", "complaint", "unsubscribe", "manual"],
-      description: "Why the address was suppressed.",
+      "x-extensible-enum": [
+        "hard_bounce",
+        "complaint",
+        "unsubscribe",
+        "manual",
+      ],
+      description:
+        "Why the address was suppressed. This list grows over time — treat unknown values as informational rather than rejecting the event.\n",
       example: "hard_bounce",
     },
     workspace_id: {
@@ -4400,23 +4406,36 @@ export const SuppressionSchema = {
     },
     reason: {
       type: "string",
-      enum: ["hard_bounce", "complaint", "unsubscribe", "manual"],
+      minLength: 1,
+      "x-extensible-enum": [
+        "hard_bounce",
+        "complaint",
+        "unsubscribe",
+        "manual",
+      ],
+      description:
+        "Why the address is suppressed. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
     },
     origin: {
       type: "string",
-      enum: [
+      minLength: 1,
+      "x-extensible-enum": [
         "bounce_event",
         "complaint_event",
         "unsubscribe_event",
+        "unsubscribe_link",
         "api_key",
         "user",
       ],
+      description:
+        "How the suppression came to exist. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
     },
     applies_to: {
       type: "string",
-      enum: ["all", "non_transactional", "category"],
+      minLength: 1,
+      "x-extensible-enum": ["all", "non_transactional", "category"],
       description:
-        'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences.\n',
+        'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences. This list grows over time — treat an unknown value as blocking at least non-transactional mail.\n',
     },
     source_email_id: {
       description:
@@ -9866,23 +9885,36 @@ export const SuppressionWritableSchema = {
     },
     reason: {
       type: "string",
-      enum: ["hard_bounce", "complaint", "unsubscribe", "manual"],
+      minLength: 1,
+      "x-extensible-enum": [
+        "hard_bounce",
+        "complaint",
+        "unsubscribe",
+        "manual",
+      ],
+      description:
+        "Why the address is suppressed. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
     },
     origin: {
       type: "string",
-      enum: [
+      minLength: 1,
+      "x-extensible-enum": [
         "bounce_event",
         "complaint_event",
         "unsubscribe_event",
+        "unsubscribe_link",
         "api_key",
         "user",
       ],
+      description:
+        "How the suppression came to exist. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
     },
     applies_to: {
       type: "string",
-      enum: ["all", "non_transactional", "category"],
+      minLength: 1,
+      "x-extensible-enum": ["all", "non_transactional", "category"],
       description:
-        'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences.\n',
+        'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences. This list grows over time — treat an unknown value as blocking at least non-transactional mail.\n',
     },
     source_email_id: {
       description:

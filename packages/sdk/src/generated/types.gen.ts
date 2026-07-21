@@ -683,9 +683,10 @@ export type EventEmailSuppressionCreatedData = {
    */
   email: string;
   /**
-   * Why the address was suppressed.
+   * Why the address was suppressed. This list grows over time — treat unknown values as informational rather than rejecting the event.
+   *
    */
-  reason: "hard_bounce" | "complaint" | "unsubscribe" | "manual";
+  reason: string;
   /**
    * The workspace the suppression belongs to.
    */
@@ -2187,18 +2188,21 @@ export type Suppression = {
   readonly id: SuppressionId;
   email: string;
   scope: SuppressionScope;
-  reason: "hard_bounce" | "complaint" | "unsubscribe" | "manual";
-  origin:
-    | "bounce_event"
-    | "complaint_event"
-    | "unsubscribe_event"
-    | "api_key"
-    | "user";
   /**
-   * Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences.
+   * Why the address is suppressed. This list grows over time — treat unknown values as informational rather than rejecting the record.
    *
    */
-  applies_to: "all" | "non_transactional" | "category";
+  reason: string;
+  /**
+   * How the suppression came to exist. This list grows over time — treat unknown values as informational rather than rejecting the record.
+   *
+   */
+  origin: string;
+  /**
+   * Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences. This list grows over time — treat an unknown value as blocking at least non-transactional mail.
+   *
+   */
+  applies_to: string;
   /**
    * ID of the email that triggered suppression. Null for manual additions.
    */
@@ -4987,18 +4991,21 @@ export type SuppressionListWritable = {
 export type SuppressionWritable = {
   email: string;
   scope: SuppressionScope;
-  reason: "hard_bounce" | "complaint" | "unsubscribe" | "manual";
-  origin:
-    | "bounce_event"
-    | "complaint_event"
-    | "unsubscribe_event"
-    | "api_key"
-    | "user";
   /**
-   * Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences.
+   * Why the address is suppressed. This list grows over time — treat unknown values as informational rather than rejecting the record.
    *
    */
-  applies_to: "all" | "non_transactional" | "category";
+  reason: string;
+  /**
+   * How the suppression came to exist. This list grows over time — treat unknown values as informational rather than rejecting the record.
+   *
+   */
+  origin: string;
+  /**
+   * Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences. This list grows over time — treat an unknown value as blocking at least non-transactional mail.
+   *
+   */
+  applies_to: string;
   /**
    * ID of the email that triggered suppression. Null for manual additions.
    */

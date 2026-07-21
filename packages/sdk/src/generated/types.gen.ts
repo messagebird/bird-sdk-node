@@ -4145,6 +4145,25 @@ export type EmailMessage = {
   readonly scheduled_at?: string | null;
 };
 
+export type DocsPage = {
+  /**
+   * Slug of the page, echoing the requested slug.
+   */
+  readonly slug: string;
+  /**
+   * Documentation locale the page was drawn from.
+   */
+  readonly locale: string;
+  /**
+   * Absolute URL of the page, suitable to cite as the source of an answer.
+   */
+  readonly url: string;
+  /**
+   * The page's full content as Markdown.
+   */
+  readonly markdown: string;
+};
+
 export type DocsSearchResponse = {
   /**
    * The search query that produced these results.
@@ -4170,6 +4189,10 @@ export type DocsSearchResult = {
    */
   readonly section: string;
   /**
+   * Stable identifier of the page, used to read the whole page's Markdown.
+   */
+  readonly slug: string;
+  /**
    * Absolute URL of the matching section, including the heading anchor.
    */
   readonly url: string;
@@ -4178,7 +4201,7 @@ export type DocsSearchResult = {
    */
   readonly doc_url: string;
   /**
-   * Absolute URL that returns the page's full content as Markdown. Fetch it to read the whole page.
+   * Absolute URL that returns the page's full content as Markdown; also the page's canonical source URL.
    */
   readonly markdown_url: string;
   /**

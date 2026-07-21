@@ -8229,6 +8229,39 @@ export const EmailMessageSchema = {
   },
 } as const;
 
+export const DocsPageSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["slug", "locale", "url", "markdown"],
+  properties: {
+    slug: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Slug of the page, echoing the requested slug.",
+    },
+    locale: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Documentation locale the page was drawn from.",
+    },
+    url: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Absolute URL of the page, suitable to cite as the source of an answer.",
+    },
+    markdown: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The page's full content as Markdown.",
+    },
+  },
+} as const;
+
 export const DocsSearchResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -8264,6 +8297,7 @@ export const DocsSearchResultSchema = {
   required: [
     "title",
     "section",
+    "slug",
     "url",
     "doc_url",
     "markdown_url",
@@ -8282,6 +8316,13 @@ export const DocsSearchResultSchema = {
       minLength: 1,
       readOnly: true,
       description: "Heading of the matching section within the page.",
+    },
+    slug: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Stable identifier of the page, used to read the whole page's Markdown.",
     },
     url: {
       type: "string",
@@ -8302,7 +8343,7 @@ export const DocsSearchResultSchema = {
       minLength: 1,
       readOnly: true,
       description:
-        "Absolute URL that returns the page's full content as Markdown. Fetch it to read the whole page.",
+        "Absolute URL that returns the page's full content as Markdown; also the page's canonical source URL.",
     },
     snippet: {
       type: "string",

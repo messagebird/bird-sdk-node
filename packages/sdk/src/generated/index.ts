@@ -175,6 +175,7 @@ export type {
   DeleteDomainResponses,
   DnsRecord,
   DnsRecordWritable,
+  DocsPage,
   DocsSearchResponse,
   DocsSearchResult,
   Domain,

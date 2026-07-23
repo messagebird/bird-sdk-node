@@ -69,6 +69,54 @@ import type {
   GetEmailMessageData,
   GetEmailMessageErrors,
   GetEmailMessageResponses,
+  GetEmailStatsByBounceCodeData,
+  GetEmailStatsByBounceCodeErrors,
+  GetEmailStatsByBounceCodeResponses,
+  GetEmailStatsByBroadcastData,
+  GetEmailStatsByBroadcastErrors,
+  GetEmailStatsByBroadcastResponses,
+  GetEmailStatsByCategoryData,
+  GetEmailStatsByCategoryErrors,
+  GetEmailStatsByCategoryResponses,
+  GetEmailStatsByClientData,
+  GetEmailStatsByClientErrors,
+  GetEmailStatsByClientResponses,
+  GetEmailStatsByComplaintTypeData,
+  GetEmailStatsByComplaintTypeErrors,
+  GetEmailStatsByComplaintTypeResponses,
+  GetEmailStatsByLocationData,
+  GetEmailStatsByLocationErrors,
+  GetEmailStatsByLocationResponses,
+  GetEmailStatsByMailboxProviderData,
+  GetEmailStatsByMailboxProviderErrors,
+  GetEmailStatsByMailboxProviderRegionData,
+  GetEmailStatsByMailboxProviderRegionErrors,
+  GetEmailStatsByMailboxProviderRegionResponses,
+  GetEmailStatsByMailboxProviderResponses,
+  GetEmailStatsByRecipientDomainData,
+  GetEmailStatsByRecipientDomainErrors,
+  GetEmailStatsByRecipientDomainResponses,
+  GetEmailStatsBySendingDomainData,
+  GetEmailStatsBySendingDomainErrors,
+  GetEmailStatsBySendingDomainResponses,
+  GetEmailStatsBySendingIpData,
+  GetEmailStatsBySendingIpErrors,
+  GetEmailStatsBySendingIpResponses,
+  GetEmailStatsByTagData,
+  GetEmailStatsByTagErrors,
+  GetEmailStatsByTagResponses,
+  GetEmailStatsByTemplateData,
+  GetEmailStatsByTemplateErrors,
+  GetEmailStatsByTemplateResponses,
+  GetEmailStatsDailyData,
+  GetEmailStatsDailyErrors,
+  GetEmailStatsDailyResponses,
+  GetEmailStatsHourlyData,
+  GetEmailStatsHourlyErrors,
+  GetEmailStatsHourlyResponses,
+  GetEmailStatsSummaryData,
+  GetEmailStatsSummaryErrors,
+  GetEmailStatsSummaryResponses,
   GetSmsMessageData,
   GetSmsMessageErrors,
   GetSmsMessageResponses,
@@ -161,7 +209,8 @@ export type Options<
 /**
  * List messages
  *
- * Returns a paginated list of email messages in the workspace, newest first.
+ * Returns the workspace's sent and scheduled messages, newest first, as a cursor page. Each item carries the aggregate delivery `status` and per-state recipient counts, not the message body. Combine filters to narrow the page: `status`, `category`, `tag`, exact `to`/`from` address, and a `created_after`/`created_before` time window.
+ *
  */
 export const listEmailMessages = <ThrowOnError extends boolean = false>(
   options?: Options<ListEmailMessagesData, ThrowOnError>,
@@ -186,9 +235,22 @@ export const listEmailMessages = <ThrowOnError extends boolean = false>(
 /**
  * Send a message
  *
- * Sends an email to the recipients you list explicitly in `to`/`cc`/`bcc`. Use this for transactional sends (receipts, password resets, alerts) and for marketing sends where you have the recipient addresses on hand. For sends targeting a stored audience by reference, use POST /v1/email/broadcasts. The `category` field controls suppression policy independently — set it to `marketing` when sending marketing content from this endpoint. The 202 response is returned only after the message is safely accepted for delivery. If the sender domain is not verified, or all recipients are suppressed, the request fails immediately with a 422 — it is never accepted and then silently dropped. Other field-level validation failures also return 422.
- * Recipient addresses on reserved testing domains are rejected with a 422 RecipientDomainNotAllowed error. This covers @example.com, @example.net, @example.org, @example.edu, @test.com, and any address under the reserved .test, .example, .invalid, or .localhost top-level domains. These placeholder domains cannot receive mail, and the resulting bounces would hurt your sender reputation — use a real recipient address instead.
- * During onboarding, you can send without verifying a domain: use any sender address on the shared onboarding domain (for example onboarding@messagebird.dev). Such sends skip the sender-domain verification check, can only go to verified members of your workspace (other recipients are rejected with a 422 OnboardingRecipientNotAllowed error), and are subject to a daily recipient limit per organization (429 OnboardingSendLimitExceeded once exhausted).
+ * Sends an email to the recipients you list explicitly in `to`/`cc`/`bcc`. Use it for
+ * transactional sends (receipts, password resets, alerts) and for marketing sends where
+ * you have the recipient addresses on hand; to submit many independent messages in one
+ * request, use [Send a batch of messages](/docs/api/reference/create-email-message-batch)
+ * instead. The `category` field controls suppression policy independently of content:
+ * set it to `marketing` when sending marketing content from this endpoint.
+ *
+ * The `202` response means the message is safely accepted for delivery, not yet
+ * delivered. Fetch it by `id` or subscribe to webhook events to follow delivery. The
+ * request never half-succeeds: an unverified sender domain or any field-level
+ * validation failure rejects it immediately with a `422` naming the reason.
+ * Suppression is evaluated per recipient after acceptance: suppressed recipients
+ * surface as `rejected` on the message's recipient list, never as a synchronous
+ * error. New workspaces can send from the shared onboarding domain before verifying
+ * their own; the [quickstart](/docs/get-started/send-your-first-email) covers its
+ * recipient and volume limits.
  *
  */
 export const createEmailMessage = <ThrowOnError extends boolean = false>(
@@ -218,7 +280,7 @@ export const createEmailMessage = <ThrowOnError extends boolean = false>(
 /**
  * Send a batch of messages
  *
- * Accepts up to 100 independent email messages and queues them for delivery. All items are validated before any are queued — if one fails validation, the entire batch is rejected. Field-level validation failures and business-rule failures (such as domain_not_verified or all_recipients_suppressed) both return 422. Attachments are allowed per message. Each message must stay within the 20 MB estimated generated message-size cap. The serialized JSON request body for the batch has a hard 20 MB cap.
+ * Accepts up to 100 independent email messages and queues them for delivery. All items are validated before any are queued: if one fails validation, the entire batch is rejected. Field-level validation failures and business-rule failures (such as `domain_not_verified`) both return `422`. Suppression is evaluated per recipient after acceptance, never as a synchronous error. The `202` response returns one entry per message in submission order, each with its own `id` to fetch or correlate webhook events against. Attachments are allowed per message. Each message must stay within the 20 MB estimated generated message-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap.
  *
  */
 export const createEmailMessageBatch = <ThrowOnError extends boolean = false>(
@@ -248,7 +310,7 @@ export const createEmailMessageBatch = <ThrowOnError extends boolean = false>(
 /**
  * Get a message
  *
- * Returns a single email message object with aggregate delivery status and counts. Message body (html, text) is not returned — it is not stored after delivery.
+ * Returns a single message with its aggregate delivery `status` and per-state recipient counts. The response never includes the `html`/`text` bodies; when content storage is enabled for the send, fetch the stored bodies with [Get stored message content](/docs/api/reference/get-email-message-content). Per-recipient statuses and the event timeline are separate sub-resources.
  *
  */
 export const getEmailMessage = <ThrowOnError extends boolean = false>(
@@ -300,7 +362,7 @@ export const cancelEmailMessage = <ThrowOnError extends boolean = false>(
 /**
  * List contacts
  *
- * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email` or `external_id`, or search by email substring with `search`.
+ * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email` or `external_id`, or search by email substring with `q`.
  *
  */
 export const listContacts = <ThrowOnError extends boolean = false>(
@@ -326,7 +388,9 @@ export const listContacts = <ThrowOnError extends boolean = false>(
 /**
  * Create a contact
  *
- * Creates a contact in the workspace. Contacts are unique by email address; creating a second contact with the same email returns a conflict error. The same applies to `external_id` — a value already used by another contact returns a conflict error. Custom values in `data` must use property keys you created via the contact properties API, with values matching each property's declared type.
+ * Creates a contact in the workspace. The email address is the contact's identity: it is stored trimmed and lowercased, and creating a second contact with the same email, or reusing another contact's `external_id`, returns a conflict error.
+ *
+ * To create or update many contacts in one request, or to write a contact without knowing whether the address already exists, use [Create or update contacts in bulk](/docs/api/reference/create-contact-batch) instead.
  *
  */
 export const createContact = <ThrowOnError extends boolean = false>(
@@ -356,7 +420,9 @@ export const createContact = <ThrowOnError extends boolean = false>(
 /**
  * Create or update contacts in bulk
  *
- * Creates or updates up to 1,000 contacts in one request, matched by email address (trimmed and lowercased before matching). Existing contacts are updated with the supplied fields; new ones are created. Optionally adds every contact in the request to one or more audiences. Results are returned per contact, in submission order — a failed entry does not abort the rest of the request.
+ * Creates or updates up to 1,000 contacts in one request, matched by email address (trimmed and lowercased before matching). A new address creates a contact; an existing one is updated with the fields that entry supplies, and omitted fields keep their stored values. Optionally adds every contact in the request to up to 10 audiences.
+ *
+ * Each entry succeeds or fails on its own: the response lists one result per contact in submission order (`created`, `updated`, or `failed` with the reason), and a failed entry does not abort the rest. If the request itself is invalid, for example when an entry in `audience_ids` does not exist, the whole request fails with a validation error and no contacts are written.
  *
  */
 export const createContactBatch = <ThrowOnError extends boolean = false>(
@@ -386,7 +452,7 @@ export const createContactBatch = <ThrowOnError extends boolean = false>(
 /**
  * Delete a contact
  *
- * Deletes a contact and removes it from every audience it belongs to. Suppression records for the address are not affected — an unsubscribed or bounced address stays suppressed even after the contact is deleted.
+ * Deletes a contact permanently and removes it from every audience it belongs to. Suppression records for the address are not affected: an unsubscribed or bounced address stays suppressed even after the contact is deleted.
  *
  */
 export const deleteContact = <ThrowOnError extends boolean = false>(
@@ -412,7 +478,8 @@ export const deleteContact = <ThrowOnError extends boolean = false>(
 /**
  * Get a contact
  *
- * Returns a single contact by ID.
+ * Returns a single contact, including its custom `data` values and the channels it can be reached on. To find a contact's ID by email address or `external_id`, use [List contacts](/docs/api/reference/list-contacts).
+ *
  */
 export const getContact = <ThrowOnError extends boolean = false>(
   options: Options<GetContactData, ThrowOnError>,
@@ -437,7 +504,9 @@ export const getContact = <ThrowOnError extends boolean = false>(
 /**
  * Update a contact
  *
- * Updates a contact. Supplied fields are changed; omitted fields are left unchanged. Custom values in `data` are merged — keys you supply are set, keys set to null are removed, and keys you omit are unchanged. Changing the email address or `external_id` to a value already used by another contact returns a conflict error.
+ * Updates a contact. Supplied fields are changed and omitted fields are left unchanged; set `first_name`, `last_name`, or `external_id` to null to clear them. Custom values in `data` are merged: keys you supply are set, keys set to null are removed, and keys you omit are unchanged.
+ *
+ * Changing the email address or `external_id` to a value already used by another contact returns a conflict error.
  *
  */
 export const updateContact = <ThrowOnError extends boolean = false>(
@@ -467,7 +536,8 @@ export const updateContact = <ThrowOnError extends boolean = false>(
 /**
  * List contact properties
  *
- * Returns a paginated list of the workspace's contact properties.
+ * Returns a paginated list of the workspace's contact properties, newest first. Archived properties are included; check each entry's `archived` flag.
+ *
  */
 export const listContactProperties = <ThrowOnError extends boolean = false>(
   options?: Options<ListContactPropertiesData, ThrowOnError>,
@@ -492,7 +562,9 @@ export const listContactProperties = <ThrowOnError extends boolean = false>(
 /**
  * Create a contact property
  *
- * Defines a custom property that contacts in the workspace can carry. The key becomes available in contact `data` and as a template variable in broadcasts. Keys are unique within the workspace; the key and type cannot be changed after creation.
+ * Defines a custom property that contacts in the workspace can carry. The key becomes available in contact `data` and as a template variable in broadcasts. The key and type cannot be changed after creation.
+ *
+ * A key already in use returns a conflict error. A workspace can hold at most 200 properties; archived properties keep their key and count toward that limit.
  *
  */
 export const createContactProperty = <ThrowOnError extends boolean = false>(
@@ -522,7 +594,8 @@ export const createContactProperty = <ThrowOnError extends boolean = false>(
 /**
  * Get a contact property
  *
- * Returns a single contact property by ID.
+ * Returns a single contact property: its immutable key and type, the fallback value, and whether it is archived.
+ *
  */
 export const getContactProperty = <ThrowOnError extends boolean = false>(
   options: Options<GetContactPropertyData, ThrowOnError>,
@@ -547,7 +620,7 @@ export const getContactProperty = <ThrowOnError extends boolean = false>(
 /**
  * Update a contact property
  *
- * Updates a contact property's fallback value. The key and type cannot be changed after creation — create a new property instead.
+ * Updates a contact property's fallback value, the only mutable field. The key and type cannot be changed after creation; create a new property instead.
  *
  */
 export const updateContactProperty = <ThrowOnError extends boolean = false>(
@@ -577,7 +650,9 @@ export const updateContactProperty = <ThrowOnError extends boolean = false>(
 /**
  * Archive a contact property
  *
- * Archives a contact property. The key stops being accepted in new contact writes and stops rendering in templates, but every value already stored on your contacts is preserved and still returned when you read a contact. The key stays reserved, so it cannot be re-created with a different type. Returns 409 if the property is already archived. Reverse it with unarchive.
+ * Archives a contact property. The key stops being accepted in contact writes and stops rendering in templates, but every value already stored on your contacts is preserved and still returned when you read a contact.
+ *
+ * The key stays reserved and still counts toward the workspace's 200-property limit, so it cannot be re-created with a different type. Archiving an already-archived property returns a conflict error; reverse it with [Unarchive a contact property](/docs/api/reference/unarchive-contact-property).
  *
  */
 export const archiveContactProperty = <ThrowOnError extends boolean = false>(
@@ -603,7 +678,7 @@ export const archiveContactProperty = <ThrowOnError extends boolean = false>(
 /**
  * Unarchive a contact property
  *
- * Reactivates an archived contact property. The key is accepted in contact writes and renders in templates again; stored values were never removed, so they are unchanged. Returns 409 if the property is not archived.
+ * Reactivates an archived contact property. The key is accepted in contact writes and renders in templates again; stored values were never removed, so they are unchanged. Unarchiving a property that is not archived returns a conflict error.
  *
  */
 export const unarchiveContactProperty = <ThrowOnError extends boolean = false>(
@@ -629,7 +704,7 @@ export const unarchiveContactProperty = <ThrowOnError extends boolean = false>(
 /**
  * List audiences
  *
- * Returns a paginated list of audiences in the workspace, newest first. Filter to audiences whose name contains a substring with `search`.
+ * Returns a paginated list of audiences in the workspace, newest first. Filter to audiences whose name contains a substring with `q`.
  *
  */
 export const listAudiences = <ThrowOnError extends boolean = false>(
@@ -655,7 +730,7 @@ export const listAudiences = <ThrowOnError extends boolean = false>(
 /**
  * Create an audience
  *
- * Creates an audience in the workspace. Static audiences start empty — add contacts via the audience contacts endpoint or the bulk contact upsert.
+ * Creates an audience in the workspace. New audiences start empty: add members with [Add contacts to an audience](/docs/api/reference/assign-audience-contacts) or through [Create or update contacts in bulk](/docs/api/reference/create-contact-batch). Only `static` audiences can be created today; requesting `dynamic` or `external` returns a validation error.
  *
  */
 export const createAudience = <ThrowOnError extends boolean = false>(
@@ -685,7 +760,7 @@ export const createAudience = <ThrowOnError extends boolean = false>(
 /**
  * Delete an audience
  *
- * Deletes an audience and its memberships. Contacts themselves are not deleted. An audience cannot be deleted while a broadcast targeting it is scheduled, accepted, sending, or canceling — cancel that broadcast first.
+ * Deletes an audience and its memberships. Contacts themselves are not deleted. An audience cannot be deleted while a broadcast targeting it is scheduled, accepted, sending, or canceling; cancel that broadcast first, then retry.
  *
  */
 export const deleteAudience = <ThrowOnError extends boolean = false>(
@@ -711,7 +786,8 @@ export const deleteAudience = <ThrowOnError extends boolean = false>(
 /**
  * Get an audience
  *
- * Returns a single audience by ID.
+ * Returns a single audience: its name, description, and type. The member list is separate; fetch it with [List an audience's contacts](/docs/api/reference/list-audience-contacts).
+ *
  */
 export const getAudience = <ThrowOnError extends boolean = false>(
   options: Options<GetAudienceData, ThrowOnError>,
@@ -736,7 +812,8 @@ export const getAudience = <ThrowOnError extends boolean = false>(
 /**
  * Update an audience
  *
- * Updates an audience's name or description.
+ * Updates an audience's name or description. Omitted fields are left unchanged; set `description` to null to clear it.
+ *
  */
 export const updateAudience = <ThrowOnError extends boolean = false>(
   options: Options<UpdateAudienceData, ThrowOnError>,
@@ -791,7 +868,7 @@ export const listAudienceContacts = <ThrowOnError extends boolean = false>(
 /**
  * Add contacts to an audience
  *
- * Adds up to 1,000 contacts to a static audience. Contacts that are already members are left in place. If any contact ID does not exist, the whole request fails and no contacts are added.
+ * Adds up to 1,000 contacts to an audience. Adding is idempotent: contacts that are already members are left in place and keep their original join time. If any contact ID does not exist in the workspace, the whole request fails with a validation error and no contacts are added.
  *
  */
 export const assignAudienceContacts = <ThrowOnError extends boolean = false>(
@@ -821,7 +898,7 @@ export const assignAudienceContacts = <ThrowOnError extends boolean = false>(
 /**
  * Remove contacts from an audience
  *
- * Removes up to 1,000 contacts from a static audience. Contacts that are not members are skipped. If any contact ID does not exist, the whole request fails and no contacts are removed. The contacts themselves are not deleted and remain members of any other audiences.
+ * Removes up to 1,000 contacts from an audience. Contacts that are not members are skipped. If any contact ID does not exist in the workspace, the whole request fails with a validation error and no memberships are removed. The contacts themselves are not deleted and remain members of any other audiences.
  *
  */
 export const unassignAudienceContacts = <ThrowOnError extends boolean = false>(
@@ -877,7 +954,8 @@ export const unassignAudienceContact = <ThrowOnError extends boolean = false>(
 /**
  * List SMS messages
  *
- * Returns a paginated list of SMS messages in the workspace, newest first.
+ * Returns the workspace's SMS messages as a cursor-paginated list, newest first. Filter by direction, status, category, recipient, sender, failure reason, tag, or creation time; pass the response's `next_cursor` back as `starting_after` to fetch the next page. To follow a single message's delivery, use [Get an SMS message](/docs/api/reference/get-sms-message) instead.
+ *
  */
 export const listSmsMessages = <ThrowOnError extends boolean = false>(
   options?: Options<ListSmsMessagesData, ThrowOnError>,
@@ -902,7 +980,22 @@ export const listSmsMessages = <ThrowOnError extends boolean = false>(
 /**
  * Send an SMS message
  *
- * Sends a single SMS message to one recipient. The 202 response is returned only after the message is durably accepted for delivery; actual delivery happens asynchronously, and you track it with the get-message and list-events endpoints or with webhooks. `category` is required and controls opt-out (STOP) policy, quiet hours, and per-country compliance. A body exceeding the 12-segment cap is rejected with a 422, as are field-level validation failures and sends that cannot be afforded by the workspace balance.
+ * Sends one SMS message to a single recipient. A send carries exactly one
+ * content form: `text` (free text, which also requires `category`) or
+ * `template` (a stored template that supplies the body and category). To
+ * submit up to 100 independent messages in one request, use
+ * [Send a batch of SMS messages](/docs/api/reference/create-sms-message-batch)
+ * instead.
+ *
+ * The `202` response means Bird durably accepted the message for asynchronous
+ * delivery, not that it was delivered. Follow delivery with
+ * [Get an SMS message](/docs/api/reference/get-sms-message) or by subscribing
+ * to `sms.*` webhook events.
+ *
+ * Sends fail with a `422` when a field is invalid, the body exceeds the
+ * 12-segment cap, the destination country is not enabled for the workspace,
+ * or the sender is not permitted for the destination; a send from a
+ * workspace with no wallet balance fails with a `402`.
  *
  */
 export const createSmsMessage = <ThrowOnError extends boolean = false>(
@@ -932,7 +1025,16 @@ export const createSmsMessage = <ThrowOnError extends boolean = false>(
 /**
  * Send a batch of SMS messages
  *
- * Accepts up to 100 independent SMS messages and queues them for delivery. Each message is an independent send with its own ID, status, and cost. All items are validated before any are queued — if one fails validation, the entire batch is rejected. Field-level validation failures, the 12-segment body cap, and insufficient workspace balance all return 422 (or 402 for balance).
+ * Sends up to 100 independent SMS messages in one request. Each item is a
+ * complete send request with its own recipient, content, id, status, and
+ * cost. For a single message, use
+ * [Send an SMS message](/docs/api/reference/create-sms-message) instead.
+ *
+ * Acceptance is all-or-nothing: every item is validated before any is queued,
+ * and one invalid item rejects the whole batch with a `422` (nothing is
+ * sent). A batch from a workspace with no wallet balance fails with a `402`.
+ * The `202` response lists the accepted messages in submission order; each
+ * delivers asynchronously and is tracked individually, like a single send.
  *
  */
 export const createSmsMessageBatch = <ThrowOnError extends boolean = false>(
@@ -962,7 +1064,8 @@ export const createSmsMessageBatch = <ThrowOnError extends boolean = false>(
 /**
  * Get an SMS message
  *
- * Returns a single SMS message with its current status, segment breakdown, cost, and failure detail if it failed.
+ * Returns a single SMS message: its current delivery status, segment breakdown, cost, and failure detail when it failed. The `status` advances asynchronously as delivery progresses, and `cost` is null until the message has been priced, so poll this endpoint (or subscribe to `sms.*` webhook events) after a send to confirm delivery. To scan messages in bulk, use [List SMS messages](/docs/api/reference/list-sms-messages) instead.
+ *
  */
 export const getSmsMessage = <ThrowOnError extends boolean = false>(
   options: Options<GetSmsMessageData, ThrowOnError>,
@@ -987,7 +1090,7 @@ export const getSmsMessage = <ThrowOnError extends boolean = false>(
 /**
  * List SMS templates
  *
- * Returns the SMS templates available to your workspace, including Bird's built-in templates. Filter by scope, category, or language.
+ * Returns the SMS templates you can send from, including Bird's built-in templates. Filter by scope, category, or language; the catalogue is small and returned in full, so this list is not paginated. To read one template's variables before sending with it, use [Get an SMS template](/docs/api/reference/get-sms-template).
  *
  */
 export const listSmsTemplates = <ThrowOnError extends boolean = false>(
@@ -1013,7 +1116,8 @@ export const listSmsTemplates = <ThrowOnError extends boolean = false>(
 /**
  * Get an SMS template
  *
- * Returns a single SMS template by its name or id.
+ * Returns a single SMS template: its body preview, category, the `variables` it expects (each with its accepted format), and the languages it is available in. Fetch a template before sending with it to see which `parameters` keys are required; an unknown reference returns a `404`. To browse the whole catalogue, use [List SMS templates](/docs/api/reference/list-sms-templates) instead.
+ *
  */
 export const getSmsTemplate = <ThrowOnError extends boolean = false>(
   options: Options<GetSmsTemplateData, ThrowOnError>,
@@ -1038,7 +1142,11 @@ export const getSmsTemplate = <ThrowOnError extends boolean = false>(
 /**
  * Create a verification
  *
- * Creates a verification for a recipient and sends them a one-time passcode. Provide a recipient in `to` — an email address (verified over email), a phone number (verified over SMS), or both. When you provide both, the passcode is sent over one channel and falls back to the other if that delivery fails; it is not sent to both at once. If a verification is already in progress for the same recipient, that one is reused and a fresh passcode is sent once the resend cooldown has elapsed, rather than starting a second verification. The response includes the verification's current state; the passcode itself is never returned. Submit the passcode the recipient enters with the check endpoint.
+ * Creates a verification for a recipient and sends them a one-time passcode. Provide the recipient in `to`: an email address (verified over email), a phone number (verified over SMS), or both. With both, the passcode is sent over one channel at a time and delivery falls over to the other channel if the first fails; it is never sent to both at once.
+ *
+ * Calling this again for the same recipient resumes the verification in progress rather than starting a second one: within the resend cooldown the request returns the current state without sending, and after it a fresh passcode is sent. Use the same call to send and to resend.
+ *
+ * The `200` response is the verification's current state; the passcode itself is never returned. Submit the passcode the recipient enters with POST /v1/verify/verifications/check before the verification's `expires_at`. An invalid recipient returns `422`, and requesting passcodes for the same recipient too often returns `429`.
  *
  */
 export const createVerification = <ThrowOnError extends boolean = false>(
@@ -1068,7 +1176,11 @@ export const createVerification = <ThrowOnError extends boolean = false>(
 /**
  * Check a verification passcode
  *
- * Checks a passcode for a recipient and returns the outcome together with the verification's current state. Identify the verification by the same `to` recipient used to create it — you do not need to store a verification id. A wrong or expired passcode is reported in the response body, with `success` set to `false` and a `reason` such as `incorrect_code` or `expired`, rather than as an HTTP error. Only a missing verification — including one that has already reached a final state, which is no longer checkable — malformed input, or rate limiting return an error status.
+ * Checks a passcode for a recipient and returns the outcome together with the verification's current state. Identify the verification by the same `to` used to create it; you do not need to store a verification ID.
+ *
+ * A wrong or expired passcode is a normal outcome, not an HTTP error: the response is `200` with `success` set to `false` and a `reason` such as `incorrect_code` or `expired`. `success: true` means the verification is complete. Each verification reports its final outcome exactly once and is no longer checkable afterwards.
+ *
+ * An error status is returned only when the check cannot be evaluated: `404` when no verification matches the recipient or the matching one already reached its final state, `422` for an invalid recipient, and `429` when passcodes for a recipient are checked too quickly.
  *
  */
 export const createVerificationCheck = <ThrowOnError extends boolean = false>(
@@ -1098,7 +1210,8 @@ export const createVerificationCheck = <ThrowOnError extends boolean = false>(
 /**
  * List WhatsApp messages
  *
- * Returns a paginated list of WhatsApp messages in the workspace, newest first.
+ * Returns the workspace's WhatsApp messages as a cursor-paginated list, newest first. Filter by status, contact phone number, business-scoped user ID, tag, or creation time; pass the response's `next_cursor` back as `starting_after` to fetch the next page. To follow a single message's delivery, use [Get a WhatsApp message](/docs/api/reference/get-whats-app-message) instead.
+ *
  */
 export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
   options?: Options<ListWhatsAppMessagesData, ThrowOnError>,
@@ -1121,9 +1234,27 @@ export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Send a message
+ * Send a WhatsApp message
  *
- * Sends a template message. Bird selects the sender number from the template's category.
+ * Sends a WhatsApp message built from a message template to one recipient.
+ * Name the template, optionally pick its language variant, and fill its
+ * placeholders in `components`; Bird selects the sender number from the
+ * template's category, so the request carries no sender field. Templates are
+ * the only supported content type: a request without `template` is rejected
+ * with a `422`. Browse what you can send with
+ * [List available message templates](/docs/api/reference/list-whats-app-templates).
+ *
+ * The `202` response is the accepted message, echoing the resolved template
+ * and language; it is not a delivery confirmation. Follow delivery with
+ * [Get a WhatsApp message](/docs/api/reference/get-whats-app-message), the
+ * per-message timeline from
+ * [List events for a WhatsApp message](/docs/api/reference/list-whats-app-message-events),
+ * or `whatsapp.*` webhook events.
+ *
+ * A template name or language the catalogue does not stock, parameter values
+ * that do not match the template's declared placeholders, and a recipient
+ * that is not a valid phone number each return a `422`.
+ *
  */
 export const sendWhatsAppMessage = <ThrowOnError extends boolean = false>(
   options: Options<SendWhatsAppMessageData, ThrowOnError>,
@@ -1152,7 +1283,8 @@ export const sendWhatsAppMessage = <ThrowOnError extends boolean = false>(
 /**
  * Get a WhatsApp message
  *
- * Returns a single WhatsApp message with its current delivery status and failure detail if applicable.
+ * Returns a single WhatsApp message: its current delivery status, per-stage timestamps (`sent_at`, `delivered_at`, `read_at`), the template it was sent from, and failure detail when it failed. The `status` advances asynchronously as delivery progresses, so poll this endpoint (or subscribe to `whatsapp.*` webhook events) after a send to confirm delivery. For the per-event timeline, use [List events for a WhatsApp message](/docs/api/reference/list-whats-app-message-events) instead.
+ *
  */
 export const getWhatsAppMessage = <ThrowOnError extends boolean = false>(
   options: Options<GetWhatsAppMessageData, ThrowOnError>,
@@ -1177,7 +1309,8 @@ export const getWhatsAppMessage = <ThrowOnError extends boolean = false>(
 /**
  * List events for a WhatsApp message
  *
- * Returns the lifecycle event timeline for a WhatsApp message, in chronological order.
+ * Returns a WhatsApp message's lifecycle events in chronological order, one entry per delivery transition (`whatsapp.accepted`, `whatsapp.sent`, `whatsapp.delivered`, `whatsapp.read`, `whatsapp.failed`). The timeline is bounded and returned in full, so this list is not paginated; an unknown message id returns a `404`. For the message's current state in a single field, use [Get a WhatsApp message](/docs/api/reference/get-whats-app-message) instead.
+ *
  */
 export const listWhatsAppMessageEvents = <ThrowOnError extends boolean = false>(
   options: Options<ListWhatsAppMessageEventsData, ThrowOnError>,
@@ -1202,7 +1335,8 @@ export const listWhatsAppMessageEvents = <ThrowOnError extends boolean = false>(
 /**
  * List available message templates
  *
- * Returns the message templates available to this workspace.
+ * Returns the WhatsApp message templates you can send from. Each entry carries the template's `name` (the reference you pass when sending), its language, category, review status, and its content blocks with example values for every placeholder. The catalogue is returned in full, so this list is not paginated, and it can differ by region: you see the templates stocked for the region you call. Pick a template here, then fill its placeholders in the `components` of [Send a WhatsApp message](/docs/api/reference/send-whats-app-message).
+ *
  */
 export const listWhatsAppTemplates = <ThrowOnError extends boolean = false>(
   options?: Options<ListWhatsAppTemplatesData, ThrowOnError>,
@@ -1225,9 +1359,500 @@ export const listWhatsAppTemplates = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Daily sending statistics
+ *
+ * Returns one row of aggregate sending statistics per calendar day for the workspace: UTC days by default, or your local days when `timezone` is set. Days with no activity are included with zero counts, so the series charts without client-side gap handling. Suited to charts and trend lines; for per-message exact accounting use the message detail endpoints.
+ *
+ * Rows are bucketed by event time, not send time: a complaint received on Wednesday for a message sent the prior Monday is counted in Wednesday's row.
+ *
+ * The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsDaily = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsDailyData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsDailyResponses,
+    GetEmailStatsDailyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/daily",
+    ...options,
+  });
+
+/**
+ * Hourly sending statistics
+ *
+ * Returns one row of aggregate sending statistics per hour for the workspace: UTC hours by default, or your local hours when `timezone` is set (a timezone with a sub-hour offset gets correctly aligned hours). Useful for inspecting send rate, deliverability, and engagement inside a single day or a recent window; hours with no activity are included with zero counts.
+ *
+ * Rows are bucketed by event time, not send time: a click recorded at 14:07 for a message sent at 09:00 lands in the 14:00 row.
+ *
+ * A single request may span at most 30 days (720 hourly rows); for longer ranges use the daily endpoint, which has a 365-day window. An hourly window longer than 30 days, or a `from` after `to`, returns 422.
+ *
+ */
+export const getEmailStatsHourly = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsHourlyData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsHourlyResponses,
+    GetEmailStatsHourlyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/hourly",
+    ...options,
+  });
+
+/**
+ * Stats by tag
+ *
+ * Returns aggregate delivery and engagement counts grouped by tag for the requested period. Rows are ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, hard maximum 200). Use this to compare campaign performance across tags you set at send time.
+ *
+ * Rows are computed against event time (not send time), so engagement received during the period for messages sent earlier is included.
+ *
+ * The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByTag = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByTagData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByTagResponses,
+    GetEmailStatsByTagErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/tags",
+    ...options,
+  });
+
+/**
+ * Aggregate stats summary
+ *
+ * Returns a single-row aggregate across the requested period covering delivery, bounce, complaint, open, and click counts plus the derived rates, along with processing, delivery, and total latency percentiles (p50/p95/p99). Suitable for KPI tiles, campaign reports, and email digests; the daily and hourly endpoints carry the same metrics per time bucket.
+ *
+ * The aggregate is computed against event time (not send time), so engagement received during the period for messages sent earlier is included. Rate fields are null when their denominator is zero.
+ *
+ * The window grain follows the form of `from` and `to`: calendar days (`YYYY-MM-DD`, up to 365 days) or RFC 3339 instants (hour grain, up to 720 hours, 30 days), so a rolling window such as the last 24 hours is a single request. Mixing the two forms returns 422. Set `timezone` to compute day and hour boundaries in a local zone instead of UTC, and `compare=previous_period` to include the preceding equal-length window in the same response.
+ *
+ */
+export const getEmailStatsSummary = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsSummaryData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsSummaryResponses,
+    GetEmailStatsSummaryErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/summary",
+    ...options,
+  });
+
+/**
+ * Stats by sending IP
+ *
+ * Returns delivery and deliverability counts grouped by the specific IP address used to send each message. Use this to identify per-IP reputation issues: block bounces concentrated on a single IP usually indicate a reputation problem on that IP, and `sort=bounces.block` surfaces those IPs first.
+ *
+ * A sending IP is known only once the upstream mail system reports delivery, bounce, deferral, or a late bounce, so rows cover the delivery stage onward: `accepted` and `processed` counts, processing latency, engagement, and complaint attribution are not available per IP. For workspace-wide figures use `GET /v1/email/stats/daily`. Rows are computed against event time (not send time).
+ *
+ * Rows are ranked by the `sort` field (default `delivered`) descending and capped at the requested `limit` (default 50, hard maximum 200). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsBySendingIp = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsBySendingIpData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsBySendingIpResponses,
+    GetEmailStatsBySendingIpErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/sending-ips",
+    ...options,
+  });
+
+/**
+ * Stats by sending domain
+ *
+ * Returns delivery, engagement, and deliverability counts grouped by sending domain (the portion of the `From` address after the `@`). Use this to compare deliverability across multiple verified domains in your workspace, for example transactional versus marketing domains, or sub-domain segregation during IP warming.
+ *
+ * Rows are computed against event time (not send time), so engagement and bounces received during the period for messages sent earlier are included.
+ *
+ * Rows are ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, hard maximum 200). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsBySendingDomain = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetEmailStatsBySendingDomainData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsBySendingDomainResponses,
+    GetEmailStatsBySendingDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/sending-domains",
+    ...options,
+  });
+
+/**
+ * Stats by category
+ *
+ * Returns aggregate delivery and engagement counts grouped by category for the requested period. Rows are ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, hard maximum 200). Use this to compare deliverability and engagement between your transactional and marketing traffic.
+ *
+ * Rows are computed against event time (not send time), so engagement received during the period for messages sent earlier is included.
+ *
+ * The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByCategory = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByCategoryData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByCategoryResponses,
+    GetEmailStatsByCategoryErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/categories",
+    ...options,
+  });
+
+/**
+ * Stats by mailbox provider
+ *
+ * Returns delivery, engagement, and deliverability counts grouped by recipient mailbox provider (for example `gmail`, `yahoo`, `microsoft`, `apple`): the deliverability-by-inbox-provider view. Use this to compare how each major inbox provider treats your mail, for example to spot a delivered-rate dip or complaint spike at one provider before it spreads; for a per-region split within a provider, use the mailbox-provider-region breakdown.
+ *
+ * A recipient's mailbox provider is known only once the receiving mail system reports an outcome, so rows cover the delivery stage onward: `accepted`, `processed`, and `rejected` counts and processing latency are not included. Rows are computed against event time (not send time).
+ *
+ * Rows are ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, hard maximum 200). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByMailboxProvider = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetEmailStatsByMailboxProviderData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByMailboxProviderResponses,
+    GetEmailStatsByMailboxProviderErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/mailbox-providers",
+    ...options,
+  });
+
+/**
+ * Stats by mailbox provider region
+ *
+ * Returns delivery, engagement, and deliverability counts grouped by mailbox provider and provider region pair, for example `gmail` in `NA` or `microsoft` in `EU`. The provider region is the regional pod the receiving mail system reports for the recipient's provider; pairing it with the provider disambiguates a region label that several providers share. Use this to spot a deliverability problem isolated to one provider in one region; for a per-provider view without the region split, use the mailbox-provider breakdown.
+ *
+ * A provider region is known only once the receiving mail system reports an outcome, so rows cover the delivery stage onward: `accepted`, `processed`, and `rejected` counts and processing latency are not included. Rows are computed against event time (not send time).
+ *
+ * Rows are ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, hard maximum 200). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByMailboxProviderRegion = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetEmailStatsByMailboxProviderRegionData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByMailboxProviderRegionResponses,
+    GetEmailStatsByMailboxProviderRegionErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/mailbox-provider-regions",
+    ...options,
+  });
+
+/**
+ * Stats by recipient domain
+ *
+ * Returns aggregate delivery and engagement counts grouped by recipient mailbox domain (the part of each recipient address after the `@`, for example `gmail.com`, `yahoo.com`, `outlook.com`) for the requested period. This is the finest-grained deliverability view: where the mailbox-provider breakdown groups recipients into provider buckets such as `gmail` or `microsoft`, this keys on the exact destination domain. Use it to spot a delivery-rate dip or complaint spike at a specific domain.
+ *
+ * Rows are ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, hard maximum 200). Rows are computed against event time (not send time), so engagement received during the period for messages sent earlier is included.
+ *
+ * The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByRecipientDomain = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetEmailStatsByRecipientDomainData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByRecipientDomainResponses,
+    GetEmailStatsByRecipientDomainErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/recipient-domains",
+    ...options,
+  });
+
+/**
+ * Stats by template
+ *
+ * Returns aggregate delivery and engagement counts grouped by the template each message was sent with, so a template's deliverability and engagement can be compared side by side. Attribution is by the template used at send time; only messages sent with a template appear here, so a workspace that has sent none returns an empty list rather than an error. Each row is keyed by the template ID (`emt_…`); a template deleted after sending still appears by its ID.
+ *
+ * Rows are ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, hard maximum 200). Rows are computed against event time (not send time), so engagement received during the period for messages sent earlier is included.
+ *
+ * The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByTemplate = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByTemplateData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByTemplateResponses,
+    GetEmailStatsByTemplateErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/templates",
+    ...options,
+  });
+
+/**
+ * Engagement by location
+ *
+ * Returns engagement counts (opens and clicks) grouped by the location they were recorded from, for the requested period. Use it to see where your audience engages, for example the top countries by unique opens. Location is known from open and click events only, so rows carry engagement counts but no delivery counts or rates.
+ *
+ * Use `group_by` to choose the granularity: `country` (default), `region`, or `city`. Each row carries the location hierarchy down to the requested level (a `city` grouping also reports the row's region and country). Rows are ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, hard maximum 200).
+ *
+ * Rows are computed against event time (not send time). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByLocation = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByLocationData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByLocationResponses,
+    GetEmailStatsByLocationErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/locations",
+    ...options,
+  });
+
+/**
+ * Engagement by email client
+ *
+ * Returns engagement counts (opens and clicks) grouped by the email client, operating system, or device type they were recorded from, for the requested period. Use it for the classic "opens by mail client" view, for example the share of opens from Apple Mail versus Gmail versus Outlook. The reading environment is known from open and click events only, so rows carry engagement counts but no delivery counts or rates.
+ *
+ * Use `group_by` to choose the facet: `email_client` (default), `os`, or `device_type`. Each row populates the chosen facet and leaves the other two null. Rows are ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, hard maximum 200).
+ *
+ * Rows are computed against event time (not send time). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByClient = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByClientData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByClientResponses,
+    GetEmailStatsByClientErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/clients",
+    ...options,
+  });
+
+/**
+ * Bounces by SMTP error code
+ *
+ * Returns bounce counts grouped by the SMTP error code the receiving mail server returned, for the requested period: the deliverability-debugging view that answers "which SMTP responses are driving my bounces". Each row reports the bounced recipients for one code plus the hard/soft/admin/block/undetermined split.
+ *
+ * This breakdown reports the failure side only: it has no delivered, open, click, or rate fields, because a bounce code is recorded only on bounce events.
+ *
+ * Rows are ranked by the `sort` metric (default `bounced`) descending, capped at the requested `limit` (default 50, hard maximum 200), and computed against event time (not send time). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByBounceCode = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByBounceCodeData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByBounceCodeResponses,
+    GetEmailStatsByBounceCodeErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/bounce-codes",
+    ...options,
+  });
+
+/**
+ * Complaints by type
+ *
+ * Returns spam-complaint counts grouped by the feedback-loop complaint type reported by the mailbox provider (for example `abuse`, `fraud`, `virus`), for the requested period. Use it to understand what kind of complaints your mail attracts.
+ *
+ * This breakdown reports the complaint side only: each row carries the complained count for one type and nothing else, because a complaint type is recorded only on spam-complaint events.
+ *
+ * Rows are ranked by `complained` descending, capped at the requested `limit` (default 50, hard maximum 200), and computed against event time (not send time). The maximum window is 365 days; requesting a longer range returns 422.
+ *
+ */
+export const getEmailStatsByComplaintType = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetEmailStatsByComplaintTypeData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByComplaintTypeResponses,
+    GetEmailStatsByComplaintTypeErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/complaint-types",
+    ...options,
+  });
+
+/**
+ * Stats by broadcast
+ *
+ * Returns aggregate delivery and engagement counts grouped by broadcast for the requested period, so each broadcast's deliverability and engagement can be compared side by side. Only messages sent as part of a broadcast appear here; one-off and transactional sends are not included, so a workspace that has not sent broadcasts returns an empty list rather than an error.
+ *
+ * Rows are ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, hard maximum 200). Rows are computed against event time (not send time), so engagement received during the period for messages sent earlier is included.
+ *
+ * The maximum window is 365 days; requesting a longer range returns 422. This breakdown is computed from per-message activity retained for 30 days, so it reflects roughly the last 30 days of activity even when the requested window reaches further back.
+ *
+ */
+export const getEmailStatsByBroadcast = <ThrowOnError extends boolean = false>(
+  options?: Options<GetEmailStatsByBroadcastData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetEmailStatsByBroadcastResponses,
+    GetEmailStatsByBroadcastErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/stats/broadcasts",
+    ...options,
+  });
+
+/**
  * List sending domains
  *
- * Returns all sending domains for the current workspace, ordered by creation date descending.
+ * Returns all sending domains for the current workspace, newest first by default. Each item is the full domain object, including capability statuses and `dns_records`, so no per-domain follow-up read is needed. Filter with `name` to find a specific domain.
+ *
  */
 export const listDomains = <ThrowOnError extends boolean = false>(
   options?: Options<ListDomainsData, ThrowOnError>,
@@ -1252,7 +1877,20 @@ export const listDomains = <ThrowOnError extends boolean = false>(
 /**
  * Add a sending domain
  *
- * Registers a new sending domain and returns the DNS records required for verification: a DKIM TXT record, a return-path CNAME (which also covers SPF — no separate SPF record is needed), a DMARC policy, and, when a tracking domain is configured, a tracking CNAME. The domain starts in `pending` status; records are checked automatically once published, or on demand via the verify endpoint.
+ * Registers a new sending domain and returns the DNS records to publish
+ * for it. The DKIM TXT record proves ownership, and together with the
+ * return-path CNAME (which also covers SPF; no separate SPF record is
+ * needed) and a DMARC policy it gates sending. The tracking CNAME is
+ * optional and gates branded link tracking only. Publish the records at
+ * your DNS provider, then check progress with
+ * [Trigger domain verification](/docs/api/reference/verify-domain); Bird
+ * also re-checks published records automatically. Setup walkthrough:
+ * [Sending domains](/docs/guides/email/sending-domains).
+ *
+ * The domain starts in `pending` status. A domain already registered in
+ * this workspace returns `409`, and creation beyond your organization's
+ * domain quota returns `422` `E10000`. A domain that never verifies
+ * ownership is removed after about 14 days, with a reminder email first.
  *
  */
 export const createDomain = <ThrowOnError extends boolean = false>(
@@ -1308,7 +1946,8 @@ export const deleteDomain = <ThrowOnError extends boolean = false>(
 /**
  * Get a sending domain
  *
- * Returns the domain with current DNS verification status per record.
+ * Returns the domain with its capability statuses and every DNS record's current verification state. This read reports the stored result of the last check; to run a fresh DNS check, use [Trigger domain verification](/docs/api/reference/verify-domain).
+ *
  */
 export const getDomain = <ThrowOnError extends boolean = false>(
   options: Options<GetDomainData, ThrowOnError>,
@@ -1333,7 +1972,18 @@ export const getDomain = <ThrowOnError extends boolean = false>(
 /**
  * Update a sending domain
  *
- * Updates settings and configuration on a sending domain. `settings` changes apply immediately. Changes to `return_path`, `tracking`, or `dkim` on a verified capability are staged: the current configuration keeps serving until the new one's DNS records verify, then the change is promoted automatically. Staged values are visible under `capabilities.*.pending`; the records to publish appear in `dns_records` with `state: pending`.
+ * Updates settings and configuration on a sending domain. `settings`
+ * changes apply immediately. Changes to `return_path`, `tracking`, or
+ * `dkim` on a verified capability are staged: the current configuration
+ * keeps serving until the new one's DNS records verify, then the change
+ * is promoted automatically. Staged values are visible under
+ * `capabilities.*.pending`; the records to publish appear in
+ * `dns_records` with `state: pending`.
+ *
+ * Invalid combinations are rejected: enabling tracking toggles without a
+ * tracking domain, or removing the tracking domain while a toggle is on,
+ * returns `409`; enabling inbound receiving has verification
+ * prerequisites that return `422`. Each rule is detailed on its field.
  *
  */
 export const updateDomain = <ThrowOnError extends boolean = false>(
@@ -1363,7 +2013,17 @@ export const updateDomain = <ThrowOnError extends boolean = false>(
 /**
  * Trigger domain verification
  *
- * Triggers an immediate DNS check and returns the updated verification result. Rate-limited to prevent DNS abuse (max 5 calls per domain per hour).
+ * Runs a fresh DNS check across the domain's records (DKIM, return path,
+ * DMARC, tracking, inbound MX, and any staged changes) and returns the
+ * updated domain. Use it for an immediate result after publishing or
+ * correcting records; [Get a sending domain](/docs/api/reference/get-domain)
+ * only reports the last stored result, and Bird re-checks published
+ * records automatically in the background.
+ *
+ * A `200` with records still `pending` is not a failure: the records were
+ * not found yet, which is normal while DNS propagates (minutes to hours).
+ * Recently verified records are not re-queried, so the call is safe to
+ * repeat while you wait.
  *
  */
 export const verifyDomain = <ThrowOnError extends boolean = false>(

@@ -6,7 +6,7 @@ import { Webhook } from "standardwebhooks";
 import type { WebhookEvent } from "../generated/types.gen.js";
 import { BirdWebhookVerificationError } from "../errors.js";
 
-/** A verified webhook event — discriminated on `type` (ADR-0028 wire contract). */
+/** A verified webhook event, discriminated on `type`. */
 export type BirdWebhookEvent = WebhookEvent;
 
 /** Inbound request headers, as a `Headers` object or a plain record. */
@@ -41,19 +41,19 @@ export class WebhooksResource {
    * @example One call verifies the signature and returns the typed event
    * // Pass the RAW request body; set the secret via new BirdClient({ webhooks: { secret } }).
    * const event = bird.webhooks.unwrap(rawBody, headers);
-   * console.log(event.type); // discriminated union — narrow on event.type
+   * console.log(event.type); // discriminated union: narrow on event.type
    *
-   * @example Verify and dispatch — pass the raw request body, never the parsed JSON
+   * @example Verify and dispatch: pass the raw request body, never the parsed JSON
    * // new BirdClient({ apiKey, webhooks: { secret } })
    * try {
    *   const event = bird.webhooks.unwrap(rawBody, req.headers);
    *   switch (event.type) {
    *     case "email.delivered":
-   *       markDelivered(event.email_id, event.recipient); // narrowed; fields are flat
+   *       markDelivered(event.data.email_id, event.data.recipient); // narrowed by event.type
    *       break;
    *     case "email.bounced":
    *     case "email.complained":
-   *       suppress(event.recipient);
+   *       suppress(event.data.recipient);
    *       break;
    *     default: // unknown future event types — an older SDK won't break on a new one
    *   }

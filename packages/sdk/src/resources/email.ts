@@ -17,6 +17,7 @@ import type {
   ListEmailMessagesData,
 } from "../generated/types.gen.js";
 import { Resource } from "./base.js";
+import { EmailStatsResource } from "./emailStats.js";
 import type {
   APIPromise,
   PaginatedPromise,
@@ -66,6 +67,9 @@ export class EmailResource<
 > extends Resource {
   #defaults?: D;
 
+  /** Email statistics — `bird.email.stats.summary(...)`, `.daily(...)`, `.byTag(...)`, … */
+  readonly stats: EmailStatsResource;
+
   constructor(
     core: ConstructorParameters<typeof Resource>[0],
     client: ConstructorParameters<typeof Resource>[1],
@@ -73,6 +77,7 @@ export class EmailResource<
   ) {
     super(core, client);
     this.#defaults = defaults;
+    this.stats = new EmailStatsResource(core, client);
   }
 
   /**

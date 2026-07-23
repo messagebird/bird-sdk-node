@@ -3,7 +3,7 @@ import { BirdClient } from "@messagebird/sdk";
 const bird = new BirdClient({ apiKey: process.env.BIRD_API_KEY! });
 
 const msg = await bird.whatsapp.send({
-  to: "+15551234567",
+  to: "+14155550100",
   template: {
     name: "bird_otp",
     components: [

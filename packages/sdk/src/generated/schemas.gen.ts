@@ -7,6 +7,7 @@ export const WebhookAttemptListSchema = {
   properties: {
     data: {
       type: "array",
+      description: "Delivery attempts, newest first.",
       items: {
         $ref: "#/components/schemas/WebhookAttempt",
       },
@@ -18,7 +19,7 @@ export const WebhookEventTypeSchema = {
   type: "string",
   minLength: 1,
   description:
-    "Webhook event type. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+    "Webhook event type. Open enum: new event types may be added over time, so treat any unrecognized value in a delivery as a future event rather than an error. Subscribing to a type that is not in the catalog returns a `422`. The values below are the types known at this version.\n",
   "x-extensible-enum": [
     "domain.failed",
     "domain.verified",
@@ -48,13 +49,17 @@ export const WebhookEventTypeSchema = {
     "realtime.channel_existence",
     "realtime.client_events",
     "realtime.presence",
-    "realtime.subscription_count",
+    "realtime.connection_count",
     "sms.accepted",
     "sms.delivered",
     "sms.expired",
     "sms.failed",
     "sms.rejected",
     "sms.sent",
+    "sms.tfn_verification.approved",
+    "sms.tfn_verification.info_requested",
+    "sms.tfn_verification.rejected",
+    "sms.tfn_verification.submitted",
     "sms.undelivered",
     "voice.call.answered",
     "voice.call.ended",
@@ -91,7 +96,8 @@ export const WebhookAttemptSchema = {
       type: "string",
       readOnly: true,
       minLength: 1,
-      description: "Unique identifier for this delivery attempt.",
+      description:
+        "Identifier of this individual delivery attempt. Each retry is a separate attempt with its own id; use `event_id` to group the attempts for one event.\n",
       example: "msgatt_3FdaB1NkOmM6m8AxhgEYTJgqHU3",
     },
     event_id: {
@@ -114,13 +120,14 @@ export const WebhookAttemptSchema = {
       minLength: 1,
       enum: ["delivered", "pending", "failed"],
       description:
-        "Current state of the delivery attempt. `pending` covers in-flight and sending attempts; `failed` is reserved for terminal failures.",
+        "Outcome of this attempt. `delivered` means your endpoint accepted it with a `2xx` response; `pending` means the attempt is still in flight; `failed` means it returned a non-`2xx` response or no response at all. A `failed` attempt is not final for the event: automatic retries appear as further attempts with the same `event_id`.\n",
     },
     url: {
       type: "string",
       format: "uri",
       minLength: 1,
-      description: "The endpoint URL the attempt targeted.",
+      description:
+        "URL the request was sent to: the endpoint's `url` at the time of the attempt, which can differ from the current configuration after an update.\n",
       example: "https://example.com/webhooks",
     },
     response_status_code: {
@@ -132,7 +139,7 @@ export const WebhookAttemptSchema = {
     response_body: {
       type: "string",
       description:
-        "Body returned by your endpoint, truncated when oversized. Empty string when no body was returned.",
+        "Response body your endpoint returned, which may be truncated. Omitted when no body was returned.\n",
       example: '{"ok":true}',
     },
     response_duration_ms: {
@@ -146,7 +153,8 @@ export const WebhookAttemptSchema = {
       format: "date-time",
       minLength: 1,
       readOnly: true,
-      description: "When the delivery attempt was made.",
+      description:
+        "When this attempt was made. Attempts are listed newest first by this timestamp, and the list's `before`/`after` parameters bound it.\n",
       example: "2026-05-22T11:50:38.080Z",
     },
   },
@@ -161,7 +169,7 @@ export const WebhookReplayRequestSchema = {
       format: "date-time",
       minLength: 1,
       description:
-        "Replay events created at or after this timestamp. Defaults to 24h ago when omitted.",
+        "Replay events that occurred at or after this timestamp. Defaults to 24 hours before the request when omitted.\n",
       example: {},
     },
     until: {
@@ -169,7 +177,7 @@ export const WebhookReplayRequestSchema = {
       format: "date-time",
       minLength: 1,
       description:
-        "Replay events created before or at this timestamp. Omit to bound only by `since`.",
+        "Replay events that occurred before or at this timestamp. Omit to bound the window only by `since`.\n",
       example: {},
     },
   },
@@ -185,7 +193,7 @@ export const WebhookTestResponseSchema = {
       minLength: 1,
       enum: ["delivered", "failed"],
       description:
-        "Whether your endpoint accepted the test event. `delivered` means it returned a 2xx status; `failed` means it returned a non-2xx status or could not be reached.",
+        "Whether your endpoint accepted the test event. `delivered` means it returned a `2xx` status; `failed` means it returned a non-`2xx` status or could not be reached (see `error` for the latter).\n",
     },
     response_status_code: {
       type: ["integer", "null"],
@@ -196,7 +204,7 @@ export const WebhookTestResponseSchema = {
     response_body: {
       type: "string",
       description:
-        "Response body returned by your endpoint, truncated when oversized. Empty when no body was returned.",
+        "Response body returned by your endpoint, truncated to the first 1024 bytes. Omitted when your endpoint returned no body or could not be reached.\n",
       example: "OK",
     },
     response_duration_ms: {
@@ -207,7 +215,7 @@ export const WebhookTestResponseSchema = {
     },
     event_payload: {
       description:
-        "The event body Bird delivered to the endpoint. Set on successful test delivery only.",
+        "The full event body delivered to your endpoint. Test sends use a minimal synthetic body rather than a full event payload, so this field is omitted.\n",
       $ref: "#/components/schemas/WebhookEvent",
     },
     error: {
@@ -262,7 +270,7 @@ export const WhatsAppAddressSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "Sender or recipient of a WhatsApp message — a phone number, a business-scoped user ID, or both.",
+    "Sender or recipient of a WhatsApp message: a phone number, a business-scoped user ID, or both.",
   properties: {
     phone_number: {
       type: "string",
@@ -274,7 +282,7 @@ export const WhatsAppAddressSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Business-scoped user ID — Meta's identifier for the WhatsApp user. Present only on the WhatsApp-user side of the message.\n",
+        "Business-scoped user ID, Meta's identifier for the WhatsApp user. Present only on the WhatsApp-user side of the message.\n",
       example: "NL.xxxx",
     },
   },
@@ -457,7 +465,7 @@ export const WhatsAppErrorCodeSchema = {
     "rate_limited",
   ],
   description:
-    "Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance` — the workspace could not afford the send. `price_not_found` — no price was configured for this destination/template combination. `internal_error` — an unexpected Bird-side failure. `undeliverable` — the recipient could not be reached (e.g. not on WhatsApp, number invalid). `service_window_expired` — the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited` — the send was throttled.\n",
+    "Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance`: the workspace could not afford the send. `price_not_found`: no price was configured for this destination/template combination. `internal_error`: an unexpected Bird-side failure. `undeliverable`: the recipient could not be reached (for example not on WhatsApp, or the number is invalid). `service_window_expired`: the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited`: the send was throttled. Open enum: new codes may be added over time, so treat any unrecognized value as a future code rather than an error.\n",
 } as const;
 
 export const WhatsAppErrorSchema = {
@@ -935,7 +943,7 @@ export const SMSErrorCodeSchema = {
     "unknown",
   ],
   description:
-    "Bird-stable failure reason. `invalid_destination` — the number is not assigned, ported out, or malformed. `unreachable` — handset off or out of coverage. `blocked_by_carrier` — the carrier filtered the message. `blocked_by_recipient` — the recipient device blocked the sender. `landline_unreachable` — the destination is a landline that does not accept SMS. `content_rejected` — the carrier rejected the content. `sender_unregistered` — the sender is not registered for the destination. `recipient_opted_out` — the recipient is on a suppression list. `provider_unavailable` — an upstream failure after retries. `insufficient_balance` — the workspace wallet had insufficient balance to send the message. `unknown` — an unmapped failure.\n",
+    "Bird-stable failure reason. `invalid_destination`: the number is not assigned, ported out, or malformed. `unreachable`: handset off or out of coverage. `blocked_by_carrier`: the carrier filtered the message. `blocked_by_recipient`: the recipient device blocked the sender. `landline_unreachable`: the destination is a landline that does not accept SMS. `content_rejected`: the carrier rejected the content. `sender_unregistered`: the sender is not registered for the destination. `recipient_opted_out`: the recipient is on a suppression list. `provider_unavailable`: an upstream failure after retries. `insufficient_balance`: the workspace wallet had insufficient balance to send the message. `unknown`: an unmapped failure.\n",
 } as const;
 
 export const SMSErrorSchema = {
@@ -1064,6 +1072,254 @@ export const EventSMSUndeliveredSchema = {
     },
     data: {
       $ref: "#/components/schemas/EventSMSUndeliveredData",
+    },
+  },
+} as const;
+
+export const EventSMSTfnVerificationSubmittedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.tfn_verification.submitted event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
+    },
+  ],
+} as const;
+
+export const SMSSenderIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^snd_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "snd_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const TFNVerificationIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^tfv_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "tfv_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventSMSTfnVerificationBaseSchema = {
+  type: "object",
+  "x-mixin": true,
+  description:
+    "Identity fields shared by every toll-free verification event payload.",
+  required: ["verification_id", "workspace_id", "status", "sender_id"],
+  properties: {
+    verification_id: {
+      $ref: "#/components/schemas/TFNVerificationID",
+      description: "ID of the toll-free verification.",
+      "x-go-type": "domain.TFNVerificationID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "ID of the workspace that owns the verification.",
+      "x-go-type": "domain.WorkspaceID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    status: {
+      type: "string",
+      minLength: 1,
+      description:
+        "Lifecycle state of the verification at the time of the event.",
+      example: "approved",
+    },
+    sender_id: {
+      $ref: "#/components/schemas/SMSSenderID",
+      description: "ID of the toll-free number the verification licenses.",
+      "x-go-type": "domain.SMSSenderID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+  },
+} as const;
+
+export const EventSMSTfnVerificationSubmittedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A toll-free number verification was submitted to the carrier for review.",
+  "x-event-type-id": "sms.tfn_verification.submitted",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.tfn_verification.submitted"],
+      description: "Event type.",
+      example: "sms.tfn_verification.submitted",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the verification was submitted.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSTfnVerificationSubmittedData",
+    },
+  },
+} as const;
+
+export const EventSMSTfnVerificationRejectedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.tfn_verification.rejected event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
+    },
+    {
+      type: "object",
+      required: ["denial_reasons", "resubmit_allowed"],
+      properties: {
+        denial_reasons: {
+          type: "array",
+          items: {
+            type: "string",
+            minLength: 1,
+          },
+          description:
+            "Human-readable reasons the carrier gave for the rejection.",
+          example: ["opt-in workflow unclear"],
+        },
+        resubmit_allowed: {
+          type: "boolean",
+          description:
+            "Whether the verification may be corrected and resubmitted within the resubmission window.",
+          example: true,
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventSMSTfnVerificationRejectedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The carrier rejected a toll-free number verification; the number cannot send until an accepted verification is approved.",
+  "x-event-type-id": "sms.tfn_verification.rejected",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.tfn_verification.rejected"],
+      description: "Event type.",
+      example: "sms.tfn_verification.rejected",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the rejection was recorded.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSTfnVerificationRejectedData",
+    },
+  },
+} as const;
+
+export const EventSMSTfnVerificationInfoRequestedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.tfn_verification.info_requested event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
+    },
+  ],
+} as const;
+
+export const EventSMSTfnVerificationInfoRequestedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The carrier requested more information before deciding a toll-free number verification.",
+  "x-event-type-id": "sms.tfn_verification.info_requested",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.tfn_verification.info_requested"],
+      description: "Event type.",
+      example: "sms.tfn_verification.info_requested",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the information request was recorded.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSTfnVerificationInfoRequestedData",
+    },
+  },
+} as const;
+
+export const EventSMSTfnVerificationApprovedDataSchema = {
+  type: "object",
+  description: "Payload of the sms.tfn_verification.approved event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
+    },
+  ],
+} as const;
+
+export const EventSMSTfnVerificationApprovedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The carrier approved a toll-free number verification; the number can now send in its licensed countries.",
+  "x-event-type-id": "sms.tfn_verification.approved",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["sms.tfn_verification.approved"],
+      description: "Event type.",
+      example: "sms.tfn_verification.approved",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the approval was recorded.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventSMSTfnVerificationApprovedData",
     },
   },
 } as const;
@@ -2225,6 +2481,15 @@ export const EmailRejectionReasonSchema = {
     "quota_exceeded",
     "recipient_not_allowed",
   ],
+  "x-enum-varnames": [
+    "EmailRejectionReasonRecipientSuppressed",
+    "EmailRejectionReasonTransmissionFailed",
+    "EmailRejectionReasonGenerationFailure",
+    "EmailRejectionReasonPolicyRejection",
+    "EmailRejectionReasonDomainUnverified",
+    "EmailRejectionReasonQuotaExceeded",
+    "EmailRejectionReasonRecipientNotAllowed",
+  ],
   description:
     "Why an email was rejected before delivery.\n`recipient_suppressed` means the recipient is on the workspace suppression list, so Bird did not attempt delivery. `transmission_failed` means the message could not be transmitted for delivery. `generation_failure` means the message could not be built for delivery (a template or content issue). `policy_rejection` means the message was refused by sending policy. `domain_unverified` means the sending domain was not verified. `quota_exceeded` means the organization's send quota was reached. `recipient_not_allowed` means a recipient was not permitted for this send (for shared onboarding-domain sends, recipients must be verified workspace members).\n",
   example: "recipient_suppressed",
@@ -3181,7 +3446,7 @@ export const EventDomainFailedSchema = {
 
 export const WebhookEventSchema = {
   description:
-    "Discriminated union of every webhook event the Bird platform emits.\nEach variant is the full delivery body: `type` names the event, `timestamp` is when the event occurred, and `data` carries the event-specific payload. The `type` property selects the variant — SDKs that consume this schema (openapi-typescript, oapi-codegen) generate a narrowed union keyed on `type`, so customer code can switch on the event id and access the variant-specific payload fields without casting.\nDelivery metadata (the event id and per-attempt signature headers) rides in HTTP headers per Standard Webhooks and is handled by the SDK's webhook verification helper, which returns one of these variants.\n",
+    "Discriminated union of every webhook event the Bird platform emits.\n\nEach variant is the full delivery body: `type` names the event, `timestamp` is when the\nevent occurred, and `data` carries the event-specific payload. The `type` property\nselects the variant, and the generated SDK types narrow on it, so your code can switch\non the event id and read the variant-specific payload fields without casting.\n\nDelivery metadata (the event id and per-attempt signature headers) rides in HTTP headers\nper Standard Webhooks and is handled by the SDK's webhook verification helper, which\nreturns one of these variants. See the [webhooks guide](/docs/guides/webhooks) for\nheader names and the verification recipe.\n",
   oneOf: [
     {
       $ref: "#/components/schemas/EventDomainFailed",
@@ -3274,6 +3539,18 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventSMSSent",
     },
     {
+      $ref: "#/components/schemas/EventSMSTfnVerificationApproved",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationInfoRequested",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationRejected",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationSubmitted",
+    },
+    {
       $ref: "#/components/schemas/EventSMSUndelivered",
     },
     {
@@ -3343,6 +3620,14 @@ export const WebhookEventSchema = {
       "sms.failed": "#/components/schemas/EventSMSFailed",
       "sms.rejected": "#/components/schemas/EventSMSRejected",
       "sms.sent": "#/components/schemas/EventSMSSent",
+      "sms.tfn_verification.approved":
+        "#/components/schemas/EventSMSTfnVerificationApproved",
+      "sms.tfn_verification.info_requested":
+        "#/components/schemas/EventSMSTfnVerificationInfoRequested",
+      "sms.tfn_verification.rejected":
+        "#/components/schemas/EventSMSTfnVerificationRejected",
+      "sms.tfn_verification.submitted":
+        "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
       "voice.call.answered": "#/components/schemas/EventVoiceCallAnswered",
       "voice.call.ended": "#/components/schemas/EventVoiceCallEnded",
@@ -3363,7 +3648,7 @@ export const WebhookTestRequestSchema = {
     event_type: {
       type: "string",
       description:
-        "Event type to simulate. Defaults to a generic test ping if omitted.",
+        "Event type to simulate. Any type from the event catalog is accepted, whether or not the endpoint subscribes to it; an unknown type returns a `422`. When omitted, the endpoint's first subscribed event type is used.\n",
       example: "email.delivered",
     },
   },
@@ -3382,7 +3667,7 @@ export const WebhookRotateSecretResponseSchema = {
       minLength: 1,
       "x-sensitive": true,
       description:
-        "The new signing secret (whsec_ prefix). Store this immediately — it is not shown again.",
+        "The new signing secret (`whsec_` prefix). Shown only in this response: store it immediately, it cannot be retrieved again. Deliveries are signed with both this and the previous secret for 24 hours after rotation, then the previous secret stops signing.\n",
       example: "whsec_newbase64encodedvalue",
     },
   },
@@ -3395,12 +3680,14 @@ export const WebhookEndpointUpdateSchema = {
     url: {
       type: "string",
       format: "uri",
-      description: "New HTTPS URL to deliver events to.",
+      description:
+        "Replacement delivery URL. Same rules as at creation: HTTPS, at most 2048 characters, and the host must be publicly reachable (private, loopback, and link-local addresses return a `422`). Omit to keep the current URL.\n",
       example: "https://example.com/webhook",
     },
     description: {
       type: "string",
-      description: "Human-readable label for this endpoint.",
+      description:
+        "Human-readable label for this endpoint, up to 256 characters.",
       example: "Updated webhook endpoint",
     },
     events: {
@@ -3409,14 +3696,15 @@ export const WebhookEndpointUpdateSchema = {
         $ref: "#/components/schemas/WebhookEventType",
       },
       minItems: 1,
-      description: "Replacement set of event type subscriptions.",
+      description:
+        "Replacement set of event type subscriptions: the endpoint's subscriptions become exactly this list (there is no partial add or remove). Omit to keep the current set. Types outside the event catalog return a `422`, and a `realtime.*` type can only be added to an endpoint that already has a Realtime app scope.\n",
       example: ["email.delivered", "email.bounced", "email.complained"],
     },
     status: {
       type: "string",
       enum: ["active", "paused"],
       description:
-        'Set to "active" to re-enable a paused endpoint, or "paused" to stop delivery.',
+        "`paused` stops all deliveries; `active` re-enables a paused endpoint. Omit to leave the status unchanged. Events that fire while paused are not delivered; after re-enabling, recover them with [Replay missed events](/docs/api/reference/create-webhook-replay). A `degraded` endpoint cannot be reset through this field: it returns to `active` automatically once deliveries succeed again.\n",
     },
   },
 } as const;
@@ -3435,7 +3723,7 @@ export const WebhookEndpointCreatedSchema = {
           minLength: 1,
           "x-sensitive": true,
           description:
-            "Signing secret (whsec_ prefix). Present in this response only — store it immediately, it cannot be retrieved again.",
+            "Signing secret for this endpoint (`whsec_` prefix), used to verify the `webhook-signature` header on every delivery. Present in this response only: store it immediately, it cannot be retrieved again. If you lose it, mint a new one with [Rotate webhook signing secret](/docs/api/reference/rotate-webhook-secret).\n",
           example: "whsec_base64encodedvalue",
         },
       },
@@ -3479,16 +3767,20 @@ export const WebhookEndpointSchema = {
         id: {
           readOnly: true,
           $ref: "#/components/schemas/WebhookEndpointID",
+          description:
+            "Unique identifier for the endpoint (`whk_` prefix). Accepted as `webhook_id` by every `/v1/webhooks/{webhook_id}` operation.\n",
         },
         url: {
           type: "string",
           format: "uri",
           minLength: 1,
+          description: "HTTPS URL Bird delivers this endpoint's events to.",
           example: "https://example.com/webhook",
         },
         description: {
           type: "string",
           minLength: 1,
+          description: "Human-readable label for the endpoint.",
           example: "Production webhook endpoint",
         },
         events: {
@@ -3496,13 +3788,16 @@ export const WebhookEndpointSchema = {
           items: {
             $ref: "#/components/schemas/WebhookEventType",
           },
-          description: "Concrete event types this endpoint is subscribed to.",
+          description:
+            "Event types this endpoint is subscribed to; only matching events are delivered. Change the set with [Update a webhook endpoint](/docs/api/reference/update-webhook).\n",
           example: ["email.delivered", "email.bounced"],
         },
         status: {
           type: "string",
           readOnly: true,
           minLength: 1,
+          description:
+            "Delivery state of the endpoint.\n\n- `active`: the initial state; events are being delivered normally.\n- `degraded`: recent deliveries are failing. Bird keeps delivering and retrying,\n  and the endpoint returns to `active` automatically once deliveries succeed\n  again.\n- `paused`: all delivery is stopped, either because an update set `status` to\n  `paused` or automatically after sustained delivery failures. A paused endpoint\n  never resumes on its own: re-enable it with\n  [Update a webhook endpoint](/docs/api/reference/update-webhook), then recover\n  the missed events with\n  [Replay missed events](/docs/api/reference/create-webhook-replay).\n",
           enum: ["active", "degraded", "paused"],
         },
       },
@@ -3522,7 +3817,8 @@ export const WebhookEndpointCreateSchema = {
       type: "string",
       format: "uri",
       minLength: 1,
-      description: "HTTPS URL to deliver events to.",
+      description:
+        "HTTPS URL to deliver events to, at most 2048 characters. The host must be publicly reachable: URLs on private, loopback, or link-local addresses are rejected with a `422`.\n",
       example: "https://example.com/webhook",
     },
     events: {
@@ -3532,12 +3828,13 @@ export const WebhookEndpointCreateSchema = {
       },
       minItems: 1,
       description:
-        "Event types to subscribe to. May combine platform types with `realtime.*` types on one endpoint, all signed with the endpoint's single secret. Server-enforced (returns 422 otherwise): a `realtime.*` type requires the `realtime` object, and `realtime` requires at least one `realtime.*` type.",
+        "Event types to subscribe to; the endpoint receives only matching events. Types outside the event catalog return a `422`, and an endpoint holds at most 100 entries. Platform types may be combined with `realtime.*` types on one endpoint, all signed with the endpoint's single secret. Server-enforced (returns `422` otherwise): a `realtime.*` type requires the `realtime` object, and `realtime` requires at least one `realtime.*` type.",
       example: ["email.delivered", "email.bounced"],
     },
     description: {
       type: "string",
-      description: "Human-readable label for this endpoint.",
+      description:
+        "Human-readable label for this endpoint, up to 256 characters.",
       example: "Production webhook endpoint",
     },
   },
@@ -3660,6 +3957,7 @@ export const EmailSmtpConfigListSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of stored SMTP configs, newest first by default.",
           items: {
             $ref: "#/components/schemas/EmailSmtpConfig",
           },
@@ -3694,6 +3992,8 @@ export const EmailSmtpConfigSchema = {
         api_key_id: {
           readOnly: true,
           $ref: "#/components/schemas/APIKeyID",
+          description:
+            "ID of the API key this config applies to, the same key your SMTP client authenticates with. One config exists per key.\n",
         },
         ip_pool_id: {
           type: ["string", "null"],
@@ -3756,7 +4056,7 @@ export const InboundRouteUpdateSchema = {
       type: "string",
       enum: ["deliver_to_mailbox", "drop"],
       description:
-        "What happens to matching mail. `deliver_to_mailbox` requires `target_mailbox_id`.",
+        "What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id` (required); `drop` discards it silently, with nothing stored and no webhook fired.",
     },
     target_mailbox_id: {
       oneOf: [
@@ -3823,7 +4123,7 @@ export const InboundRouteCreateSchema = {
       minLength: 1,
       enum: ["deliver_to_mailbox", "drop"],
       description:
-        "What happens to matching mail. `deliver_to_mailbox` requires `target_mailbox_id`.",
+        "What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id` (required); `drop` discards it silently, with nothing stored and no webhook fired.",
     },
     target_mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
@@ -3861,6 +4161,8 @@ export const InboundRouteListSchema = {
       properties: {
         data: {
           type: "array",
+          description:
+            "Page of inbound routes in evaluation order: lowest priority number first.",
           items: {
             $ref: "#/components/schemas/InboundRoute",
           },
@@ -3928,7 +4230,8 @@ export const InboundRouteSchema = {
       type: "string",
       minLength: 1,
       enum: ["deliver_to_mailbox", "drop"],
-      description: "What happens to matching mail.",
+      description:
+        "What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id`; `drop` discards it silently, with nothing stored and no webhook fired.",
     },
     target_mailbox_id: {
       oneOf: [
@@ -4056,6 +4359,7 @@ export const InboundEmailMessageListSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of received emails, newest first.",
           items: {
             $ref: "#/components/schemas/InboundEmailMessage",
           },
@@ -4220,7 +4524,8 @@ export const InboundAddressUpdateSchema = {
     label: {
       type: ["string", "null"],
       maxLength: 255,
-      description: "Your own label for this address.",
+      description:
+        "Your own label for this address, typically the source mailbox it maps to. Send `null` to clear it; omit the field to leave it unchanged.",
       example: "Support mailbox",
     },
   },
@@ -4256,6 +4561,7 @@ export const InboundAddressListSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of inbound addresses, newest first.",
           items: {
             $ref: "#/components/schemas/InboundAddress",
           },
@@ -4330,7 +4636,7 @@ export const SuppressionCreateSchema = {
       format: "email",
       minLength: 5,
       description:
-        "Email address to suppress. Normalized to lowercase before storage.",
+        "The address to stop sending to. Normalized before storage and matching: lowercased and trimmed of surrounding whitespace.\n",
       example: "user@example.com",
     },
   },
@@ -4344,6 +4650,7 @@ export const SuppressionListSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of suppression records.",
           items: {
             $ref: "#/components/schemas/Suppression",
           },
@@ -4372,7 +4679,7 @@ export const SuppressionScopeSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Public ID or alias of the scoped resource. For workspace scope, this is the workspace ID (ws_ prefix).\n",
+        "Public ID or alias of the scoped resource. For workspace scope, this is the workspace ID (`ws_`-prefixed).\n",
       example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
     },
   },
@@ -4399,6 +4706,7 @@ export const SuppressionSchema = {
       type: "string",
       format: "email",
       minLength: 5,
+      description: "The suppressed address, stored lowercase.",
       example: "user@example.com",
     },
     scope: {
@@ -4414,7 +4722,7 @@ export const SuppressionSchema = {
         "manual",
       ],
       description:
-        "Why the address is suppressed. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
+        "Why the address is suppressed: `hard_bounce` (a delivery permanently failed), `complaint` (the recipient reported a message as spam), `unsubscribe` (the recipient opted out), or `manual` (added through the API or dashboard). An address can hold one record per reason. This list grows over time; treat unknown values as informational rather than rejecting the record.\n",
     },
     origin: {
       type: "string",
@@ -4428,14 +4736,14 @@ export const SuppressionSchema = {
         "user",
       ],
       description:
-        "How the suppression came to exist. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
+        "How the suppression came to exist: `bounce_event` (created automatically from a hard bounce), `complaint_event` (from a spam complaint), `unsubscribe_event` (from an unsubscribe reported for a message, such as the recipient's mail client's unsubscribe action), `unsubscribe_link` (the recipient opted out through the unsubscribe page linked from a message), `api_key` (added through the API with an API key), or `user` (added by a user in the dashboard). This list grows over time; treat unknown values as informational rather than rejecting the record.\n",
     },
     applies_to: {
       type: "string",
       minLength: 1,
       "x-extensible-enum": ["all", "non_transactional", "category"],
       description:
-        'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences. This list grows over time — treat an unknown value as blocking at least non-transactional mail.\n',
+        "Which sends the suppression blocks. `all` blocks every message category, including transactional. `non_transactional` blocks marketing and future non-transactional categories but allows transactional, so a recipient who complained or unsubscribed can still receive mail like password resets. `category` is reserved for category-specific preferences. This list grows over time; treat an unknown value as blocking at least non-transactional mail.\n",
     },
     source_email_id: {
       description:
@@ -4465,6 +4773,7 @@ export const SuppressionSchema = {
       type: "string",
       format: "date-time",
       readOnly: true,
+      description: "When the address was suppressed.",
     },
   },
 } as const;
@@ -4479,7 +4788,7 @@ export const ShareDomainDnsRequestSchema = {
       minItems: 1,
       maxItems: 3,
       description:
-        "Email recipients to send the domain's current DNS records to.",
+        "Email recipients for the domain's current DNS records. The first address is the direct recipient and the rest are copied on the same email; duplicates are ignored. Any invalid address fails the whole request with `422`.",
       items: {
         type: "string",
         format: "email",
@@ -4534,7 +4843,7 @@ export const DomainEventSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Type of domain event. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+        "Type of domain event. `domain.status_changed` tracks ownership verification (the domain-level `status`); `domain.sending_status_changed` tracks readiness to send (`capabilities.sending`); the remaining `*_status_changed` types each track one DNS record's verification. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
       "x-extensible-enum": [
         "domain.registered",
         "domain.settings_updated",
@@ -4558,7 +4867,8 @@ export const DomainEventSchema = {
     },
     metadata: {
       type: "object",
-      description: "Structured details for the event.",
+      description:
+        "Structured details for the event. Status-change events carry `from` and `to`; record-level changes also carry `domain`, the affected hostname.",
       additionalProperties: true,
     },
     created_at: {
@@ -4765,6 +5075,7 @@ export const DomainListSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of sending domains, newest first by default.",
           items: {
             $ref: "#/components/schemas/Domain",
           },
@@ -4811,6 +5122,8 @@ export const DNSRecordSchema = {
     value: {
       type: "string",
       minLength: 1,
+      description:
+        'The value to publish, as entered in your DNS provider\'s "Value" or "Content" field: the full record content for `TXT`, the target hostname for `CNAME`, and the priority followed by the mail server hostname for `MX`.\n',
     },
     purpose: {
       type: "string",
@@ -5122,6 +5435,2478 @@ export const DomainSchema = {
   },
 } as const;
 
+export const EmailStatsByBroadcastResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Broadcast breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no broadcast messages were active in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailBroadcastStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct broadcasts with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 57,
+    },
+  },
+} as const;
+
+export const EmailStatsSeriesPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "One point in a breakdown row's trend series: the headline delivery and engagement rates for that row's dimension value over a single day or hour. Returned only when `include_trend=true`; the bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.\n",
+  required: [
+    "bucket",
+    "delivered",
+    "bounced",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+    "open_rate",
+    "click_rate",
+  ],
+  properties: {
+    bucket: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.",
+      example: {},
+    },
+    delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Delivered recipients in this bucket.",
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Bounced recipients in this bucket.",
+    },
+    delivery_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.",
+    },
+    bounce_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.",
+    },
+    complaint_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Complaint rate for this bucket, as a fraction; event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
+    },
+    open_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Open rate for this bucket, as a fraction; event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
+    },
+    click_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
+    },
+  },
+} as const;
+
+export const EmailLatencyQuantilesSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. Percentiles are approximate (computed from a high-volume aggregation pipeline). All three are null together when no qualifying event contributed a latency measurement in the bucket.\n",
+  required: ["p50_ms", "p95_ms", "p99_ms"],
+  properties: {
+    p50_ms: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.",
+      example: 420,
+    },
+    p95_ms: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.",
+      example: 1820,
+    },
+    p99_ms: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.",
+      example: 4920,
+    },
+  },
+} as const;
+
+export const EmailLatencyStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:\n\n- `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.\n- `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n- `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n\nEach family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.\n",
+  properties: {
+    processing: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+    delivery: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+    total: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+  },
+} as const;
+
+export const EmailEngagementStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences); the `unique_*` fields count distinct recipients; `unsubscribes` counts distinct unsubscribe events. Counts are attributed by event time (not send time), so an open recorded today for a message sent earlier counts in today's row. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.\n",
+  required: [
+    "opens",
+    "opens_non_prefetched",
+    "unique_opens",
+    "unique_opens_non_prefetched",
+    "clicks",
+    "unique_clicks",
+    "unsubscribes",
+    "open_rate",
+    "click_rate",
+    "unsubscribe_rate",
+  ],
+  properties: {
+    opens: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).\n",
+      example: 5420,
+    },
+    opens_non_prefetched: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.\n",
+      example: 3210,
+    },
+    unique_opens: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.",
+      example: 3640,
+    },
+    unique_opens_non_prefetched: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.\n",
+      example: 2480,
+    },
+    clicks: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct click events, counting repeat clicks from the same recipient.",
+      example: 924,
+    },
+    unique_clicks: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Distinct recipients who clicked at least once.",
+      example: 621,
+    },
+    unsubscribes: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.",
+      example: 12,
+    },
+    open_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.\n",
+      example: 0.1683,
+    },
+    click_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.\n",
+      example: 0.0422,
+    },
+    unsubscribe_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.\n",
+      example: 0.0009,
+    },
+  },
+} as const;
+
+export const EmailBounceStatsWithRatesSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.\n",
+  required: [
+    "hard",
+    "soft",
+    "admin",
+    "block",
+    "undetermined",
+    "hard_rate",
+    "soft_rate",
+    "admin_rate",
+    "block_rate",
+    "undetermined_rate",
+  ],
+  properties: {
+    hard: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).",
+      example: 12410,
+    },
+    soft: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).",
+      example: 14290,
+    },
+    admin: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced by an upstream policy block (relaying denied, blocklisted domain).",
+      example: 410,
+    },
+    block: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.",
+      example: 920,
+    },
+    undetermined: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced where the receiving server's response did not allow precise classification.",
+      example: 80,
+    },
+    hard_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.\n",
+      example: 0.454,
+    },
+    soft_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.\n",
+      example: 0.523,
+    },
+    admin_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.\n",
+      example: 0.015,
+    },
+    block_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.\n",
+      example: 0.0337,
+    },
+    undetermined_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.\n",
+      example: 0.0029,
+    },
+  },
+} as const;
+
+export const EmailDeliveryStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Delivery pipeline counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). Every count is the number of distinct recipients that reached the named lifecycle stage in scope (on the period summary, the sum of the per-bucket distinct counts), attributed by event time (not send time): a recipient delivered on Monday counts in Monday's row, and a recipient who bounced then succeeded on a retry can appear in both `bounced` and `delivered`. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. These counts are successive lifecycle stages, not interchangeable categories: `rejected` happens before any send attempt (suppression, policy, generation failure); `deferred` is a temporary in-flight delay still being retried; `bounced` (with its hard/soft/admin/block/undetermined sub-types) is a delivery failure; and `complained` is post-delivery spam feedback. Each rate is a fraction in the range 0 to 1 and is null when its denominator is zero. `accepted` is reported only where it can be attributed (time buckets and the period summary); breakdown rows omit it.\n",
+  required: [
+    "processed",
+    "delivered",
+    "bounced",
+    "complained",
+    "deferred",
+    "rejected",
+    "oob_bounces",
+    "effective_delivered",
+    "all_bounces",
+    "oob_rate",
+    "bounces",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+  ],
+  properties: {
+    accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients accepted for delivery after suppression filtering. Reported on time buckets and the period summary; omitted on breakdown rows, whose rollups do not carry it.",
+      example: 14820,
+    },
+    processed: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose message was processed and handed off for delivery.",
+      example: 14810,
+    },
+    delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose message the receiving mail server accepted.",
+      example: 14720,
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.\n",
+      example: 90,
+    },
+    bounces: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailBounceStatsWithRates",
+        },
+      ],
+    },
+    complained: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who reported the message as spam via a feedback loop.",
+      example: 3,
+    },
+    deferred: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery the receiving server temporarily delayed and is still being retried.\n",
+      example: 14,
+    },
+    rejected: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients rejected before any delivery attempt. Includes recipients on the workspace suppression list, transmissions that could not be completed, message-generation failures, and recipients refused by sending policy. The per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` surfaces the specific cause.\n",
+      example: 10,
+    },
+    oob_bounces: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Out-of-band bounce events: distinct failure notifications received after the receiving server had initially confirmed delivery. Counted as deduplicated events, not unique recipients.\n",
+      example: 2,
+    },
+    effective_delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Recipients who remain in-inbox in this scope after all bounce signals resolve, computed as `delivered - oob_bounces`. Use this as the base for engagement-rate denominators. Clamped to 0 when `oob_bounces` exceeds `delivered`.",
+      example: 14718,
+    },
+    all_bounces: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total recipients in this scope who did not receive the message, computed as `bounced + oob_bounces`.",
+      example: 92,
+    },
+    oob_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this scope's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when there were no attempts.",
+      example: 0.00014,
+    },
+    delivery_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this scope's delivery attempts that resulted in a message remaining in-inbox, computed as `effective_delivered / (delivered + bounced)`. Null when there were no attempts.\n",
+      example: 0.9939,
+    },
+    bounce_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this scope's delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Because `oob_bounces` counts events rather than recipients, `all_bounces` can exceed the attempt count; the rate is clamped to 1. Null when there were no attempts.\n",
+      example: 0.0061,
+    },
+    complaint_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Spam complaints in this scope relative to effectively delivered recipients, computed as `complained / effective_delivered`. Complaints are attributed by event time, so a scope can record more of them than it effectively delivered, pushing the rate above 1. Null when `effective_delivered` is zero.\n",
+      example: 0.0002,
+    },
+  },
+} as const;
+
+export const EmailBroadcastStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for the messages of a single broadcast over the requested period.",
+  required: ["broadcast_id", "delivery", "engagement", "latency"],
+  properties: {
+    broadcast_id: {
+      type: "string",
+      minLength: 1,
+      pattern: "^eb_[0-9a-hjkmnp-tv-z]{26}$",
+      readOnly: true,
+      description:
+        "The broadcast this row aggregates, the same identifier returned by the broadcast endpoints. Only messages sent as part of a broadcast carry a broadcast identifier; one-off and transactional sends are not included in this breakdown.",
+      example: "eb_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this broadcast over the window. Never returned today, because `include_trend` is not available for the broadcast breakdown (supplying it returns 422).",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsPeriodSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The date range the server actually computed against. Echoed back so clients can render the period without tracking it themselves and so cached responses can be keyed by what was queried.\n",
+  required: ["from", "to"],
+  properties: {
+    from: {
+      type: "string",
+      format: "date",
+      minLength: 1,
+      readOnly: true,
+      description: "Inclusive start date the response covers (YYYY-MM-DD).",
+      example: {},
+    },
+    to: {
+      type: "string",
+      format: "date",
+      minLength: 1,
+      readOnly: true,
+      description: "Inclusive end date the response covers (YYYY-MM-DD).",
+      example: {},
+    },
+    data_as_of: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness (for example "as of 14:03") rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.\n',
+      example: {},
+    },
+  },
+} as const;
+
+export const EmailStatsByComplaintTypeResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Complaint-type breakdown rows, ranked by `complained` descending. Empty when no complaints occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailComplaintTypeStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct feedback types with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 4,
+    },
+  },
+} as const;
+
+export const EmailComplaintTypeStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Complaint counts for a single feedback-loop complaint type over the requested period. A complaint type is recorded only on spam-complaint events, so this breakdown reports the complained count for each type and nothing else (a complaint event carries no delivery or engagement context to aggregate).\n",
+  required: ["feedback_type", "complained"],
+  properties: {
+    feedback_type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The complaint classification reported by the mailbox provider's feedback loop, in the abuse-reporting-format vocabulary (for example `abuse`, `fraud`, `virus`, `other`). The set is open.",
+      example: "abuse",
+    },
+    complained: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who reported a message as spam with this complaint type at any point in the period.",
+      example: 47,
+    },
+  },
+} as const;
+
+export const EmailStatsByBounceCodeResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-SMTP-code bounce breakdown for the requested period, ranked by the `sort` metric (default `bounced`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Bounce-code breakdown rows, ranked by the `sort` metric (default `bounced`) descending. Empty when no bounces occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailBounceCodeStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct SMTP error codes with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 17,
+    },
+  },
+} as const;
+
+export const EmailBounceStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Breakdown of `bounced` by failure type. Each field counts distinct bounced recipients of that type in this row's scope; the five types approximately partition `bounced`.\n",
+  required: ["hard", "soft", "admin", "block", "undetermined"],
+  properties: {
+    hard: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients with a permanent delivery failure (invalid address or non-existent domain). The address is automatically added to the suppression list.\n",
+      example: 42,
+    },
+    soft: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable). Delivery was retried.\n",
+      example: 48,
+    },
+    admin: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced by an upstream policy block (relaying denied, blocklisted domain). Triage usually focuses on content or sender configuration rather than recipient cleanup.\n",
+      example: 4,
+    },
+    block: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons (mail block, spam block, spam content). Triage usually focuses on IP reputation and sending volume.\n",
+      example: 6,
+    },
+    undetermined: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced where the receiving server's response did not allow precise classification.\n",
+      example: 1,
+    },
+  },
+} as const;
+
+export const EmailBounceCodeStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bounce counts for a single SMTP status code over the requested period, with the per-type breakdown. This is a deliverability-debugging view keyed on what the receiving server returned, so it reports the failure side only (bounced recipients and their hard/soft/admin/block/undetermined split) and carries no delivered, open, or rate fields.\n",
+  required: ["smtp_error_code", "bounced", "bounces"],
+  properties: {
+    smtp_error_code: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The SMTP error code the receiving mail server returned for these bounces, as reported by that server (for example `5.1.1` for an unknown recipient, `4.2.2` for a full mailbox). The form varies by server, and the set of codes is open.",
+      example: "5.1.1",
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery failed with this SMTP status code. Approximately the sum of the five `bounces.*` sub-counts; the totals are computed independently so they may differ slightly at the approximation error.",
+      example: 1240,
+    },
+    bounces: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailBounceStats",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsByClientResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Client breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a detected client occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailClientStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct values of the requested `group_by` facet with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 9,
+    },
+  },
+} as const;
+
+export const EmailEngagementCountsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Open and click counts for a breakdown row whose dimension is resolved from engagement events only. `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences); the `unique_*` fields count distinct recipients. Rates and unsubscribe counts are not included: there is no per-dimension delivered denominator for a rate, and unsubscribe events do not carry the engagement context this breakdown is keyed on.\n",
+  required: [
+    "opens",
+    "opens_non_prefetched",
+    "unique_opens",
+    "unique_opens_non_prefetched",
+    "clicks",
+    "unique_clicks",
+  ],
+  properties: {
+    opens: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).\n",
+      example: 5420,
+    },
+    opens_non_prefetched: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens`, with prefetched opens removed.\n",
+      example: 3210,
+    },
+    unique_opens: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.",
+      example: 3640,
+    },
+    unique_opens_non_prefetched: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features.",
+      example: 2480,
+    },
+    clicks: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct click events, counting repeat clicks from the same recipient.",
+      example: 924,
+    },
+    unique_clicks: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Distinct recipients who clicked at least once.",
+      example: 621,
+    },
+  },
+} as const;
+
+export const EmailClientStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Engagement counts for messages opened or clicked from a single email client, operating system, or device type over the requested period. The reading environment is resolved from open and click events only, so this breakdown reports engagement activity (opens, clicks, and the recipients behind them); it carries no delivery counts and no open/click rates, because the receiving mail server reports delivery without a client or device, leaving no per-client delivered denominator to divide by. Exactly one of `email_client`, `os`, and `device_type` is populated, selected by the request's `group_by`; the other two are null. Engagement environment is detected from the opening client and is subject to the same inbox-privacy prefetch effects as the open counts (the `opens_non_prefetched` figure excludes auto-fetched opens).\n",
+  required: ["email_client", "os", "device_type", "engagement"],
+  properties: {
+    email_client: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "The mail client this row aggregates (for example `Gmail`, `Apple Mail`, `Outlook`). Populated only when `group_by=email_client`; null otherwise.",
+      example: "Apple Mail",
+    },
+    os: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "The operating system this row aggregates (for example `iOS`, `Android`, `Windows`, `macOS`). Populated only when `group_by=os`; null otherwise.",
+      example: "iOS",
+    },
+    device_type: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "The device type this row aggregates (for example `mobile`, `desktop`, `tablet`). Populated only when `group_by=device_type`; null otherwise.",
+      example: "mobile",
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementCounts",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsByLocationResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Location breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a resolved location occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailLocationStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct locations at the requested `group_by` level with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 86,
+    },
+  },
+} as const;
+
+export const EmailLocationStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Open and click counts for messages engaged with from a single location over the requested period. Location is resolved from open and click events only, so this breakdown reports engagement activity (opens, clicks, and the recipients behind them); it carries no delivery counts and no open/click rates, because the receiving mail server reports delivery without a recipient location, leaving no per-location delivered denominator to divide by. Each row always includes all three of `country`, `region`, and `city`; the levels below the requested `group_by` are null.\n",
+  required: ["country", "region", "city", "engagement"],
+  properties: {
+    country: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The country this row aggregates, as a two-letter country code (ISO 3166-1 alpha-2) resolved from the open or click event. Always present.",
+      example: "US",
+    },
+    region: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "The region (state or province) within the country. Populated when `group_by` is `region` or `city`; null at coarser groupings.",
+      example: "California",
+    },
+    city: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "The city within the region. Populated when `group_by` is `city`; null at coarser groupings.",
+      example: "San Francisco",
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementCounts",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailEngagementSortMetricSchema = {
+  type: "string",
+  default: "unique_opens",
+  description:
+    "Metric to rank rows by, applied descending. Shared by the engagement-only breakdowns (locations, email clients), which report open and click counts but no rates (there is no per-dimension delivered denominator).\n",
+  enum: [
+    "opens",
+    "opens_non_prefetched",
+    "unique_opens",
+    "unique_opens_non_prefetched",
+    "clicks",
+    "unique_clicks",
+  ],
+} as const;
+
+export const EmailStatsByTemplateResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Template breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no templated messages were active in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailTemplateStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct templates with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 42,
+    },
+  },
+} as const;
+
+export const EmailTemplateIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^emt_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "emt_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailTemplateStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for the messages sent with a single template over the requested period.",
+  required: ["template_id", "delivery", "engagement", "latency"],
+  properties: {
+    template_id: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateID",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template this row aggregates, the same identifier returned by the email-template endpoints. Only messages sent with a template appear in this breakdown; a template deleted after sending still appears by its ID.",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this template over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsByRecipientDomainResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Recipient-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailRecipientDomainStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct recipient domains with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 412,
+    },
+  },
+} as const;
+
+export const EmailRecipientDomainStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for messages sent to a single recipient mailbox domain over the requested period.",
+  required: ["recipient_domain", "delivery", "engagement", "latency"],
+  properties: {
+    recipient_domain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The recipient mailbox domain this row aggregates (the part of the recipient address after the `@`), normalized to lowercase.",
+      example: "gmail.com",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this recipient domain over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsByMailboxProviderRegionResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Provider-region breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no deliveries occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailMailboxProviderRegionStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct mailbox provider and region pairs with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 31,
+    },
+  },
+} as const;
+
+export const EmailDeliveryLatencyStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Latency percentiles (p50, p95, p99) in milliseconds for the messages in this breakdown row, for breakdowns whose dimension is known only from delivery onward (sending IP, mailbox provider).\n\n- `delivery`: time from handing the message off to the receiving mail server accepting it. Null when no deliveries occurred for this row in the period.\n- `total`: end-to-end time from accepting the send to delivery. Null when no deliveries occurred for this row in the period.\n\nThese breakdowns have no `processing` latency family. Bird only learns a row's dimension (the sending IP or recipient mailbox provider) after the upstream mail-transfer system reports delivery, bounce, deferral, or late bounce; the accept-to-processed phase happens before that binding decision, so it cannot be attributed to the dimension. Use `GET /v1/email/stats/daily` for workspace-wide processing-latency percentiles.\n",
+  required: ["delivery", "total"],
+  properties: {
+    delivery: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+    total: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+  },
+} as const;
+
+export const EmailMailboxProviderDeliveryStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Delivery counts and rates for messages attributed to a single recipient mailbox provider. Per-provider results do not include `accepted` or `processed` counts because Bird only learns the recipient's mailbox provider after the upstream mail transfer system reports delivery/bounce/deferral/late bounce. Earlier lifecycle states (accepted, processed) cannot be attributed to a specific provider.\n",
+  required: [
+    "delivered",
+    "bounced",
+    "complained",
+    "deferred",
+    "bounces",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+  ],
+  properties: {
+    delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose message the receiving mail server accepted.",
+      example: 8290,
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.",
+      example: 131,
+    },
+    complained: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Distinct recipients who reported the message as spam.",
+      example: 8,
+    },
+    deferred: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients in transient delivery deferral that is still being retried.",
+      example: 4,
+    },
+    bounces: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailBounceStatsWithRates",
+        },
+      ],
+    },
+    delivery_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of attempted recipients on this mailbox provider that were delivered, computed as `delivered / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).\n",
+      example: 0.9844,
+    },
+    bounce_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of attempted recipients on this mailbox provider that bounced, computed as `bounced / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).\n",
+      example: 0.0156,
+    },
+    complaint_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of delivered recipients on this mailbox provider who reported the message as spam, computed as `complained / delivered`. Null when `delivered` is zero.\n",
+      example: 0.00096,
+    },
+  },
+} as const;
+
+export const EmailMailboxProviderRegionStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Delivery, engagement, and deliverability stats for messages grouped by a single mailbox provider and provider region pair over the requested period, for example `gmail` in `NA` or `microsoft` in `EU`. The provider region is the regional pod the receiving mail system reports for the recipient's provider; pairing it with the provider disambiguates a region label that several providers share. Like the mailbox-provider breakdown, rows cover the delivery stage onward: the `accepted` and `processed` counts and the `processing` latency family are omitted (a provider region cannot be attributed before delivery).\n",
+  required: [
+    "mailbox_provider",
+    "mailbox_provider_region",
+    "delivery",
+    "engagement",
+    "latency",
+  ],
+  properties: {
+    mailbox_provider: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The recipient mailbox provider this row aggregates, as a lowercased classifier bucket (e.g. `gmail`, `yahoo`, `microsoft`, `apple`).",
+      example: "gmail",
+    },
+    mailbox_provider_region: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The provider region this row aggregates, as reported by the receiving mail system (for example `NA`, `EU`, `APAC`). The set is open and provider-specific.",
+      example: "NA",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailMailboxProviderDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this provider region over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsByMailboxProviderResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Mailbox-provider breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no eligible activity occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailMailboxProviderStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct mailbox providers with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 14,
+    },
+  },
+} as const;
+
+export const EmailMailboxProviderStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Delivery, engagement, and deliverability stats for messages grouped by a single recipient mailbox provider (`gmail`, `microsoft`, `yahoo`, `apple`, ...) over the requested period. A recipient's mailbox provider is reported by the receiving mail system, so per-provider rows cover the delivery stage onward: they omit the `accepted` and `processed` counts and the `processing` latency family, which never appear (they are not returned as null). Engagement (opens, clicks, and their rates) is included because those events are post-delivery and carry the mailbox provider.\n",
+  required: ["mailbox_provider", "delivery", "engagement", "latency"],
+  properties: {
+    mailbox_provider: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The recipient mailbox provider this row aggregates, as a lowercased classifier bucket (e.g. `gmail`, `yahoo`, `microsoft`, `apple`). The set is open and grows as new providers are categorised.",
+      example: "gmail",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailMailboxProviderDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this mailbox provider over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailMailboxProviderSortMetricSchema = {
+  type: "string",
+  default: "delivered",
+  description:
+    "Metric to rank rows by, applied descending. Shared by the breakdowns whose attribution begins at delivery (mailbox providers, mailbox provider regions): `processed`, `rejected`, and `oob_bounces` are not part of those rows, so they are not sortable. Any count or rate the rows carry may be used; rows whose rate is undefined (zero denominator) sort last. Bounce sub-types are addressed by their nested location in each row, for example `bounces.hard` and `bounces.hard_rate`.\n",
+  enum: [
+    "delivered",
+    "bounced",
+    "complained",
+    "deferred",
+    "bounces.hard",
+    "bounces.soft",
+    "bounces.admin",
+    "bounces.block",
+    "bounces.undetermined",
+    "opens",
+    "opens_non_prefetched",
+    "unique_opens",
+    "unique_opens_non_prefetched",
+    "clicks",
+    "unique_clicks",
+    "unsubscribes",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+    "open_rate",
+    "click_rate",
+    "unsubscribe_rate",
+    "bounces.hard_rate",
+    "bounces.soft_rate",
+    "bounces.admin_rate",
+    "bounces.block_rate",
+    "bounces.undetermined_rate",
+  ],
+} as const;
+
+export const EmailStatsByCategoryResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Category breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no sends occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailCategoryStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct categories with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 2,
+    },
+  },
+} as const;
+
+export const EmailCategoryStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery and engagement stats for a single category over the requested period.",
+  required: ["category", "delivery", "engagement", "latency"],
+  properties: {
+    category: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The category this row aggregates, as set at send time. `transactional` is one-to-one mail triggered by a user action; `marketing` is bulk sending. New categories may be added over time.",
+      example: "transactional",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this category over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsBySendingDomainResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Sending-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailSendingDomainStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct sending domains with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 12,
+    },
+  },
+} as const;
+
+export const EmailSendingDomainStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for messages sent from a single sending domain over the requested period.",
+  required: ["sending_domain", "delivery", "engagement", "latency"],
+  properties: {
+    sending_domain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The sending domain (the portion of the `From` address after the `@`), normalized to lowercase.",
+      example: "mail.acme.com",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this sending domain over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsBySendingIpResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Sending-IP breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no per-IP-attributable activity (delivery, bounce, deferral, or late bounce) occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailSendingIpStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct sending IP addresses with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 6,
+    },
+  },
+} as const;
+
+export const EmailSendingIpDeliveryStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Delivery counts and rates for messages attributed to a single sending IP. Per-IP results do not include `accepted` or `processed` counts because Bird only learns which sending IP a message used after the upstream mail transfer system reports delivery/bounce/deferral/late bounce. Earlier lifecycle states (accepted, processed) cannot be attributed to a specific IP. Spam complaints and out-of-band bounce notifications are also not attributed per IP on this breakdown, so `complained` and `oob_bounces` read 0 (their rates read 0 where the denominator is non-zero, null where it is zero), `effective_delivered` equals `delivered`, and `all_bounces` equals `bounced`.\n",
+  required: [
+    "delivered",
+    "bounced",
+    "complained",
+    "deferred",
+    "oob_bounces",
+    "effective_delivered",
+    "all_bounces",
+    "oob_rate",
+    "bounces",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+  ],
+  properties: {
+    delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose message the receiving mail server accepted.",
+      example: 8290,
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.",
+      example: 131,
+    },
+    complained: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who reported the message as spam. Complaints are not attributed to a sending IP, so this reads 0 on this breakdown; read complaint counts from the summary or time-series statistics instead.",
+      example: 8,
+    },
+    deferred: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients in transient delivery deferral that is still being retried.",
+      example: 4,
+    },
+    oob_bounces: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Out-of-band bounce events: failure notifications received after the receiving server had initially confirmed delivery. Not attributed to a sending IP on this breakdown, so this reads 0; workspace-wide out-of-band counts are on the summary and time-series statistics.\n",
+      example: 3,
+    },
+    effective_delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Recipients on this IP who remain in-inbox after all bounce signals resolve, computed as `delivered - oob_bounces`. Clamped to 0 when `oob_bounces` exceeds `delivered`.",
+      example: 8287,
+    },
+    all_bounces: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total recipients on this IP who did not receive the message, computed as `bounced + oob_bounces`.",
+      example: 134,
+    },
+    oob_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this IP's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).",
+      example: 0.00036,
+    },
+    bounces: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailBounceStatsWithRates",
+        },
+      ],
+    },
+    delivery_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this IP's delivery attempts that resulted in a message remaining in-inbox, computed as `effective_delivered / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).\n",
+      example: 0.9844,
+    },
+    bounce_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this IP's delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Null when `delivered + bounced` is zero (no attempts).\n",
+      example: 0.0156,
+    },
+    complaint_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Share of effectively delivered recipients on this IP who reported the message as spam, computed as `complained / effective_delivered`. Null when `effective_delivered` is zero.\n",
+      example: 0.00096,
+    },
+  },
+} as const;
+
+export const IPPoolIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ipp_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ipp_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailSendingIpStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Delivery and latency stats for messages sent from a single IP address over the requested period. Per-IP attribution begins only after a message is processed: the upstream mail-transfer system reports the IP it used on delivery, bounce, deferral, and late-bounce events, but not at acceptance or processing time. As a result, per-IP rows omit the `accepted` and `processed` counts and the `processing` latency family, which never appear (they are not returned as null).\n",
+  required: ["sending_ip", "delivery", "latency"],
+  properties: {
+    sending_ip: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The IP address used to send messages aggregated in this row.",
+      example: "192.0.2.55",
+    },
+    ip_pool_id: {
+      readOnly: true,
+      description:
+        "The dedicated IP pool this address sent through, or null when the messages went through the shared pool. Recorded when each message was sent, so it reflects the pool used at send time even if the IP has since moved between pools or been released.\n",
+      oneOf: [
+        {
+          $ref: "#/components/schemas/IPPoolID",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailSendingIpDeliveryStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket delivery-rate series for this IP over the window. Present only when `include_trend=true`. Engagement is not attributed to a sending IP, so each point's open and click rates read 0 in buckets with deliveries and null in buckets without.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Single-row aggregate across the full requested period, including delivery and engagement counts plus derived rates. Use this endpoint for KPI tiles, campaign reporting, and any metric that needs a meaningful denominator; the daily and hourly endpoints carry the same rates per bucket, dividing each bucket's own counts.\n\nEvery count is a sum of per-bucket counts across the window (per day for day windows, per hour for hour windows), so a recipient (or message) active in two buckets contributes one to each bucket and two to the period total. This matches common provider reporting and is not double-counting; it does not yield a period-distinct count. Latency percentiles, by contrast, are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.\n",
+  required: ["period", "sends_accepted", "delivery", "engagement", "latency"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsSummaryPeriod",
+        },
+        {
+          description:
+            "The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    sends_accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct email messages accepted, counted at the message level (one per accepted send regardless of recipient count) and summed per bucket across the period. This counts messages, not recipients, so it is not comparable to `delivery.accepted`, which counts recipients (a single message to 500 recipients is 1 here and up to 500 there).",
+      example: 12410,
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    comparison: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsComparison",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsComparisonDeltaSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "The change in each headline metric from the preceding period to the requested one. A `*_pct_change` is a signed relative change in a count, computed as `(current - previous) / previous` (so `0.5` means 50% higher, `-0.2` means 20% lower), and is null when the previous period's count was zero. A `*_rate_pp` is the signed arithmetic difference between the two periods' rate values, where each rate is a fraction in `[0,1]` (so `0.012` means the rate rose by 0.012, i.e. 1.2 percentage points; `-0.003` means it fell by 0.3 points), and is null when either period's rate is undefined (its denominator was zero). A `*_rate_pp` value ranges from `-1` to `1`: the most a rate can move between periods is from 0 to 1, or 1 to 0.\n",
+  required: [
+    "sends_accepted_pct_change",
+    "delivered_pct_change",
+    "bounced_pct_change",
+    "complained_pct_change",
+    "opened_pct_change",
+    "delivery_rate_pp",
+    "open_rate_pp",
+    "click_rate_pp",
+    "bounce_rate_pp",
+    "complaint_rate_pp",
+    "unsubscribe_rate_pp",
+  ],
+  properties: {
+    sends_accepted_pct_change: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Relative change in accepted messages (the `sends_accepted` count) versus the previous period, as a signed fraction. Null when the previous period accepted none.",
+      example: 0.508,
+    },
+    delivered_pct_change: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Relative change in effectively delivered recipients (`delivery.effective_delivered`, the delivery-rate numerator) versus the previous period, as a signed fraction. Null when the previous period effectively delivered none.",
+      example: 0.122,
+    },
+    bounced_pct_change: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Relative change in total bounces including out-of-band (`delivery.all_bounces`, the bounce-rate numerator) versus the previous period, as a signed fraction. Null when the previous period had none.",
+      example: -0.031,
+    },
+    complained_pct_change: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Relative change in spam complaints (`delivery.complained`) versus the previous period, as a signed fraction. Null when the previous period had none.",
+      example: 0.018,
+    },
+    opened_pct_change: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Relative change in unique non-prefetched opens (`engagement.unique_opens_non_prefetched`, the same count the open rate uses) versus the previous period, as a signed fraction. Null when the previous period had none.",
+      example: -0.046,
+    },
+    delivery_rate_pp: {
+      type: ["number", "null"],
+      minimum: -1,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Signed difference between this period's and the previous period's delivery rate, both fractions in [0,1] (multiply by 100 for percentage points). Null when either period's delivery rate is undefined.",
+      example: 0.004,
+    },
+    open_rate_pp: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Signed difference between this period's and the previous period's open rate, both fractions (multiply by 100 for percentage points). Null when either period's open rate is undefined.",
+      example: 0.005,
+    },
+    click_rate_pp: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Signed difference between this period's and the previous period's click rate, both fractions (multiply by 100 for percentage points). Null when either period's click rate is undefined.",
+      example: 0.002,
+    },
+    bounce_rate_pp: {
+      type: ["number", "null"],
+      minimum: -1,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Signed difference between this period's and the previous period's bounce rate, both fractions in [0,1] (multiply by 100 for percentage points). Null when either period's bounce rate is undefined.",
+      example: -0.0008,
+    },
+    complaint_rate_pp: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Signed difference between this period's and the previous period's complaint rate, both fractions (multiply by 100 for percentage points). Null when either period's complaint rate is undefined.",
+      example: 0.0001,
+    },
+    unsubscribe_rate_pp: {
+      type: ["number", "null"],
+      readOnly: true,
+      description:
+        "Signed difference between this period's and the previous period's unsubscribe rate, both fractions (multiply by 100 for percentage points). Null when either period's unsubscribe rate is undefined.",
+      example: -0.0001,
+    },
+  },
+} as const;
+
+export const EmailStatsComparisonSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.\n',
+  required: [
+    "period",
+    "sends_accepted",
+    "delivery",
+    "engagement",
+    "latency",
+    "delta",
+  ],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsSummaryPeriod",
+        },
+        {
+          description:
+            "The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.",
+        },
+      ],
+    },
+    sends_accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct email messages accepted in the preceding period, counted at the message level.",
+      example: 8230,
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    delta: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsComparisonDelta",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsSummaryPeriodSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The window the server actually computed against. The summary serves two window grains: calendar days (bounds are YYYY-MM-DD) and hours (bounds are RFC 3339 instants). The grain of `from` and `to` mirrors the grain of the request's bounds; days and hour boundaries follow the requested `timezone` (UTC when omitted).\n",
+  required: ["from", "to"],
+  properties: {
+    from: {
+      type: "string",
+      minLength: 1,
+      pattern:
+        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
+      readOnly: true,
+      description:
+        "Inclusive start of the window the response covers. A calendar day (YYYY-MM-DD, in the requested `timezone`) for day windows; for hour windows, an RFC 3339 UTC instant marking the start of the first hour, which falls on a local hour boundary when `timezone` is set.",
+      example: {},
+    },
+    to: {
+      type: "string",
+      minLength: 1,
+      pattern:
+        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
+      readOnly: true,
+      description:
+        "Inclusive end of the window the response covers. A calendar day (YYYY-MM-DD, in the requested `timezone`) for day windows; for hour windows, an RFC 3339 UTC instant marking the start of the last hour, which falls on a local hour boundary when `timezone` is set.",
+      example: {},
+    },
+    data_as_of: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        'The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness (for example "as of 14:03") rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.\n',
+      example: {},
+    },
+  },
+} as const;
+
+export const EmailStatsTagsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period", "data", "total"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailStatsPeriod",
+        },
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Tag breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no tagged sends occurred in the period.",
+      items: {
+        $ref: "#/components/schemas/EmailTagStatsPoint",
+      },
+    },
+    total: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total number of distinct tags (name and value pairs) with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
+      example: 173,
+    },
+  },
+} as const;
+
+export const EmailTagStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery and engagement stats for a single tag name-and-value pair over the requested period.",
+  required: ["tag", "delivery", "engagement", "latency"],
+  properties: {
+    tag: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The tag this row aggregates, formatted as `name:value` from the tag set at send time (for example `campaign:welcome-series`). Each distinct name-and-value pair is its own row.\n",
+      example: "campaign:welcome-series",
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    trend: {
+      type: "array",
+      readOnly: true,
+      description:
+        "Per-bucket rate series for this tag over the window. Present only when `include_trend=true`.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsSeriesPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsSortMetricSchema = {
+  type: "string",
+  default: "processed",
+  description:
+    "Metric to rank breakdown rows by, applied descending. Shared by the breakdowns whose rows carry the full delivery, engagement, and latency block (tags, sending domains, categories, recipient domains, templates, broadcasts). Any count or rate may be used; rows whose rate is undefined (zero denominator) sort last. Bounce sub-types are addressed by their nested location in each row, for example `bounces.hard` and `bounces.hard_rate`.\n",
+  enum: [
+    "processed",
+    "delivered",
+    "bounced",
+    "complained",
+    "deferred",
+    "rejected",
+    "oob_bounces",
+    "bounces.hard",
+    "bounces.soft",
+    "bounces.admin",
+    "bounces.block",
+    "bounces.undetermined",
+    "opens",
+    "opens_non_prefetched",
+    "unique_opens",
+    "unique_opens_non_prefetched",
+    "clicks",
+    "unique_clicks",
+    "unsubscribes",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+    "open_rate",
+    "click_rate",
+    "unsubscribe_rate",
+    "bounces.hard_rate",
+    "bounces.soft_rate",
+    "bounces.admin_rate",
+    "bounces.block_rate",
+    "bounces.undetermined_rate",
+  ],
+} as const;
+
+export const EmailStatsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.\n",
+  required: ["period", "data"],
+  properties: {
+    period: {
+      $ref: "#/components/schemas/EmailStatsSeriesPeriod",
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "One row per bucket (day or hour, per the grain) in the period, in chronological order. Buckets with no activity are included with zero counts.",
+      items: {
+        $ref: "#/components/schemas/EmailStatsPoint",
+      },
+    },
+  },
+} as const;
+
+export const EmailStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Aggregate stats for one time bucket (a calendar day or hour, per the requested grain, in the requested `timezone` or UTC by default), bucketed by event time. Buckets with no activity are included with zero counts and null latency percentiles, so the series charts continuously without client-side gap handling.\n",
+  required: ["bucket", "sends_accepted", "delivery", "engagement", "latency"],
+  properties: {
+    bucket: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The day (YYYY-MM-DD, in the requested `timezone`) or hour this point covers, matching the period's grain. An hour bucket is an RFC 3339 UTC instant marking the start of the hour; it falls on a local hour boundary when `timezone` is set, which is on the UTC hour only for whole-hour offsets.",
+      example: "2026-05-25T00:00:00.000Z",
+    },
+    sends_accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct email messages accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other metric in `delivery` and `engagement` is recipient-level or event-level.\n",
+      example: 412,
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsSeriesPeriodSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.\n",
+  required: ["from", "to", "grain"],
+  properties: {
+    from: {
+      type: "string",
+      minLength: 1,
+      pattern:
+        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
+      readOnly: true,
+      description:
+        "Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.",
+      example: {},
+    },
+    to: {
+      type: "string",
+      minLength: 1,
+      pattern:
+        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
+      readOnly: true,
+      description:
+        "Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.",
+      example: {},
+    },
+    grain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The bucket grain of the series, either `day` or `hour`.",
+      example: "day",
+    },
+    data_as_of: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.\n",
+      example: {},
+    },
+  },
+} as const;
+
 export const WhatsAppTemplateListSchema = {
   type: "object",
   additionalProperties: false,
@@ -5146,9 +7931,18 @@ export const WhatsAppTemplateButtonSchema = {
       type: "string",
       minLength: 1,
       readOnly: true,
-      "x-extensible-enum": ["url"],
+      "x-extensible-enum": ["url", "otp"],
       description: "The button's behavior type.",
       example: "url",
+    },
+    otp_type: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      "x-extensible-enum": ["copy_code"],
+      description:
+        "How the recipient receives the one-time passcode. Present on authentication-template OTP buttons.",
+      example: "copy_code",
     },
     text: {
       type: "string",
@@ -5182,7 +7976,8 @@ export const WhatsAppTemplateParameterTypeSchema = {
   type: "string",
   minLength: 1,
   "x-extensible-enum": ["text"],
-  description: "The type of a template parameter.",
+  description:
+    "The kind of value a template parameter accepts. `text` (the only kind today) is a plain string substituted into the placeholder. Open enum: more kinds may be added over time.\n",
 } as const;
 
 export const WhatsAppTemplateExampleParameterSchema = {
@@ -5207,6 +8002,14 @@ export const WhatsAppTemplateExampleParameterSchema = {
         "An example value for a text parameter. Present when `type` is `text`.",
       example: "123456",
     },
+    name: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The named placeholder this example fills, for templates that use named parameters. Absent for system templates, which use positional parameters.",
+      example: "first_name",
+    },
   },
 } as const;
 
@@ -5219,7 +8022,7 @@ export const WhatsAppTemplateComponentSchema = {
       type: "string",
       minLength: 1,
       readOnly: true,
-      "x-extensible-enum": ["header", "body", "buttons"],
+      "x-extensible-enum": ["header", "body", "footer", "buttons"],
       description: "The content block's type within the template.",
       example: "body",
     },
@@ -5235,7 +8038,7 @@ export const WhatsAppTemplateComponentSchema = {
       type: "array",
       readOnly: true,
       description:
-        "Example values for this block's variables, in placeholder order — one per `{{n}}`. Use them to see what a filled message looks like. Present when the block has variables.",
+        "Example values for this block's variables, in placeholder order (one per `{{n}}`). Use them to see what a filled message looks like. Present when the block has variables.",
       items: {
         $ref: "#/components/schemas/WhatsAppTemplateExampleParameter",
       },
@@ -5266,7 +8069,7 @@ export const WhatsAppTemplateStatusSchema = {
     "limit_exceeded",
   ],
   description:
-    "A message template's review and health status. `approved`, `pending`, and `rejected` are review outcomes; `paused`, `disabled`, `in_appeal`, `pending_deletion`, and `limit_exceeded` reflect a template's ongoing health after approval.",
+    "A message template's review and health status. `approved` (passed review and sendable), `pending` (review in progress), and `rejected` (failed review) are review outcomes. The rest reflect a template's ongoing health after approval: `paused` and `disabled` mean sending from it is suspended, `in_appeal` means a review decision is under appeal, `pending_deletion` means the template is queued for removal, and `limit_exceeded` means it has exceeded a usage limit. Every template in Bird's catalogue is currently `approved`. Open enum: new statuses may be added over time, so treat any unrecognized value as a future status rather than an error.\n",
 } as const;
 
 export const WhatsAppTemplateCategorySchema = {
@@ -5274,7 +8077,15 @@ export const WhatsAppTemplateCategorySchema = {
   minLength: 1,
   "x-extensible-enum": ["authentication", "utility", "marketing"],
   description:
-    "WhatsApp template category — Meta's content classification for a template. Open enum — Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error. The values below are the categories known at this version.",
+    "Meta's content classification for a template. `authentication` templates deliver one-time passcodes, `utility` templates deliver transaction-triggered updates (receipts, order status), and `marketing` templates carry promotional content. The category drives which sender number Bird selects and how the send is priced. Open enum: Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error.\n",
+} as const;
+
+export const WhatsAppLanguageSchema = {
+  type: "string",
+  minLength: 1,
+  description:
+    "Language code of the template variant (for example `en` or `pt_BR`).",
+  example: "en",
 } as const;
 
 export const TemplateScopeSchema = {
@@ -5296,11 +8107,35 @@ export const WhatsAppTemplateNameSchema = {
   example: "bird_otp",
 } as const;
 
+export const WhatsAppTemplateIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^wat_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "wat_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const WhatsAppTemplateSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "scope", "language", "category", "status", "components"],
+  required: [
+    "id",
+    "name",
+    "scope",
+    "language",
+    "category",
+    "status",
+    "components",
+  ],
   properties: {
+    id: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppTemplateID",
+        },
+      ],
+      readOnly: true,
+      description: "Stable Bird identifier for the template.",
+    },
     name: {
       allOf: [
         {
@@ -5312,16 +8147,23 @@ export const WhatsAppTemplateSchema = {
         "The template's stable handle. Pass it as the template reference when sending.",
       example: "bird_otp",
     },
+    description: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Optional description of the template's purpose. Null when unset.",
+      example: "One-time passcode verification.",
+    },
     scope: {
       $ref: "#/components/schemas/TemplateScope",
     },
     language: {
-      type: "string",
-      minLength: 1,
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppLanguage",
+        },
+      ],
       readOnly: true,
-      description:
-        "The language code of this template variant (for example `en` or `pt_BR`).",
-      example: "en",
     },
     category: {
       allOf: [
@@ -5362,7 +8204,7 @@ export const WhatsAppEventListSchema = {
     data: {
       type: "array",
       description:
-        "Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full — this list is not paginated.",
+        "Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full; this list is not paginated.",
       items: {
         $ref: "#/components/schemas/WhatsAppEvent",
       },
@@ -5385,7 +8227,8 @@ export const WhatsAppEventSchema = {
     id: {
       readOnly: true,
       $ref: "#/components/schemas/WhatsAppEventID",
-      description: "Event ID.",
+      description:
+        "ID of the event (`ev_`-prefixed), unique within the message's timeline.",
     },
     type: {
       type: "string",
@@ -5399,7 +8242,7 @@ export const WhatsAppEventSchema = {
         "whatsapp.failed",
       ],
       description:
-        "Lifecycle event type. `whatsapp.accepted` — Bird accepted the request. `whatsapp.sent` — handed to the WhatsApp network. `whatsapp.delivered` — delivery confirmed to the recipient's device. `whatsapp.read` — the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed` — terminal permanent failure. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
+        "Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
       example: "whatsapp.delivered",
     },
     occurred_at: {
@@ -5425,7 +8268,7 @@ export const WhatsAppMessageSendRequestSchema = {
       type: "string",
       minLength: 1,
       description:
-        "The message recipient's phone number in E.164 format (for example `+31612345678`).",
+        "The message recipient's phone number in E.164 format (for example `+31612345678`). A value that is not a valid phone number returns a `422` `WhatsAppInvalidRecipient`.\n",
       example: "+31612345678",
     },
     template: {
@@ -5435,7 +8278,7 @@ export const WhatsAppMessageSendRequestSchema = {
         },
       ],
       description:
-        "The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are currently the only supported content type, so every send must include one; free-text content will be added in a future release.\n",
+        "The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are the only supported content type today: a request without one is rejected with a `422`.\n",
     },
     tags: {
       type: "array",
@@ -5493,12 +8336,20 @@ export const WhatsAppMessageTemplateComponentParameterSchema = {
           $ref: "#/components/schemas/WhatsAppTemplateParameterType",
         },
       ],
-      description: "Parameter type.",
+      description:
+        "The kind of value this parameter carries. `text` is the only kind today.",
     },
     text: {
       type: "string",
       minLength: 1,
-      description: "Parameter value.",
+      description:
+        "The value substituted into the placeholder, as a plain string.",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      description:
+        "For named-parameter templates: the placeholder this value fills (for example `first_name`). Omit for positional templates.",
     },
   },
 } as const;
@@ -5512,11 +8363,13 @@ export const WhatsAppMessageTemplateComponentSchema = {
       type: "string",
       minLength: 1,
       "x-extensible-enum": ["header", "body", "button"],
-      description: "Which part of the template this fills in.",
+      description:
+        "Which part of the template this fills in: `body` for the main text, `button` for a button's variable, `header` for the header. Bird manages header values itself, so a `header` entry supplied on a send is ignored.\n",
     },
     parameters: {
       type: "array",
-      description: "The values that fill this part's placeholders, in order.",
+      description:
+        "The values that fill this part's placeholders, in `{{n}}` placeholder order.\n",
       items: {
         $ref: "#/components/schemas/WhatsAppMessageTemplateComponentParameter",
       },
@@ -5540,15 +8393,19 @@ export const WhatsAppTemplateSendSchema = {
       example: "bird_otp",
     },
     language: {
-      type: "string",
-      minLength: 1,
+      allOf: [
+        {
+          $ref: "#/components/schemas/WhatsAppLanguage",
+        },
+      ],
       description:
-        "Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language.\n",
+        "Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language; when it is stocked in several, omitting the language returns a `422` that names the available codes. The accepted message echoes the resolved language.\n",
       example: "en",
     },
     components: {
       type: "array",
-      description: "The values that fill the template's placeholders.",
+      description:
+        "The values that fill the template's placeholders: one entry per content block that has placeholders, each carrying its `parameters` in `{{n}}` order. Parameter counts must match the template's declared placeholders exactly, or the send returns a `422` `WhatsAppTemplateParameterMismatch`.\n",
       items: {
         $ref: "#/components/schemas/WhatsAppMessageTemplateComponent",
       },
@@ -5609,7 +8466,7 @@ export const WhatsAppMessageListSchema = {
       properties: {
         data: {
           type: "array",
-          description: "Page of WhatsApp message objects.",
+          description: "Page of WhatsApp messages, newest first.",
           items: {
             $ref: "#/components/schemas/WhatsAppMessage",
           },
@@ -5635,7 +8492,7 @@ export const WhatsAppMessageStatusSchema = {
     "received",
   ],
   description:
-    "Delivery status. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `canceled` means a scheduled message was canceled before it was sent. `received` is the status of an inbound message (`direction: inbound`) sent to you by a contact. There is no `read` status — a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value.\n",
+    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
 } as const;
 
 export const WhatsAppMessageTemplateSchema = {
@@ -5643,7 +8500,7 @@ export const WhatsAppMessageTemplateSchema = {
   additionalProperties: false,
   readOnly: true,
   description:
-    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present — `components` is an empty array for an authentication template (the filled-in values, e.g. a verification code, are never returned).\n",
+    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).\n",
   required: ["name", "language", "category", "components"],
   properties: {
     name: {
@@ -5694,7 +8551,8 @@ export const WhatsAppMessageSchema = {
     id: {
       readOnly: true,
       $ref: "#/components/schemas/WhatsAppMessageID",
-      description: "Message ID.",
+      description:
+        "ID of the message (`wam_`-prefixed), assigned when the send is accepted. Pass it as `message_id` to the get-message and list-events endpoints.\n",
     },
     direction: {
       type: "string",
@@ -5799,14 +8657,14 @@ export const VerificationCheckResultSchema = {
       type: "boolean",
       readOnly: true,
       description:
-        "Whether the submitted passcode verified this verification. true means the passcode was correct and the verification is now complete; false means it was not verified — see reason. A verification that has already reached a final state is no longer checkable and returns 404.",
+        "Whether the submitted passcode verified this verification. `true` means the passcode was correct and the verification is now complete; `false` means it did not verify, and `reason` says why. A verification that has already reached a final state is no longer checkable and returns `404`.",
     },
     reason: {
       type: ["string", "null"],
       "x-extensible-enum": ["incorrect_code", "expired", "attempts_exhausted"],
       readOnly: true,
       description:
-        "Why the check did not succeed, or null when success is true. incorrect_code means the passcode was wrong and attempts remain; expired means the time window elapsed; attempts_exhausted means too many incorrect attempts. Open enum — treat any unrecognized value as a future reason.",
+        "Why the check did not succeed, or null when `success` is true: `incorrect_code` means the passcode was wrong and attempts remain; `expired` means the time window elapsed; `attempts_exhausted` means too many incorrect attempts. Open enum; treat any unrecognized value as a future reason.",
     },
     verification: {
       $ref: "#/components/schemas/Verification",
@@ -5816,7 +8674,7 @@ export const VerificationCheckResultSchema = {
       minimum: 0,
       readOnly: true,
       description:
-        "The number of check attempts left, or null once the verification is complete.",
+        "The number of check attempts left while the verification is still pending, or null once it has reached a final state.",
     },
   },
 } as const;
@@ -5845,19 +8703,21 @@ export const VerificationToSchema = {
   additionalProperties: false,
   minProperties: 1,
   description:
-    "The recipient to verify. Provide an email_address, a phone_number, or both; at least one is required.",
+    "The recipient to verify. Provide an `email_address`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.\n",
   properties: {
     email_address: {
       type: "string",
       minLength: 1,
       format: "email",
-      description: "The recipient's email address.",
+      description:
+        "The recipient's email address. Case does not matter; the address is lowercased before use.",
       example: "user@example.com",
     },
     phone_number: {
       type: "string",
       minLength: 1,
-      description: "The recipient's phone number in E.164 format.",
+      description:
+        "The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).",
       example: "+15551234567",
     },
   },
@@ -5901,14 +8761,14 @@ export const VerificationSchema = {
           ],
           readOnly: true,
           description:
-            "The verification's current state: pending (awaiting a valid passcode), verified (a correct passcode was submitted), failed (too many incorrect attempts), expired (the time window elapsed before a correct passcode), canceled (the verification was canceled before completing), or blocked (it was stopped by a fraud or abuse control).",
+            "The verification's current state: `pending` (the initial state, awaiting a correct passcode), `verified` (a correct passcode was submitted), `failed` (too many incorrect attempts), `expired` (the time window elapsed before a correct passcode), `canceled` (the verification was canceled before completing), or `blocked` (it was stopped by a fraud or abuse control).",
         },
         reason: {
           type: ["string", "null"],
           "x-extensible-enum": ["attempts_exhausted", "ttl_elapsed"],
           readOnly: true,
           description:
-            "Why the verification reached its final state, or null while pending or once verified. Open enum — treat any unrecognized value as a future reason.",
+            "Why the verification reached its final state: `attempts_exhausted` (too many incorrect passcodes) or `ttl_elapsed` (the time window elapsed before a correct passcode). Null while `pending` and once `verified`. Open enum; treat any unrecognized value as a future reason.",
         },
         to: {
           readOnly: true,
@@ -5919,17 +8779,17 @@ export const VerificationSchema = {
           readOnly: true,
           minItems: 1,
           description:
-            "The ordered channels this verification uses to deliver the passcode. An email recipient is verified over email; a phone recipient is verified over SMS.",
+            "The channels this verification uses to deliver the passcode, in attempt order: the first entry is tried first and later entries are fallbacks. An email recipient is verified over email; a phone recipient is verified over SMS.",
           items: {
             $ref: "#/components/schemas/VerificationChannelEntry",
           },
         },
         last_channel: {
           type: ["string", "null"],
-          "x-extensible-enum": ["email", "sms"],
+          "x-extensible-enum": ["email", "sms", "whatsapp"],
           readOnly: true,
           description:
-            "The channel the most recent passcode was sent on, or null before the first send. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
+            "The channel the most recent passcode was sent on, or null before the first send. Open enum; new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
         },
         metadata: {
           type: "object",
@@ -5943,7 +8803,7 @@ export const VerificationSchema = {
           format: "date-time",
           readOnly: true,
           description:
-            "When the verification expires if no correct passcode is submitted.",
+            "When the verification expires if no correct passcode is submitted first. After this time its status reports `expired`.",
         },
         verified_at: {
           type: ["string", "null"],
@@ -5972,7 +8832,8 @@ export const VerificationCheckRequestSchema = {
       type: "string",
       minLength: 4,
       maxLength: 12,
-      description: "The passcode the recipient received.",
+      description:
+        "The passcode the recipient received. Passcodes are numeric; submit the digits exactly as delivered. An incorrect value is a normal `200` outcome with `success: false`, not an error.",
       example: "123456",
     },
   },
@@ -6022,12 +8883,12 @@ export const VerificationOptionsSchema = {
       minimum: 4,
       maximum: 8,
       description:
-        "Passcode length for this verification, overriding the configured length.",
+        "Passcode length for this verification. Omit to use the configured length.",
     },
     channels: {
       type: "array",
       description:
-        "Reorder or narrow the delivery channels for this request. List channel names in the order to try them; a channel you omit is not used for this request, and a channel not already enabled for the recipient is ignored. Omit the field to use the configured order.",
+        "Reorder or narrow the delivery channels for this request. List channel names in the order to try them; a channel you omit is not used for this request, and a channel not already enabled for the recipient is ignored. A list that leaves no usable channel fails the request with `422`. Omit the field to use the configured order.",
       items: {
         $ref: "#/components/schemas/VerificationChannel",
       },
@@ -6043,7 +8904,7 @@ export const SMSTemplateListSchema = {
     data: {
       type: "array",
       description:
-        "The templates available to your workspace. The catalogue is small and returned in full — this list is not paginated.",
+        "The templates available to your workspace. The catalogue is small and returned in full; this list is not paginated.",
       items: {
         $ref: "#/components/schemas/SMSTemplate",
       },
@@ -6109,7 +8970,7 @@ export const SMSMessageCategorySchema = {
   minLength: 1,
   enum: ["transactional", "marketing", "authentication", "service"],
   description:
-    "Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance.",
+    "Content classification. Tells Bird and carriers why you're sending; per-country compliance rules (opt-out policy, quiet hours) key on it as they roll out.",
 } as const;
 
 export const TemplateNameSchema = {
@@ -6189,7 +9050,7 @@ export const SMSTemplateSchema = {
       minLength: 1,
       readOnly: true,
       description:
-        "The template body in its default language, shown for preview.",
+        "The template body in its default language, shown for preview. Variable placeholders appear inline (for example `{{ code }}`).\n",
       example: "Your verification code is {{ code }}.",
     },
     variables: {
@@ -6217,12 +9078,12 @@ export const SMSTemplateSchema = {
       readOnly: true,
       enum: ["active", "draft", "pending", "approved", "rejected"],
       description:
-        "The template's lifecycle state. Built-in templates are always `active`.",
+        "The template's lifecycle state. `active` means the template can be sent; every built-in Bird template is `active`. `draft` (being edited), `pending` (submitted for review), `approved` (passed review), and `rejected` (failed review) describe a workspace-authored template's authoring lifecycle; workspace-authored SMS templates are not available yet, so today every template is `active`.\n",
     },
     draft_version_id: {
       readOnly: true,
       description:
-        "The current editable draft version. Always null today — SMS templates are not yet versioned; present for parity with email templates.",
+        "The current editable draft version. Always null today: SMS templates are not yet versioned; present for parity with email templates.",
       oneOf: [
         {
           $ref: "#/components/schemas/SMSTemplateVersionID",
@@ -6235,7 +9096,7 @@ export const SMSTemplateSchema = {
     published_version_id: {
       readOnly: true,
       description:
-        "The currently published version, or null if the template has never been published. Always null today — SMS templates are not yet versioned; present for parity with email templates.",
+        "The currently published version, or null if the template has never been published. Always null today: SMS templates are not yet versioned; present for parity with email templates.",
       oneOf: [
         {
           $ref: "#/components/schemas/SMSTemplateVersionID",
@@ -6250,7 +9111,7 @@ export const SMSTemplateSchema = {
       minimum: 0,
       readOnly: true,
       description:
-        "The draft's revision counter. Always null today — SMS templates are not yet versioned; present for parity with email templates.",
+        "The draft's revision counter. Always null today: SMS templates are not yet versioned; present for parity with email templates.",
     },
     created_at: {
       type: ["string", "null"],
@@ -6298,7 +9159,8 @@ export const SMSBatchSummarySchema = {
     accepted_count: {
       type: "integer",
       minimum: 0,
-      description: "Number of messages accepted in the batch.",
+      description:
+        "Number of messages accepted in the batch. Acceptance is all-or-nothing, so this equals the number of messages submitted.\n",
     },
   },
 } as const;
@@ -6368,7 +9230,7 @@ export const SMSCostSchema = {
       minLength: 1,
       readOnly: true,
       description:
-        "Total cost as a decimal string — the per-segment rate multiplied by the segment count, plus any surcharges.",
+        "Total cost as a decimal string: the per-segment rate multiplied by the segment count, plus any surcharges.",
       example: "0.0079",
     },
     breakdown: {
@@ -6426,7 +9288,7 @@ export const SMSMessageStatusSchema = {
     "received",
   ],
   description:
-    "Delivery status. `scheduled` means the message is queued to send at a future time and has not been dispatched yet. `accepted` means Bird accepted the request and it is awaiting handoff to the carrier network. `sent` means it was handed to the carrier and is awaiting a delivery receipt. `delivered` is confirmed delivery. `undelivered` is a non-permanent non-delivery (handset off, content blocked). `failed` is a terminal permanent failure. `rejected` means Bird refused it before reaching the carrier. `canceled` means a scheduled message was canceled before it was sent. `expired` means the validity period elapsed without a terminal receipt. `received` applies to inbound messages.\n",
+    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is awaiting handoff to the carrier network. `sent` means it was handed to the carrier and is awaiting a delivery receipt. `delivered` is confirmed delivery. `undelivered` is a non-permanent non-delivery (handset off or unreachable). `failed` is a terminal permanent failure. `rejected` means Bird refused it before it reached the carrier (for example insufficient balance). `expired` means the validity period elapsed without a terminal receipt. `scheduled` means the message is queued to send at a future time and has not been dispatched yet, and `canceled` means a scheduled message was canceled before it was sent. `received` applies to inbound messages.\n",
 } as const;
 
 export const SMSMessageSchema = {
@@ -6446,7 +9308,8 @@ export const SMSMessageSchema = {
     id: {
       readOnly: true,
       $ref: "#/components/schemas/SMSMessageID",
-      description: "Message ID.",
+      description:
+        "ID of the message (`sms_`-prefixed), assigned when the send is accepted. Pass it as `message_id` to the get-message endpoint.\n",
     },
     direction: {
       type: "string",
@@ -6474,13 +9337,14 @@ export const SMSMessageSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.",
+        "Sender the message was sent from: an E.164 number, an alphanumeric sender ID, or a short code.",
       example: "+15557654321",
     },
     text: {
       type: "string",
       minLength: 1,
-      description: "Message body.",
+      description:
+        "The message body as sent. For a template send, this is the rendered text after parameter substitution.\n",
       example: "Your verification code is 123456.",
     },
     category: {
@@ -6617,7 +9481,7 @@ export const SMSTemplateSendSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Values for the template's variables, keyed by variable name. The accepted keys and their formats are fixed per template — see the template's `variables` on the templates endpoint. Every required variable must be supplied, and no undeclared key may be present. Cap: 16 KB serialized.\n",
+        "Values for the template's variables, keyed by variable name. The accepted keys and their formats are fixed per template (the template's `variables` on the templates endpoint). A missing required variable, an undeclared key, a value that does not match its variable's format, or a serialized payload over 16 KB each return a `422`.\n",
       example: {
         code: "493021",
         ttl: "10",
@@ -6655,7 +9519,7 @@ export const SMSMessageSendRequestSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (up to 11 characters, for example `MyBrand`), or a short code (5–6 digits). When omitted, Bird selects an eligible sender for you.\n",
+        "Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (1-11 letters, digits, or spaces, for example `MyBrand`), or a short code (5-6 digits). A numeric sender must be a number your workspace owns; an alphanumeric sender is accepted where the destination country permits one. Required on a free-text send: omitting it returns a `422` `SMSNoEligibleSender`. Not accepted alongside `template`, which selects its sender automatically.\n",
       example: "+15557654321",
     },
     text: {
@@ -6672,14 +9536,14 @@ export const SMSMessageSendRequestSchema = {
         },
       ],
       description:
-        "Content classification. Drives opt-out (STOP) policy, quiet-hours, and per-country compliance. Required on a free-text send; omit it on a template send, where the category is derived from the template.\n",
+        "Content classification. Tells Bird and carriers why you're sending; per-country compliance rules (opt-out policy, quiet hours) key on it as they roll out. Required on a free-text send; omit it on a template send, where the category is derived from the template.\n",
     },
     validity_period: {
       type: "integer",
       minimum: 60,
       maximum: 172800,
       description:
-        "Preview feature — how long, in seconds (60–172800), Bird keeps trying to deliver before the message transitions to `expired`. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.\n",
+        "Preview feature: how long, in seconds (60-172800), Bird keeps trying to deliver before the message transitions to `expired`. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.\n",
     },
     tags: {
       type: "array",
@@ -6702,18 +9566,18 @@ export const SMSMessageSendRequestSchema = {
         type: "string",
       },
       description:
-        "Preview feature — multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: multimedia (MMS) attachments. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     messaging_profile_id: {
       type: "string",
       description:
-        "Preview feature — sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: sender selection from a messaging profile pool. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     scheduled_at: {
       type: "string",
       format: "date-time",
       description:
-        "Preview feature — send-later scheduling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: send-later scheduling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     template: {
       allOf: [
@@ -6727,43 +9591,43 @@ export const SMSMessageSendRequestSchema = {
     broadcast_id: {
       type: "string",
       description:
-        "Preview feature — broadcast correlation. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: broadcast correlation. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     campaign_id: {
       type: "string",
       description:
-        "Preview feature — campaign correlation for analytics. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: campaign correlation for analytics. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     audience_id: {
       type: "string",
       description:
-        "Preview feature — audience-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: audience-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     contact_id: {
       type: "string",
       description:
-        "Preview feature — contact-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: contact-targeted sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     topic_id: {
       type: "string",
       description:
-        "Preview feature — topic-gated sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: topic-gated sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     max_price_per_segment: {
       type: "number",
       description:
-        "Preview feature — per-segment price ceiling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: per-segment price ceiling. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     personalization: {
       type: "object",
       additionalProperties: true,
       description:
-        "Preview feature — per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: per-recipient substitution for batch sends. Currently unavailable; supplying this field returns `422 SMSUnsupportedFeature`.",
     },
     track_clicks: {
       type: "boolean",
       description:
-        "Preview feature — link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 SMSUnsupportedFeature`.",
+        "Preview feature: link click tracking. Defaults to `false`. Currently unavailable; setting this to `true` returns `422 SMSUnsupportedFeature`.",
     },
   },
   example: {
@@ -6791,7 +9655,7 @@ export const SMSMessageListSchema = {
       properties: {
         data: {
           type: "array",
-          description: "Page of message objects.",
+          description: "Page of SMS messages, newest first.",
           items: {
             $ref: "#/components/schemas/SMSMessage",
           },
@@ -6817,7 +9681,7 @@ export const AudienceContactsRemoveRequestSchema = {
         $ref: "#/components/schemas/ContactID",
       },
       description:
-        "Contacts to remove from the audience. Removing a contact that is not a member has no effect. If any ID does not exist, the whole request fails and no contacts are removed.",
+        "Contacts to remove from the audience. Removing a contact that is not a member has no effect; duplicate IDs in the list are collapsed. If any ID does not exist in the workspace, the whole request fails with a validation error and no memberships are removed.",
     },
   },
   example: {
@@ -6845,7 +9709,7 @@ export const AudienceContactsAddRequestSchema = {
         $ref: "#/components/schemas/ContactID",
       },
       description:
-        "Contacts to add to the audience. Adding a contact that is already a member has no effect. If any ID does not exist, the whole request fails and no contacts are added.",
+        "Contacts to add to the audience. Adding a contact that is already a member has no effect and keeps its original join time; duplicate IDs in the list are collapsed. If any ID does not exist in the workspace, the whole request fails with a validation error and no contacts are added.",
     },
   },
   example: {
@@ -6886,12 +9750,13 @@ export const AudienceRefSchema = {
   type: "object",
   additionalProperties: false,
   required: ["id", "name"],
-  description: "A compact reference to an audience -- its ID and display name.",
+  description:
+    "A compact reference to an audience, carrying its ID and display name.",
   properties: {
     id: {
       readOnly: true,
       $ref: "#/components/schemas/AudienceID",
-      description: "Audience ID.",
+      description: "ID of the referenced audience (`adn_`-prefixed).",
     },
     name: {
       type: "string",
@@ -6907,7 +9772,7 @@ export const ContactChannelSchema = {
   minLength: 1,
   "x-extensible-enum": ["email"],
   description:
-    "A channel a contact can be reached on. Open enum — `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.\n",
+    "A channel a contact can be reached on. Open enum: `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.\n",
 } as const;
 
 export const ContactSchema = {
@@ -6919,7 +9784,8 @@ export const ContactSchema = {
         id: {
           readOnly: true,
           $ref: "#/components/schemas/ContactID",
-          description: "Contact ID.",
+          description:
+            "ID of the contact (`con_`-prefixed), accepted by every operation that takes a `contact_id`.",
         },
         email: {
           type: "string",
@@ -6932,12 +9798,14 @@ export const ContactSchema = {
         first_name: {
           type: ["string", "null"],
           maxLength: 100,
-          description: "The contact's first name.",
+          description:
+            "The contact's first name. Available in broadcast templates as the `contact.first_name` variable.",
         },
         last_name: {
           type: ["string", "null"],
           maxLength: 100,
-          description: "The contact's last name.",
+          description:
+            "The contact's last name. Available in broadcast templates as the `contact.last_name` variable.",
         },
         external_id: {
           type: ["string", "null"],
@@ -6949,7 +9817,7 @@ export const ContactSchema = {
           type: "object",
           additionalProperties: true,
           description:
-            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.\n",
+            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
         },
         channels: {
           type: "array",
@@ -7004,7 +9872,8 @@ export const AudienceUpdateRequestSchema = {
       type: "string",
       minLength: 1,
       maxLength: 100,
-      description: "Display name for the audience.",
+      description:
+        "New display name for the audience. Omit to keep the current name; the name cannot be cleared, and a whitespace-only value returns a validation error.",
     },
     description: {
       type: ["string", "null"],
@@ -7044,7 +9913,7 @@ export const AudienceCreateRequestSchema = {
       ],
       default: "static",
       description:
-        "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
+        "How the audience's recipients are determined. `static` (the default) is an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable; creating an audience with either returns a validation error.\n",
     },
   },
   example: {
@@ -7060,7 +9929,7 @@ export const ContactPropertyUpdateRequestSchema = {
     fallback_value: {
       maxLength: 500,
       description:
-        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters). Set to null to remove the fallback.",
+        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters); a value of another type returns a validation error. Set to null to remove the fallback.",
     },
   },
   example: {
@@ -7096,7 +9965,7 @@ export const ContactPropertyCreateRequestSchema = {
     fallback_value: {
       maxLength: 500,
       description:
-        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback.",
+        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback; a value of another type returns a validation error.",
     },
   },
   example: {
@@ -7143,7 +10012,8 @@ export const ContactPropertySchema = {
         id: {
           readOnly: true,
           $ref: "#/components/schemas/ContactPropertyID",
-          description: "Contact property ID.",
+          description:
+            "ID of the property (`prp_`-prefixed), accepted by every operation that takes a `property_id`.",
         },
         key: {
           type: "string",
@@ -7214,7 +10084,8 @@ export const AudienceSchema = {
         id: {
           readOnly: true,
           $ref: "#/components/schemas/AudienceID",
-          description: "Audience ID.",
+          description:
+            "ID of the audience (`adn_`-prefixed), accepted by every operation that takes an `audience_id`.",
         },
         name: {
           type: "string",
@@ -7238,7 +10109,7 @@ export const AudienceSchema = {
           ],
           default: "static",
           description:
-            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
+            "How the audience's recipients are determined. `static` (the default) is an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable; creating an audience with either returns a validation error.\n",
         },
       },
     },
@@ -7258,7 +10129,7 @@ export const ContactUpdateRequestSchema = {
       minLength: 1,
       maxLength: 254,
       description:
-        "New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace.",
+        "New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace. Omit to keep the current address; a contact's email cannot be removed.",
     },
     first_name: {
       type: ["string", "null"],
@@ -7280,7 +10151,7 @@ export const ContactUpdateRequestSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters). The merged result is capped at 2 KB serialized.\n",
+        "Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); writing an unregistered or archived key returns a validation error. The merged result is capped at 2 KB serialized.\n",
     },
   },
   example: {
@@ -7332,14 +10203,15 @@ export const ContactUpsertResultItemSchema = {
       type: "string",
       format: "email",
       minLength: 1,
-      description: "Email address of the contact this entry refers to.",
+      description:
+        "Email address this entry refers to, in the normalized (trimmed and lowercased) form it was matched and stored as.",
     },
     status: {
       type: "string",
       minLength: 1,
       enum: ["created", "updated", "failed"],
       description:
-        "What happened to this contact. A failed entry does not affect the other entries in the request.",
+        "What happened to this contact. `created` means a new contact was created for the address; `updated` means an existing contact with the address was updated; `failed` means the entry was rejected and `error` explains why. A failed entry does not affect the other entries in the request.",
     },
     contact_id: {
       $ref: "#/components/schemas/ContactID",
@@ -7366,7 +10238,7 @@ export const ContactUpsertRequestSchema = {
         $ref: "#/components/schemas/ContactCreateRequest",
       },
       description:
-        "Contacts to create or update, matched by email address. Existing contacts are updated with the supplied fields; new ones are created.",
+        "Contacts to create or update, matched by email address. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. New addresses create contacts.",
     },
     audience_ids: {
       type: "array",
@@ -7376,7 +10248,7 @@ export const ContactUpsertRequestSchema = {
         $ref: "#/components/schemas/AudienceID",
       },
       description:
-        "Audiences every contact in this request is added to. Contacts that are already members are left in place.",
+        "Audiences every contact in this request is added to. Contacts that are already members are left in place. Every listed audience must exist, or the whole request fails with a validation error and nothing is written.",
     },
     data_mode: {
       type: "string",
@@ -7436,7 +10308,7 @@ export const ContactCreateRequestSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); a null value is ignored. Total size is capped at 2 KB serialized.\n",
+        "Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); a null value is ignored. Unregistered or archived keys are rejected with a validation error. Total size is capped at 2 KB serialized.\n",
     },
   },
   example: {
@@ -7718,7 +10590,7 @@ export const EmailRecipientSchema = {
         "EmailRecipientStatusRejected",
       ],
       description:
-        "Delivery status for this recipient. `accepted` means Bird has the send and is preparing to deliver. `processed` means Bird has processed the message and queued it for delivery to the recipient's mail server.\n",
+        "Delivery status for this recipient. `accepted` means Bird has the send and is\npreparing to deliver; `processed` means the message was handed to the delivery\npipeline for this recipient; `deferred` means the recipient's mailbox provider\nasked Bird to retry and delivery attempts continue; `delivered` means the\nrecipient's mail server accepted the message; `bounced` means delivery permanently\nfailed (see `bounce_type` for hard vs soft); `complained` means the recipient\nreported the message as spam; `rejected` means Bird did not attempt delivery (see\n`rejection_reason` for why).\n",
     },
     rejection_reason: {
       type: ["string", "null"],
@@ -7734,7 +10606,7 @@ export const EmailRecipientSchema = {
         null,
       ],
       description:
-        "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n- `recipient_suppressed`: the recipient is on the workspace suppression list. Bird\n  did not attempt delivery.\n- `transmission_failed`: the message could not be transmitted for delivery. - `generation_failure`: the message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: the message was refused by sending policy. - `domain_unverified`: the sending domain was not verified. - `quota_exceeded`: the organization's send quota was reached. - `recipient_not_allowed`: a recipient was not permitted for this send (for shared\n  onboarding-domain sends, recipients must be verified workspace members).\n",
+        "Present on `status: rejected` rows. Specifies why the recipient was rejected:\n\n- `recipient_suppressed`: the recipient is on the workspace suppression list. Bird\n  did not attempt delivery.\n- `transmission_failed`: the message could not be transmitted for delivery.\n- `generation_failure`: the message could not be built for delivery (template or\n  content issue).\n- `policy_rejection`: the message was refused by sending policy.\n- `domain_unverified`: the sending domain was not verified.\n- `quota_exceeded`: the organization's send quota was reached.\n- `recipient_not_allowed`: a recipient was not permitted for this send (for shared\n  onboarding-domain sends, recipients must be verified workspace members).\n",
     },
     bounce_type: {
       type: ["string", "null"],
@@ -7932,13 +10804,6 @@ export const EmailAttachmentSchema = {
       example: "invoice-logo",
     },
   },
-} as const;
-
-export const EmailTemplateIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^emt_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "emt_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const EmailTemplateSendSchema = {
@@ -8282,7 +11147,7 @@ export const EmailMessageStatusSchema = {
     "canceled",
   ],
   description:
-    "Aggregate delivery status of an email, derived from its recipients' states. `scheduled` means the message is queued to send at a future time and has not been dispatched yet; `canceled` means a scheduled message was canceled before it was sent.\n",
+    "Aggregate delivery status of an email, derived from its recipients' states.\n\nIn flight: `scheduled` means the message is queued to send at a future time and has\nnot been dispatched yet; `accepted` (the initial status of an immediate send) means\nBird has queued the message for its recipients; `processed` means delivery is underway\n(at least one recipient has been handed to the delivery pipeline and none has failed);\n`deferred` means at least one recipient's mailbox provider asked Bird to retry and\ndelivery attempts continue.\n\nFinal: `delivered` means every recipient's mail server accepted the message; `bounced`\nmeans every recipient permanently failed (bounced or was rejected); `rejected` means\nevery recipient was rejected before a delivery attempt (for example, all recipients\nsuppressed); `partial_failure` means some recipients permanently failed while others\nwere delivered or are still in flight; `canceled` means a scheduled message was\ncanceled before it was sent.\n\n`complained` takes precedence over every other status: at least one recipient reported\nthe message as spam, regardless of what happened to the rest.\n",
 } as const;
 
 export const EmailMessageSchema = {
@@ -8475,7 +11340,7 @@ export const EmailMessageSchema = {
         $ref: "#/components/schemas/EmailAttachmentRef",
       },
       description:
-        "Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; use the future content-retrieval endpoint when storage is enabled.",
+        "Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; when content storage is enabled, download an attachment by its `id` via the message's attachment endpoint.",
     },
     track_opens: {
       type: "boolean",
@@ -8621,7 +11486,7 @@ export const DocsSearchResultSchema = {
       minLength: 1,
       readOnly: true,
       description:
-        "Stable identifier of the page, used to read the whole page's Markdown.",
+        "Stable identifier of the page. Pass it as the `slug` parameter of `GET /v1/docs/pages` to read the whole page as Markdown.",
     },
     url: {
       type: "string",
@@ -8654,7 +11519,7 @@ export const DocsSearchResultSchema = {
       type: "array",
       readOnly: true,
       description:
-        "The passages of the section that match the query, longer than the snippet. Returned only when contents is highlights.",
+        "The passages of the section that match the query, longer than the snippet. Returned only when `contents` is `highlights`.",
       items: {
         type: "string",
       },
@@ -8663,7 +11528,7 @@ export const DocsSearchResultSchema = {
       type: "integer",
       readOnly: true,
       description:
-        "Approximate token count of the full page returned by markdown_url, to budget reading it. Results from the same page share it.",
+        "Approximate token count of the full page returned by `markdown_url`, to budget reading it. Results from the same page share it.",
     },
     score: {
       type: "number",
@@ -8873,6 +11738,7 @@ export const WebhookAttemptListWritableSchema = {
   properties: {
     data: {
       type: "array",
+      description: "Delivery attempts, newest first.",
       items: {
         $ref: "#/components/schemas/WebhookAttemptWritable",
       },
@@ -8911,13 +11777,14 @@ export const WebhookAttemptWritableSchema = {
       minLength: 1,
       enum: ["delivered", "pending", "failed"],
       description:
-        "Current state of the delivery attempt. `pending` covers in-flight and sending attempts; `failed` is reserved for terminal failures.",
+        "Outcome of this attempt. `delivered` means your endpoint accepted it with a `2xx` response; `pending` means the attempt is still in flight; `failed` means it returned a non-`2xx` response or no response at all. A `failed` attempt is not final for the event: automatic retries appear as further attempts with the same `event_id`.\n",
     },
     url: {
       type: "string",
       format: "uri",
       minLength: 1,
-      description: "The endpoint URL the attempt targeted.",
+      description:
+        "URL the request was sent to: the endpoint's `url` at the time of the attempt, which can differ from the current configuration after an update.\n",
       example: "https://example.com/webhooks",
     },
     response_status_code: {
@@ -8929,7 +11796,7 @@ export const WebhookAttemptWritableSchema = {
     response_body: {
       type: "string",
       description:
-        "Body returned by your endpoint, truncated when oversized. Empty string when no body was returned.",
+        "Response body your endpoint returned, which may be truncated. Omitted when no body was returned.\n",
       example: '{"ok":true}',
     },
     response_duration_ms: {
@@ -8951,7 +11818,7 @@ export const WebhookTestResponseWritableSchema = {
       minLength: 1,
       enum: ["delivered", "failed"],
       description:
-        "Whether your endpoint accepted the test event. `delivered` means it returned a 2xx status; `failed` means it returned a non-2xx status or could not be reached.",
+        "Whether your endpoint accepted the test event. `delivered` means it returned a `2xx` status; `failed` means it returned a non-`2xx` status or could not be reached (see `error` for the latter).\n",
     },
     response_status_code: {
       type: ["integer", "null"],
@@ -8962,7 +11829,7 @@ export const WebhookTestResponseWritableSchema = {
     response_body: {
       type: "string",
       description:
-        "Response body returned by your endpoint, truncated when oversized. Empty when no body was returned.",
+        "Response body returned by your endpoint, truncated to the first 1024 bytes. Omitted when your endpoint returned no body or could not be reached.\n",
       example: "OK",
     },
     response_duration_ms: {
@@ -8973,7 +11840,7 @@ export const WebhookTestResponseWritableSchema = {
     },
     event_payload: {
       description:
-        "The event body Bird delivered to the endpoint. Set on successful test delivery only.",
+        "The full event body delivered to your endpoint. Test sends use a minimal synthetic body rather than a full event payload, so this field is omitted.\n",
       $ref: "#/components/schemas/WebhookEventWritable",
     },
     error: {
@@ -9248,7 +12115,7 @@ export const EventSMSFailedWritableSchema = {
 
 export const WebhookEventWritableSchema = {
   description:
-    "Discriminated union of every webhook event the Bird platform emits.\nEach variant is the full delivery body: `type` names the event, `timestamp` is when the event occurred, and `data` carries the event-specific payload. The `type` property selects the variant — SDKs that consume this schema (openapi-typescript, oapi-codegen) generate a narrowed union keyed on `type`, so customer code can switch on the event id and access the variant-specific payload fields without casting.\nDelivery metadata (the event id and per-attempt signature headers) rides in HTTP headers per Standard Webhooks and is handled by the SDK's webhook verification helper, which returns one of these variants.\n",
+    "Discriminated union of every webhook event the Bird platform emits.\n\nEach variant is the full delivery body: `type` names the event, `timestamp` is when the\nevent occurred, and `data` carries the event-specific payload. The `type` property\nselects the variant, and the generated SDK types narrow on it, so your code can switch\non the event id and read the variant-specific payload fields without casting.\n\nDelivery metadata (the event id and per-attempt signature headers) rides in HTTP headers\nper Standard Webhooks and is handled by the SDK's webhook verification helper, which\nreturns one of these variants. See the [webhooks guide](/docs/guides/webhooks) for\nheader names and the verification recipe.\n",
   oneOf: [
     {
       $ref: "#/components/schemas/EventDomainFailed",
@@ -9341,6 +12208,18 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventSMSSent",
     },
     {
+      $ref: "#/components/schemas/EventSMSTfnVerificationApproved",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationInfoRequested",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationRejected",
+    },
+    {
+      $ref: "#/components/schemas/EventSMSTfnVerificationSubmitted",
+    },
+    {
       $ref: "#/components/schemas/EventSMSUndeliveredWritable",
     },
     {
@@ -9410,6 +12289,14 @@ export const WebhookEventWritableSchema = {
       "sms.failed": "#/components/schemas/EventSMSFailedWritable",
       "sms.rejected": "#/components/schemas/EventSMSRejectedWritable",
       "sms.sent": "#/components/schemas/EventSMSSent",
+      "sms.tfn_verification.approved":
+        "#/components/schemas/EventSMSTfnVerificationApproved",
+      "sms.tfn_verification.info_requested":
+        "#/components/schemas/EventSMSTfnVerificationInfoRequested",
+      "sms.tfn_verification.rejected":
+        "#/components/schemas/EventSMSTfnVerificationRejected",
+      "sms.tfn_verification.submitted":
+        "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
       "voice.call.answered": "#/components/schemas/EventVoiceCallAnswered",
       "voice.call.ended": "#/components/schemas/EventVoiceCallEnded",
@@ -9437,7 +12324,7 @@ export const WebhookEndpointCreatedWritableSchema = {
           minLength: 1,
           "x-sensitive": true,
           description:
-            "Signing secret (whsec_ prefix). Present in this response only — store it immediately, it cannot be retrieved again.",
+            "Signing secret for this endpoint (`whsec_` prefix), used to verify the `webhook-signature` header on every delivery. Present in this response only: store it immediately, it cannot be retrieved again. If you lose it, mint a new one with [Rotate webhook signing secret](/docs/api/reference/rotate-webhook-secret).\n",
           example: "whsec_base64encodedvalue",
         },
       },
@@ -9455,11 +12342,13 @@ export const WebhookEndpointWritableSchema = {
           type: "string",
           format: "uri",
           minLength: 1,
+          description: "HTTPS URL Bird delivers this endpoint's events to.",
           example: "https://example.com/webhook",
         },
         description: {
           type: "string",
           minLength: 1,
+          description: "Human-readable label for the endpoint.",
           example: "Production webhook endpoint",
         },
         events: {
@@ -9467,7 +12356,8 @@ export const WebhookEndpointWritableSchema = {
           items: {
             $ref: "#/components/schemas/WebhookEventType",
           },
-          description: "Concrete event types this endpoint is subscribed to.",
+          description:
+            "Event types this endpoint is subscribed to; only matching events are delivered. Change the set with [Update a webhook endpoint](/docs/api/reference/update-webhook).\n",
           example: ["email.delivered", "email.bounced"],
         },
       },
@@ -9503,6 +12393,7 @@ export const EmailSmtpConfigListWritableSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of stored SMTP configs, newest first by default.",
           items: {
             $ref: "#/components/schemas/EmailSmtpConfigWritable",
           },
@@ -9566,6 +12457,8 @@ export const InboundRouteListWritableSchema = {
       properties: {
         data: {
           type: "array",
+          description:
+            "Page of inbound routes in evaluation order: lowest priority number first.",
           items: {
             $ref: "#/components/schemas/InboundRouteWritable",
           },
@@ -9610,7 +12503,8 @@ export const InboundRouteWritableSchema = {
       type: "string",
       minLength: 1,
       enum: ["deliver_to_mailbox", "drop"],
-      description: "What happens to matching mail.",
+      description:
+        "What happens to matching mail. `deliver_to_mailbox` delivers it to `target_mailbox_id`; `drop` discards it silently, with nothing stored and no webhook fired.",
     },
     target_mailbox_id: {
       oneOf: [
@@ -9693,6 +12587,7 @@ export const InboundEmailMessageListWritableSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of received emails, newest first.",
           items: {
             $ref: "#/components/schemas/InboundEmailMessageWritable",
           },
@@ -9820,6 +12715,7 @@ export const InboundAddressListWritableSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of inbound addresses, newest first.",
           items: {
             $ref: "#/components/schemas/InboundAddressWritable",
           },
@@ -9857,6 +12753,7 @@ export const SuppressionListWritableSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of suppression records.",
           items: {
             $ref: "#/components/schemas/SuppressionWritable",
           },
@@ -9878,6 +12775,7 @@ export const SuppressionWritableSchema = {
       type: "string",
       format: "email",
       minLength: 5,
+      description: "The suppressed address, stored lowercase.",
       example: "user@example.com",
     },
     scope: {
@@ -9893,7 +12791,7 @@ export const SuppressionWritableSchema = {
         "manual",
       ],
       description:
-        "Why the address is suppressed. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
+        "Why the address is suppressed: `hard_bounce` (a delivery permanently failed), `complaint` (the recipient reported a message as spam), `unsubscribe` (the recipient opted out), or `manual` (added through the API or dashboard). An address can hold one record per reason. This list grows over time; treat unknown values as informational rather than rejecting the record.\n",
     },
     origin: {
       type: "string",
@@ -9907,14 +12805,14 @@ export const SuppressionWritableSchema = {
         "user",
       ],
       description:
-        "How the suppression came to exist. This list grows over time — treat unknown values as informational rather than rejecting the record.\n",
+        "How the suppression came to exist: `bounce_event` (created automatically from a hard bounce), `complaint_event` (from a spam complaint), `unsubscribe_event` (from an unsubscribe reported for a message, such as the recipient's mail client's unsubscribe action), `unsubscribe_link` (the recipient opted out through the unsubscribe page linked from a message), `api_key` (added through the API with an API key), or `user` (added by a user in the dashboard). This list grows over time; treat unknown values as informational rather than rejecting the record.\n",
     },
     applies_to: {
       type: "string",
       minLength: 1,
       "x-extensible-enum": ["all", "non_transactional", "category"],
       description:
-        'Blocking policy. "all" blocks every category. "non_transactional" blocks marketing and future non-transactional categories but allows transactional. "category" is reserved for category-specific preferences. This list grows over time — treat an unknown value as blocking at least non-transactional mail.\n',
+        "Which sends the suppression blocks. `all` blocks every message category, including transactional. `non_transactional` blocks marketing and future non-transactional categories but allows transactional, so a recipient who complained or unsubscribed can still receive mail like password resets. `category` is reserved for category-specific preferences. This list grows over time; treat an unknown value as blocking at least non-transactional mail.\n",
     },
     source_email_id: {
       description:
@@ -9973,7 +12871,7 @@ export const DomainEventWritableSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Type of domain event. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
+        "Type of domain event. `domain.status_changed` tracks ownership verification (the domain-level `status`); `domain.sending_status_changed` tracks readiness to send (`capabilities.sending`); the remaining `*_status_changed` types each track one DNS record's verification. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.",
       "x-extensible-enum": [
         "domain.registered",
         "domain.settings_updated",
@@ -9997,7 +12895,8 @@ export const DomainEventWritableSchema = {
     },
     metadata: {
       type: "object",
-      description: "Structured details for the event.",
+      description:
+        "Structured details for the event. Status-change events carry `from` and `to`; record-level changes also carry `domain`, the affected hostname.",
       additionalProperties: true,
     },
     created_at: {
@@ -10017,6 +12916,7 @@ export const DomainListWritableSchema = {
       properties: {
         data: {
           type: "array",
+          description: "Page of sending domains, newest first by default.",
           items: {
             $ref: "#/components/schemas/DomainWritable",
           },
@@ -10054,6 +12954,8 @@ export const DNSRecordWritableSchema = {
     value: {
       type: "string",
       minLength: 1,
+      description:
+        'The value to publish, as entered in your DNS provider\'s "Value" or "Content" field: the full record content for `TXT`, the target hostname for `CNAME`, and the priority followed by the mail server hostname for `MX`.\n',
     },
     purpose: {
       type: "string",
@@ -10147,6 +13049,371 @@ export const DomainWritableSchema = {
   },
 } as const;
 
+export const EmailStatsByBroadcastResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailLatencyStatsWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:\n\n- `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.\n- `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n- `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n\nEach family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.\n",
+} as const;
+
+export const EmailBroadcastStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for the messages of a single broadcast over the requested period.",
+} as const;
+
+export const EmailStatsByComplaintTypeResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsByBounceCodeResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-SMTP-code bounce breakdown for the requested period, ranked by the `sort` metric (default `bounced`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsByClientResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsByLocationResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsByTemplateResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailTemplateStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for the messages sent with a single template over the requested period.",
+} as const;
+
+export const EmailStatsByRecipientDomainResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailRecipientDomainStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for messages sent to a single recipient mailbox domain over the requested period.",
+} as const;
+
+export const EmailStatsByMailboxProviderRegionResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailDeliveryLatencyStatsWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Latency percentiles (p50, p95, p99) in milliseconds for the messages in this breakdown row, for breakdowns whose dimension is known only from delivery onward (sending IP, mailbox provider).\n\n- `delivery`: time from handing the message off to the receiving mail server accepting it. Null when no deliveries occurred for this row in the period.\n- `total`: end-to-end time from accepting the send to delivery. Null when no deliveries occurred for this row in the period.\n\nThese breakdowns have no `processing` latency family. Bird only learns a row's dimension (the sending IP or recipient mailbox provider) after the upstream mail-transfer system reports delivery, bounce, deferral, or late bounce; the accept-to-processed phase happens before that binding decision, so it cannot be attributed to the dimension. Use `GET /v1/email/stats/daily` for workspace-wide processing-latency percentiles.\n",
+} as const;
+
+export const EmailMailboxProviderRegionStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Delivery, engagement, and deliverability stats for messages grouped by a single mailbox provider and provider region pair over the requested period, for example `gmail` in `NA` or `microsoft` in `EU`. The provider region is the regional pod the receiving mail system reports for the recipient's provider; pairing it with the provider disambiguates a region label that several providers share. Like the mailbox-provider breakdown, rows cover the delivery stage onward: the `accepted` and `processed` counts and the `processing` latency family are omitted (a provider region cannot be attributed before delivery).\n",
+} as const;
+
+export const EmailStatsByMailboxProviderResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailMailboxProviderStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Delivery, engagement, and deliverability stats for messages grouped by a single recipient mailbox provider (`gmail`, `microsoft`, `yahoo`, `apple`, ...) over the requested period. A recipient's mailbox provider is reported by the receiving mail system, so per-provider rows cover the delivery stage onward: they omit the `accepted` and `processed` counts and the `processing` latency family, which never appear (they are not returned as null). Engagement (opens, clicks, and their rates) is included because those events are post-delivery and carry the mailbox provider.\n",
+} as const;
+
+export const EmailStatsByCategoryResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailCategoryStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery and engagement stats for a single category over the requested period.",
+} as const;
+
+export const EmailStatsBySendingDomainResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailSendingDomainStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery, engagement, and latency stats for messages sent from a single sending domain over the requested period.",
+} as const;
+
+export const EmailStatsBySendingIpResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailSendingIpStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Delivery and latency stats for messages sent from a single IP address over the requested period. Per-IP attribution begins only after a message is processed: the upstream mail-transfer system reports the IP it used on delivery, bounce, deferral, and late-bounce events, but not at acceptance or processing time. As a result, per-IP rows omit the `accepted` and `processed` counts and the `processing` latency family, which never appear (they are not returned as null).\n",
+} as const;
+
+export const EmailStatsSummaryWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Single-row aggregate across the full requested period, including delivery and engagement counts plus derived rates. Use this endpoint for KPI tiles, campaign reporting, and any metric that needs a meaningful denominator; the daily and hourly endpoints carry the same rates per bucket, dividing each bucket's own counts.\n\nEvery count is a sum of per-bucket counts across the window (per day for day windows, per hour for hour windows), so a recipient (or message) active in two buckets contributes one to each bucket and two to the period total. This matches common provider reporting and is not double-counting; it does not yield a period-distinct count. Latency percentiles, by contrast, are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.\n",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsComparisonWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.\n',
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailStatsTagsResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
+  required: ["period"],
+  properties: {
+    period: {
+      allOf: [
+        {
+          description:
+            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
+        },
+      ],
+    },
+  },
+} as const;
+
+export const EmailTagStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Aggregate delivery and engagement stats for a single tag name-and-value pair over the requested period.",
+} as const;
+
+export const EmailStatsResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Time-series stats payload. `period` echoes the range and bucket grain the server computed against; `data` is one row per bucket in chronological order.\n",
+} as const;
+
+export const EmailStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Aggregate stats for one time bucket (a calendar day or hour, per the requested grain, in the requested `timezone` or UTC by default), bucketed by event time. Buckets with no activity are included with zero counts and null latency percentiles, so the series charts continuously without client-side gap handling.\n",
+} as const;
+
 export const WhatsAppTemplateListWritableSchema = {
   type: "object",
   additionalProperties: false,
@@ -10175,7 +13442,7 @@ export const WhatsAppEventListWritableSchema = {
     data: {
       type: "array",
       description:
-        "Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full — this list is not paginated.",
+        "Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full; this list is not paginated.",
       items: {
         $ref: "#/components/schemas/WhatsAppEventWritable",
       },
@@ -10202,7 +13469,7 @@ export const WhatsAppMessageListWritableSchema = {
       properties: {
         data: {
           type: "array",
-          description: "Page of WhatsApp message objects.",
+          description: "Page of WhatsApp messages, newest first.",
           items: {
             $ref: "#/components/schemas/WhatsAppMessageWritable",
           },
@@ -10220,7 +13487,7 @@ export const WhatsAppMessageTemplateWritableSchema = {
   additionalProperties: false,
   readOnly: true,
   description:
-    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present — `components` is an empty array for an authentication template (the filled-in values, e.g. a verification code, are never returned).\n",
+    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).\n",
 } as const;
 
 export const WhatsAppMessageWritableSchema = {
@@ -10269,7 +13536,7 @@ export const SMSTemplateListWritableSchema = {
     data: {
       type: "array",
       description:
-        "The templates available to your workspace. The catalogue is small and returned in full — this list is not paginated.",
+        "The templates available to your workspace. The catalogue is small and returned in full; this list is not paginated.",
       items: {
         $ref: "#/components/schemas/SMSTemplateWritable",
       },
@@ -10330,13 +13597,14 @@ export const SMSMessageWritableSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Sender the message was sent from — an E.164 number, an alphanumeric sender ID, or a short code.",
+        "Sender the message was sent from: an E.164 number, an alphanumeric sender ID, or a short code.",
       example: "+15557654321",
     },
     text: {
       type: "string",
       minLength: 1,
-      description: "Message body.",
+      description:
+        "The message body as sent. For a template send, this is the rendered text after parameter substitution.\n",
       example: "Your verification code is 123456.",
     },
     category: {
@@ -10386,7 +13654,7 @@ export const SMSMessageListWritableSchema = {
       properties: {
         data: {
           type: "array",
-          description: "Page of message objects.",
+          description: "Page of SMS messages, newest first.",
           items: {
             $ref: "#/components/schemas/SMSMessageWritable",
           },
@@ -10425,7 +13693,8 @@ export const AudienceRefWritableSchema = {
   type: "object",
   additionalProperties: false,
   required: ["name"],
-  description: "A compact reference to an audience -- its ID and display name.",
+  description:
+    "A compact reference to an audience, carrying its ID and display name.",
   properties: {
     name: {
       type: "string",
@@ -10453,12 +13722,14 @@ export const ContactWritableSchema = {
         first_name: {
           type: ["string", "null"],
           maxLength: 100,
-          description: "The contact's first name.",
+          description:
+            "The contact's first name. Available in broadcast templates as the `contact.first_name` variable.",
         },
         last_name: {
           type: ["string", "null"],
           maxLength: 100,
-          description: "The contact's last name.",
+          description:
+            "The contact's last name. Available in broadcast templates as the `contact.last_name` variable.",
         },
         external_id: {
           type: ["string", "null"],
@@ -10470,7 +13741,7 @@ export const ContactWritableSchema = {
           type: "object",
           additionalProperties: true,
           description:
-            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized.\n",
+            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
         },
       },
     },
@@ -10594,7 +13865,7 @@ export const AudienceWritableSchema = {
           ],
           default: "static",
           description:
-            "How the audience's recipients are determined. `static` audiences have an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable — creating an audience with either returns an error.\n",
+            "How the audience's recipients are determined. `static` (the default) is an explicit member list you manage via the API. `dynamic` and `external` are preview values and currently unavailable; creating an audience with either returns a validation error.\n",
         },
       },
     },
@@ -10960,7 +14231,7 @@ export const EmailMessageWritableSchema = {
         $ref: "#/components/schemas/EmailAttachmentRefWritable",
       },
       description:
-        "Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; use the future content-retrieval endpoint when storage is enabled.",
+        "Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; when content storage is enabled, download an attachment by its `id` via the message's attachment endpoint.",
     },
     track_opens: {
       type: "boolean",

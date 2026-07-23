@@ -41,7 +41,8 @@ export class SmsResource extends Resource {
    *
    * @example Send free text
    * const msg = await bird.sms.send({
-   *   to: "+15551234567",
+   *   from: "MyBrand",
+   *   to: "+14155550100",
    *   text: "Your verification code is 123456.",
    *   category: "authentication",
    * });
@@ -49,7 +50,7 @@ export class SmsResource extends Resource {
    *
    * @example Send by template
    * await bird.sms.send({
-   *   to: "+15551234567",
+   *   to: "+14155550100",
    *   template: { name: "bird_otp_verification", parameters: { code: "123456" } },
    * });
    */

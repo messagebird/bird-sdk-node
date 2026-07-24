@@ -203,6 +203,56 @@ export type EventWhatsAppSent = {
 };
 
 /**
+ * Payload of the whatsapp.rejected event.
+ */
+export type EventWhatsAppRejectedData = EventWhatsAppBase & {
+  /**
+   * Why the message was rejected before sending.
+   */
+  error: WhatsAppError;
+};
+
+/**
+ * Failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance`: the workspace could not afford the send. `price_not_found`: no price was configured for this destination/template combination. `internal_error`: an unexpected Bird-side failure. `undeliverable`: the recipient could not be reached (for example not on WhatsApp, or the number is invalid). `service_window_expired`: the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited`: the send was throttled. `recipient_suppressed`: the recipient is on the workspace's suppression list; the message was rejected before sending. Open enum: new codes may be added over time, so treat any unrecognized value as a future code rather than an error.
+ *
+ */
+export type WhatsAppErrorCode = string;
+
+/**
+ * Failure detail for a message that could not be delivered or was rejected.
+ */
+export type WhatsAppError = {
+  code: WhatsAppErrorCode;
+  /**
+   * Human-readable explanation of the failure.
+   */
+  readonly description: string;
+  /**
+   * Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.
+   */
+  readonly meta_error_code?: string | null;
+  /**
+   * When the failure occurred.
+   */
+  readonly occurred_at: string;
+} | null;
+
+/**
+ * Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).
+ */
+export type EventWhatsAppRejected = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.rejected";
+  /**
+   * Time the rejection was recorded.
+   */
+  timestamp: string;
+  data: EventWhatsAppRejectedData;
+};
+
+/**
  * Payload of the whatsapp.read event.
  */
 export type EventWhatsAppReadData = EventWhatsAppBase;
@@ -221,31 +271,6 @@ export type EventWhatsAppRead = {
   timestamp: string;
   data: EventWhatsAppReadData;
 };
-
-/**
- * Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance`: the workspace could not afford the send. `price_not_found`: no price was configured for this destination/template combination. `internal_error`: an unexpected Bird-side failure. `undeliverable`: the recipient could not be reached (for example not on WhatsApp, or the number is invalid). `service_window_expired`: the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited`: the send was throttled. Open enum: new codes may be added over time, so treat any unrecognized value as a future code rather than an error.
- *
- */
-export type WhatsAppErrorCode = string;
-
-/**
- * Failure detail for a message that could not be delivered.
- */
-export type WhatsAppError = {
-  code: WhatsAppErrorCode;
-  /**
-   * Human-readable explanation of the failure.
-   */
-  readonly description: string;
-  /**
-   * Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.
-   */
-  readonly meta_error_code?: string | null;
-  /**
-   * When the failure occurred.
-   */
-  readonly occurred_at: string;
-} | null;
 
 /**
  * Payload of the whatsapp.failed event.
@@ -1836,6 +1861,9 @@ export type WebhookEvent =
   | ({
       type: "whatsapp.read";
     } & EventWhatsAppRead)
+  | ({
+      type: "whatsapp.rejected";
+    } & EventWhatsAppRejected)
   | ({
       type: "whatsapp.sent";
     } & EventWhatsAppSent);
@@ -4151,7 +4179,7 @@ export type WhatsAppMessageList = {
 } & ListEnvelope;
 
 /**
- * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).
+ * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means the recipient is on the workspace's suppression list; the message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).
  *
  */
 export type WhatsAppMessageStatus =
@@ -4160,6 +4188,7 @@ export type WhatsAppMessageStatus =
   | "sent"
   | "delivered"
   | "failed"
+  | "rejected"
   | "canceled"
   | "received";
 
@@ -5961,11 +5990,36 @@ export type WebhookTestResponseWritable = {
 };
 
 /**
- * Failure detail for a message that could not be delivered.
+ * Payload of the whatsapp.rejected event.
+ */
+export type EventWhatsAppRejectedDataWritable = EventWhatsAppBase & {
+  /**
+   * Why the message was rejected before sending.
+   */
+  error: WhatsAppErrorWritable;
+};
+
+/**
+ * Failure detail for a message that could not be delivered or was rejected.
  */
 export type WhatsAppErrorWritable = {
   code: WhatsAppErrorCode;
 } | null;
+
+/**
+ * Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).
+ */
+export type EventWhatsAppRejectedWritable = {
+  /**
+   * Event type.
+   */
+  type: "whatsapp.rejected";
+  /**
+   * Time the rejection was recorded.
+   */
+  timestamp: string;
+  data: EventWhatsAppRejectedDataWritable;
+};
 
 /**
  * Payload of the whatsapp.failed event.
@@ -6227,6 +6281,9 @@ export type WebhookEventWritable =
   | ({
       type: "whatsapp.read";
     } & EventWhatsAppRead)
+  | ({
+      type: "whatsapp.rejected";
+    } & EventWhatsAppRejectedWritable)
   | ({
       type: "whatsapp.sent";
     } & EventWhatsAppSent);
@@ -7369,12 +7426,12 @@ export type StatsTimezone = string;
 export type MessageTagFilter = Array<string>;
 
 /**
- * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
+ * Return only resources created strictly before this timestamp (exclusive upper bound). Combine with `created_after` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
  */
 export type CreatedBefore = string;
 
 /**
- * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
+ * Return only resources created at or after this timestamp (inclusive lower bound). Combine with `created_before` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
  */
 export type CreatedAfter = string;
 
@@ -7440,11 +7497,11 @@ export type ListEmailMessagesData = {
      */
     ending_before?: string;
     /**
-     * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
+     * Return only resources created at or after this timestamp (inclusive lower bound). Combine with `created_before` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
      */
     created_after?: string;
     /**
-     * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
+     * Return only resources created strictly before this timestamp (exclusive upper bound). Combine with `created_after` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
      */
     created_before?: string;
     /**
@@ -9123,11 +9180,11 @@ export type ListSmsMessagesData = {
      */
     ending_before?: string;
     /**
-     * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
+     * Return only resources created at or after this timestamp (inclusive lower bound). Combine with `created_before` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
      */
     created_after?: string;
     /**
-     * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
+     * Return only resources created strictly before this timestamp (exclusive upper bound). Combine with `created_after` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
      */
     created_before?: string;
     /**
@@ -9656,11 +9713,11 @@ export type ListWhatsAppMessagesData = {
      */
     ending_before?: string;
     /**
-     * Return only resources created strictly after this timestamp. RFC 3339 / ISO 8601 with timezone.
+     * Return only resources created at or after this timestamp (inclusive lower bound). Combine with `created_before` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
      */
     created_after?: string;
     /**
-     * Return only resources created strictly before this timestamp. RFC 3339 / ISO 8601 with timezone.
+     * Return only resources created strictly before this timestamp (exclusive upper bound). Combine with `created_after` to filter to a time window. RFC 3339 / ISO 8601 with timezone.
      */
     created_before?: string;
     /**

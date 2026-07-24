@@ -68,6 +68,7 @@ export const WebhookEventTypeSchema = {
     "whatsapp.delivered",
     "whatsapp.failed",
     "whatsapp.read",
+    "whatsapp.rejected",
     "whatsapp.sent",
   ],
 } as const;
@@ -410,6 +411,111 @@ export const EventWhatsAppSentSchema = {
   },
 } as const;
 
+export const EventWhatsAppRejectedDataSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.rejected event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/WhatsAppError",
+          description: "Why the message was rejected before sending.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const WhatsAppErrorCodeSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": [
+    "insufficient_balance",
+    "price_not_found",
+    "internal_error",
+    "undeliverable",
+    "service_window_expired",
+    "rate_limited",
+    "recipient_suppressed",
+  ],
+  description:
+    "Failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance`: the workspace could not afford the send. `price_not_found`: no price was configured for this destination/template combination. `internal_error`: an unexpected Bird-side failure. `undeliverable`: the recipient could not be reached (for example not on WhatsApp, or the number is invalid). `service_window_expired`: the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited`: the send was throttled. `recipient_suppressed`: the recipient is on the workspace's suppression list; the message was rejected before sending. Open enum: new codes may be added over time, so treat any unrecognized value as a future code rather than an error.\n",
+} as const;
+
+export const WhatsAppErrorSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  readOnly: true,
+  required: ["code", "description", "occurred_at"],
+  description:
+    "Failure detail for a message that could not be delivered or was rejected.",
+  properties: {
+    code: {
+      $ref: "#/components/schemas/WhatsAppErrorCode",
+    },
+    description: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "Human-readable explanation of the failure.",
+      example: "Message could not be delivered.",
+    },
+    meta_error_code: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.",
+      example: "131026",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the failure occurred.",
+    },
+  },
+} as const;
+
+export const EventWhatsAppRejectedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).",
+  "x-event-type-id": "whatsapp.rejected",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.rejected",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.rejected"],
+      description: "Event type.",
+      example: "whatsapp.rejected",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the rejection was recorded.",
+      example: "2026-07-23T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppRejectedData",
+    },
+  },
+} as const;
+
 export const EventWhatsAppReadDataSchema = {
   type: "object",
   description: "Payload of the whatsapp.read event.",
@@ -449,55 +555,6 @@ export const EventWhatsAppReadSchema = {
     },
     data: {
       $ref: "#/components/schemas/EventWhatsAppReadData",
-    },
-  },
-} as const;
-
-export const WhatsAppErrorCodeSchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": [
-    "insufficient_balance",
-    "price_not_found",
-    "internal_error",
-    "undeliverable",
-    "service_window_expired",
-    "rate_limited",
-  ],
-  description:
-    "Bird-stable failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance`: the workspace could not afford the send. `price_not_found`: no price was configured for this destination/template combination. `internal_error`: an unexpected Bird-side failure. `undeliverable`: the recipient could not be reached (for example not on WhatsApp, or the number is invalid). `service_window_expired`: the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited`: the send was throttled. Open enum: new codes may be added over time, so treat any unrecognized value as a future code rather than an error.\n",
-} as const;
-
-export const WhatsAppErrorSchema = {
-  type: ["object", "null"],
-  additionalProperties: false,
-  readOnly: true,
-  required: ["code", "description", "occurred_at"],
-  description: "Failure detail for a message that could not be delivered.",
-  properties: {
-    code: {
-      $ref: "#/components/schemas/WhatsAppErrorCode",
-    },
-    description: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "Human-readable explanation of the failure.",
-      example: "Message could not be delivered.",
-    },
-    meta_error_code: {
-      type: ["string", "null"],
-      readOnly: true,
-      description:
-        "Raw error code from the WhatsApp Cloud API, when available, for low-level debugging.",
-      example: "131026",
-    },
-    occurred_at: {
-      type: "string",
-      format: "date-time",
-      minLength: 1,
-      readOnly: true,
-      description: "When the failure occurred.",
     },
   },
 } as const;
@@ -3575,6 +3632,9 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventWhatsAppRead",
     },
     {
+      $ref: "#/components/schemas/EventWhatsAppRejected",
+    },
+    {
       $ref: "#/components/schemas/EventWhatsAppSent",
     },
   ],
@@ -3636,6 +3696,7 @@ export const WebhookEventSchema = {
       "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
       "whatsapp.failed": "#/components/schemas/EventWhatsAppFailed",
       "whatsapp.read": "#/components/schemas/EventWhatsAppRead",
+      "whatsapp.rejected": "#/components/schemas/EventWhatsAppRejected",
       "whatsapp.sent": "#/components/schemas/EventWhatsAppSent",
     },
   },
@@ -8488,11 +8549,12 @@ export const WhatsAppMessageStatusSchema = {
     "sent",
     "delivered",
     "failed",
+    "rejected",
     "canceled",
     "received",
   ],
   description:
-    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
+    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means the recipient is on the workspace's suppression list; the message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
 } as const;
 
 export const WhatsAppMessageTemplateSchema = {
@@ -11853,15 +11915,70 @@ export const WebhookTestResponseWritableSchema = {
   },
 } as const;
 
+export const EventWhatsAppRejectedDataWritableSchema = {
+  type: "object",
+  description: "Payload of the whatsapp.rejected event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventWhatsAppBase",
+    },
+    {
+      type: "object",
+      required: ["error"],
+      properties: {
+        error: {
+          $ref: "#/components/schemas/WhatsAppErrorWritable",
+          description: "Why the message was rejected before sending.",
+        },
+      },
+    },
+  ],
+} as const;
+
 export const WhatsAppErrorWritableSchema = {
   type: ["object", "null"],
   additionalProperties: false,
   readOnly: true,
   required: ["code"],
-  description: "Failure detail for a message that could not be delivered.",
+  description:
+    "Failure detail for a message that could not be delivered or was rejected.",
   properties: {
     code: {
       $ref: "#/components/schemas/WhatsAppErrorCode",
+    },
+  },
+} as const;
+
+export const EventWhatsAppRejectedWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).",
+  "x-event-type-id": "whatsapp.rejected",
+  "x-dedupe": {
+    scope: "message",
+    stage: "whatsapp.rejected",
+    id: "whatsapp_id",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["whatsapp.rejected"],
+      description: "Event type.",
+      example: "whatsapp.rejected",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the rejection was recorded.",
+      example: "2026-07-23T12:00:00.000Z",
+    },
+    data: {
+      $ref: "#/components/schemas/EventWhatsAppRejectedDataWritable",
     },
   },
 } as const;
@@ -12244,6 +12361,9 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventWhatsAppRead",
     },
     {
+      $ref: "#/components/schemas/EventWhatsAppRejectedWritable",
+    },
+    {
       $ref: "#/components/schemas/EventWhatsAppSent",
     },
   ],
@@ -12305,6 +12425,7 @@ export const WebhookEventWritableSchema = {
       "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
       "whatsapp.failed": "#/components/schemas/EventWhatsAppFailedWritable",
       "whatsapp.read": "#/components/schemas/EventWhatsAppRead",
+      "whatsapp.rejected": "#/components/schemas/EventWhatsAppRejectedWritable",
       "whatsapp.sent": "#/components/schemas/EventWhatsAppSent",
     },
   },

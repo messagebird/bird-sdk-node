@@ -338,7 +338,7 @@ export type EventWhatsAppAccepted = {
 };
 
 /**
- * Payload of the voice.call.initiated event.
+ * Payload of the voice_call.initiated event.
  */
 export type EventVoiceCallInitiatedData = EventVoiceBase;
 
@@ -385,7 +385,7 @@ export type EventVoiceCallInitiated = {
   /**
    * Event type.
    */
-  type: "voice.call.initiated";
+  type: "voice_call.initiated";
   /**
    * Time the call was initiated.
    */
@@ -409,7 +409,7 @@ export type VoiceCallStatus =
   | "in_progress";
 
 /**
- * Payload of the voice.call.ended event.
+ * Payload of the voice_call.ended event.
  */
 export type EventVoiceCallEndedData = EventVoiceBase & {
   status: VoiceCallStatus;
@@ -434,7 +434,7 @@ export type EventVoiceCallEnded = {
   /**
    * Event type.
    */
-  type: "voice.call.ended";
+  type: "voice_call.ended";
   /**
    * When the call ended (BYE or final non-2xx response).
    */
@@ -443,7 +443,7 @@ export type EventVoiceCallEnded = {
 };
 
 /**
- * Payload of the voice.call.answered event.
+ * Payload of the voice_call.answered event.
  */
 export type EventVoiceCallAnsweredData = EventVoiceBase;
 
@@ -454,7 +454,7 @@ export type EventVoiceCallAnswered = {
   /**
    * Event type.
    */
-  type: "voice.call.answered";
+  type: "voice_call.answered";
   /**
    * Time the call was answered.
    */
@@ -1841,13 +1841,13 @@ export type WebhookEvent =
       type: "sms.undelivered";
     } & EventSmsUndelivered)
   | ({
-      type: "voice.call.answered";
+      type: "voice_call.answered";
     } & EventVoiceCallAnswered)
   | ({
-      type: "voice.call.ended";
+      type: "voice_call.ended";
     } & EventVoiceCallEnded)
   | ({
-      type: "voice.call.initiated";
+      type: "voice_call.initiated";
     } & EventVoiceCallInitiated)
   | ({
       type: "whatsapp.accepted";
@@ -6261,13 +6261,13 @@ export type WebhookEventWritable =
       type: "sms.undelivered";
     } & EventSmsUndeliveredWritable)
   | ({
-      type: "voice.call.answered";
+      type: "voice_call.answered";
     } & EventVoiceCallAnswered)
   | ({
-      type: "voice.call.ended";
+      type: "voice_call.ended";
     } & EventVoiceCallEnded)
   | ({
-      type: "voice.call.initiated";
+      type: "voice_call.initiated";
     } & EventVoiceCallInitiated)
   | ({
       type: "whatsapp.accepted";

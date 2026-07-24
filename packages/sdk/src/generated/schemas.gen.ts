@@ -61,9 +61,9 @@ export const WebhookEventTypeSchema = {
     "sms.tfn_verification.rejected",
     "sms.tfn_verification.submitted",
     "sms.undelivered",
-    "voice.call.answered",
-    "voice.call.ended",
-    "voice.call.initiated",
+    "voice_call.answered",
+    "voice_call.ended",
+    "voice_call.initiated",
     "whatsapp.accepted",
     "whatsapp.delivered",
     "whatsapp.failed",
@@ -700,7 +700,7 @@ export const EventWhatsAppAcceptedSchema = {
 
 export const EventVoiceCallInitiatedDataSchema = {
   type: "object",
-  description: "Payload of the voice.call.initiated event.",
+  description: "Payload of the voice_call.initiated event.",
   allOf: [
     {
       $ref: "#/components/schemas/EventVoiceBase",
@@ -797,10 +797,10 @@ export const EventVoiceCallInitiatedSchema = {
   additionalProperties: false,
   description:
     "A call was initiated — Bird received the INVITE and began routing it.",
-  "x-event-type-id": "voice.call.initiated",
+  "x-event-type-id": "voice_call.initiated",
   "x-dedupe": {
     scope: "message",
-    stage: "voice.call.initiated",
+    stage: "voice_call.initiated",
     id: "call_id",
   },
   "x-event-type-source": "platform",
@@ -809,9 +809,9 @@ export const EventVoiceCallInitiatedSchema = {
     type: {
       type: "string",
       minLength: 1,
-      enum: ["voice.call.initiated"],
+      enum: ["voice_call.initiated"],
       description: "Event type.",
-      example: "voice.call.initiated",
+      example: "voice_call.initiated",
     },
     timestamp: {
       type: "string",
@@ -847,7 +847,7 @@ export const VoiceCallStatusSchema = {
 
 export const EventVoiceCallEndedDataSchema = {
   type: "object",
-  description: "Payload of the voice.call.ended event.",
+  description: "Payload of the voice_call.ended event.",
   allOf: [
     {
       $ref: "#/components/schemas/EventVoiceBase",
@@ -890,10 +890,10 @@ export const EventVoiceCallEndedSchema = {
   additionalProperties: false,
   description:
     "The call ended — a BYE or final non-2xx response was received and the call record was written.",
-  "x-event-type-id": "voice.call.ended",
+  "x-event-type-id": "voice_call.ended",
   "x-dedupe": {
     scope: "message",
-    stage: "voice.call.ended",
+    stage: "voice_call.ended",
     id: "call_id",
   },
   "x-event-type-source": "platform",
@@ -902,9 +902,9 @@ export const EventVoiceCallEndedSchema = {
     type: {
       type: "string",
       minLength: 1,
-      enum: ["voice.call.ended"],
+      enum: ["voice_call.ended"],
       description: "Event type.",
-      example: "voice.call.ended",
+      example: "voice_call.ended",
     },
     timestamp: {
       type: "string",
@@ -921,7 +921,7 @@ export const EventVoiceCallEndedSchema = {
 
 export const EventVoiceCallAnsweredDataSchema = {
   type: "object",
-  description: "Payload of the voice.call.answered event.",
+  description: "Payload of the voice_call.answered event.",
   allOf: [
     {
       $ref: "#/components/schemas/EventVoiceBase",
@@ -934,10 +934,10 @@ export const EventVoiceCallAnsweredSchema = {
   additionalProperties: false,
   description:
     "The called party answered — the carrier returned a 200 OK and media is flowing.",
-  "x-event-type-id": "voice.call.answered",
+  "x-event-type-id": "voice_call.answered",
   "x-dedupe": {
     scope: "message",
-    stage: "voice.call.answered",
+    stage: "voice_call.answered",
     id: "call_id",
   },
   "x-event-type-source": "platform",
@@ -946,9 +946,9 @@ export const EventVoiceCallAnsweredSchema = {
     type: {
       type: "string",
       minLength: 1,
-      enum: ["voice.call.answered"],
+      enum: ["voice_call.answered"],
       description: "Event type.",
-      example: "voice.call.answered",
+      example: "voice_call.answered",
     },
     timestamp: {
       type: "string",
@@ -3689,9 +3689,9 @@ export const WebhookEventSchema = {
       "sms.tfn_verification.submitted":
         "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
-      "voice.call.answered": "#/components/schemas/EventVoiceCallAnswered",
-      "voice.call.ended": "#/components/schemas/EventVoiceCallEnded",
-      "voice.call.initiated": "#/components/schemas/EventVoiceCallInitiated",
+      "voice_call.answered": "#/components/schemas/EventVoiceCallAnswered",
+      "voice_call.ended": "#/components/schemas/EventVoiceCallEnded",
+      "voice_call.initiated": "#/components/schemas/EventVoiceCallInitiated",
       "whatsapp.accepted": "#/components/schemas/EventWhatsAppAccepted",
       "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
       "whatsapp.failed": "#/components/schemas/EventWhatsAppFailed",
@@ -12418,9 +12418,9 @@ export const WebhookEventWritableSchema = {
       "sms.tfn_verification.submitted":
         "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
-      "voice.call.answered": "#/components/schemas/EventVoiceCallAnswered",
-      "voice.call.ended": "#/components/schemas/EventVoiceCallEnded",
-      "voice.call.initiated": "#/components/schemas/EventVoiceCallInitiated",
+      "voice_call.answered": "#/components/schemas/EventVoiceCallAnswered",
+      "voice_call.ended": "#/components/schemas/EventVoiceCallEnded",
+      "voice_call.initiated": "#/components/schemas/EventVoiceCallInitiated",
       "whatsapp.accepted": "#/components/schemas/EventWhatsAppAccepted",
       "whatsapp.delivered": "#/components/schemas/EventWhatsAppDelivered",
       "whatsapp.failed": "#/components/schemas/EventWhatsAppFailedWritable",

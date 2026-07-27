@@ -16,3 +16,7 @@ export type _Webhooks = Pick<BirdClient["webhooks"], "unwrap">;
 export type _Contacts = Pick<BirdClient["contacts"], "list" | "get" | "create" | "update" | "delete" | "batch">;
 export type _ContactProperties = Pick<BirdClient["contactProperties"], "list" | "get" | "create" | "update" | "archive" | "unarchive">;
 export type _Audiences = Pick<BirdClient["audiences"], "list" | "get" | "create" | "update" | "delete" | "listContacts" | "addContacts" | "removeContacts" | "removeContact">;
+export type _Mailbox = Pick<BirdClient["mailbox"], "list" | "create" | "get" | "update" | "delete" | "restore" | "resume" | "stats" | "compose" | "labels">;
+export type _MailboxReceiveRule = Pick<BirdClient["mailboxReceiveRule"], "list" | "create" | "delete">;
+export type _MailboxThread = Pick<BirdClient["mailboxThread"], "list" | "get" | "update" | "delete">;
+export type _MailboxThreadMessage = Pick<BirdClient["mailboxThreadMessage"], "list" | "get" | "body" | "reply" | "attachments">;

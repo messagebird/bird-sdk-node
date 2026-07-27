@@ -33,6 +33,15 @@ import type {
   CreateEmailMessageData,
   CreateEmailMessageErrors,
   CreateEmailMessageResponses,
+  CreateMailboxData,
+  CreateMailboxErrors,
+  CreateMailboxMessageData,
+  CreateMailboxMessageErrors,
+  CreateMailboxMessageResponses,
+  CreateMailboxReceiveRuleData,
+  CreateMailboxReceiveRuleErrors,
+  CreateMailboxReceiveRuleResponses,
+  CreateMailboxResponses,
   CreateSmsMessageBatchData,
   CreateSmsMessageBatchErrors,
   CreateSmsMessageBatchResponses,
@@ -54,6 +63,15 @@ import type {
   DeleteDomainData,
   DeleteDomainErrors,
   DeleteDomainResponses,
+  DeleteEmailThreadData,
+  DeleteEmailThreadErrors,
+  DeleteEmailThreadResponses,
+  DeleteMailboxData,
+  DeleteMailboxErrors,
+  DeleteMailboxReceiveRuleData,
+  DeleteMailboxReceiveRuleErrors,
+  DeleteMailboxReceiveRuleResponses,
+  DeleteMailboxResponses,
   GetAudienceData,
   GetAudienceErrors,
   GetAudienceResponses,
@@ -117,6 +135,21 @@ import type {
   GetEmailStatsSummaryData,
   GetEmailStatsSummaryErrors,
   GetEmailStatsSummaryResponses,
+  GetEmailThreadData,
+  GetEmailThreadErrors,
+  GetEmailThreadMessageBodyData,
+  GetEmailThreadMessageBodyErrors,
+  GetEmailThreadMessageBodyResponses,
+  GetEmailThreadMessageData,
+  GetEmailThreadMessageErrors,
+  GetEmailThreadMessageResponses,
+  GetEmailThreadResponses,
+  GetMailboxData,
+  GetMailboxErrors,
+  GetMailboxResponses,
+  GetMailboxStatsData,
+  GetMailboxStatsErrors,
+  GetMailboxStatsResponses,
   GetSmsMessageData,
   GetSmsMessageErrors,
   GetSmsMessageResponses,
@@ -144,6 +177,24 @@ import type {
   ListEmailMessagesData,
   ListEmailMessagesErrors,
   ListEmailMessagesResponses,
+  ListEmailThreadMessageAttachmentsData,
+  ListEmailThreadMessageAttachmentsErrors,
+  ListEmailThreadMessageAttachmentsResponses,
+  ListEmailThreadMessagesData,
+  ListEmailThreadMessagesErrors,
+  ListEmailThreadMessagesResponses,
+  ListEmailThreadsData,
+  ListEmailThreadsErrors,
+  ListEmailThreadsResponses,
+  ListMailboxesData,
+  ListMailboxesErrors,
+  ListMailboxesResponses,
+  ListMailboxLabelsData,
+  ListMailboxLabelsErrors,
+  ListMailboxLabelsResponses,
+  ListMailboxReceiveRulesData,
+  ListMailboxReceiveRulesErrors,
+  ListMailboxReceiveRulesResponses,
   ListSmsMessagesData,
   ListSmsMessagesErrors,
   ListSmsMessagesResponses,
@@ -159,6 +210,15 @@ import type {
   ListWhatsAppTemplatesData,
   ListWhatsAppTemplatesErrors,
   ListWhatsAppTemplatesResponses,
+  ReplyEmailThreadMessageData,
+  ReplyEmailThreadMessageErrors,
+  ReplyEmailThreadMessageResponses,
+  RestoreMailboxData,
+  RestoreMailboxErrors,
+  RestoreMailboxResponses,
+  ResumeMailboxData,
+  ResumeMailboxErrors,
+  ResumeMailboxResponses,
   SendWhatsAppMessageData,
   SendWhatsAppMessageErrors,
   SendWhatsAppMessageResponses,
@@ -183,6 +243,12 @@ import type {
   UpdateDomainData,
   UpdateDomainErrors,
   UpdateDomainResponses,
+  UpdateEmailThreadData,
+  UpdateEmailThreadErrors,
+  UpdateEmailThreadResponses,
+  UpdateMailboxData,
+  UpdateMailboxErrors,
+  UpdateMailboxResponses,
   VerifyDomainData,
   VerifyDomainErrors,
   VerifyDomainResponses,
@@ -2043,5 +2109,605 @@ export const verifyDomain = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/email/domains/{domain_id}/verify",
+    ...options,
+  });
+
+/**
+ * List mailboxes
+ *
+ * Returns a paginated list of the workspace's mailboxes, newest first. Search across addresses and display names with `q`, look a mailbox up by its exact address, or filter by lifecycle state or domain.
+ *
+ */
+export const listMailboxes = <ThrowOnError extends boolean = false>(
+  options?: Options<ListMailboxesData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListMailboxesResponses,
+    ListMailboxesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes",
+    ...options,
+  });
+
+/**
+ * Create a mailbox
+ *
+ * Creates a mailbox. The address is `local_part@domain`. The domain defaults to `inbox.ai`, Bird's shared mailbox domain, where creating the mailbox claims the address for your organization — first come, first served, and reserved to your organization even after the mailbox is deleted. You may instead name one of your own domains that is enabled for receiving email. An omitted local part is generated. On a custom domain, addresses of deleted mailboxes are quarantined: the same workspace can rebind one 30 days after deletion, other workspaces never can.
+ *
+ */
+export const createMailbox = <ThrowOnError extends boolean = false>(
+  options: Options<CreateMailboxData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateMailboxResponses,
+    CreateMailboxErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a mailbox
+ *
+ * Deletes a mailbox. The address stops receiving mail immediately and enters quarantine: the same workspace can bind it to a new mailbox after 30 days, other workspaces never can. The mailbox and its remembered messages are kept for a 30-day restore window — restore it with `POST /email/mailboxes/{mailbox_id}/restore` — and are permanently deleted once the window closes.
+ *
+ */
+export const deleteMailbox = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteMailboxData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteMailboxResponses,
+    DeleteMailboxErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}",
+    ...options,
+  });
+
+/**
+ * Get a mailbox
+ *
+ * Returns a single mailbox by ID. A mailbox deleted within its 30-day restore window is still returned, with a non-null `deleted_at`; once the window closes it is permanently removed and returns 404.
+ *
+ */
+export const getMailbox = <ThrowOnError extends boolean = false>(
+  options: Options<GetMailboxData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetMailboxResponses,
+    GetMailboxErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}",
+    ...options,
+  });
+
+/**
+ * Update a mailbox
+ *
+ * Updates a mailbox. The address and domain are immutable. Lowering the retention tier deletes remembered messages older than the new horizon — pass `confirm=true` to acknowledge.
+ *
+ */
+export const updateMailbox = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateMailboxData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateMailboxResponses,
+    UpdateMailboxErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Restore a deleted mailbox
+ *
+ * Restores a mailbox deleted less than 30 days ago. The address is bound back to the mailbox and starts receiving again, and the remembered messages and conversations are available as before the delete. Once the 30-day window has passed the mailbox and its messages are permanently deleted and can no longer be restored (404). Restoring a mailbox that is not deleted returns a conflict, as does an address that is no longer available.
+ *
+ */
+export const restoreMailbox = <ThrowOnError extends boolean = false>(
+  options: Options<RestoreMailboxData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RestoreMailboxResponses,
+    RestoreMailboxErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/restore",
+    ...options,
+  });
+
+/**
+ * Mailbox email statistics
+ *
+ * Returns the mailbox's sent and received email statistics over a time window: a period-wide summary plus a bucketed series. Sent-mail metrics carry the same delivery, engagement, and latency breakdowns as the email stats endpoints; `received` counts mail that arrived at the mailbox.
+ * Rows are bucketed by event time, not send time — engagement received during the period for messages sent earlier is included. Statistics start when the mailbox starts sending and receiving; the mailbox's all-time `message_count` and `thread_count` live on the mailbox resource itself.
+ * `from` and `to` accept either calendar days (YYYY-MM-DD, `day` granularity only) or RFC 3339 instants (`hour` granularity only). Both bounds must use the same form. Window caps depend on `granularity`: 365 days at `day`, 30 days at `hour`. Set `timezone` to report in a local zone instead of UTC.
+ *
+ */
+export const getMailboxStats = <ThrowOnError extends boolean = false>(
+  options: Options<GetMailboxStatsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetMailboxStatsResponses,
+    GetMailboxStatsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/stats",
+    ...options,
+  });
+
+/**
+ * Resume a suspended mailbox
+ *
+ * Reactivates a mailbox that was suspended because the organization dropped below the plan needed to keep it active. The mailbox can send and receive again and its threads and messages become visible. Activation is refused when the organization has no room for another active mailbox, or for another custom inbox.ai handle, on its current plan — free up a slot by deleting an active mailbox, or upgrade the plan. Activating a mailbox that is not suspended returns a conflict.
+ *
+ */
+export const resumeMailbox = <ThrowOnError extends boolean = false>(
+  options: Options<ResumeMailboxData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ResumeMailboxResponses,
+    ResumeMailboxErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/resume",
+    ...options,
+  });
+
+/**
+ * List receive rules
+ *
+ * Returns a paginated list of the mailbox's receive rules, oldest first. Filter by action to see only allow or only block entries.
+ *
+ */
+export const listMailboxReceiveRules = <ThrowOnError extends boolean = false>(
+  options: Options<ListMailboxReceiveRulesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListMailboxReceiveRulesResponses,
+    ListMailboxReceiveRulesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/receive-rules",
+    ...options,
+  });
+
+/**
+ * Add a receive rule
+ *
+ * Adds an allow or block rule to the mailbox. Rules match the message's envelope sender; domain entries also match subdomains. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes. An entry can be allow or block, never both: to flip it, delete the rule and re-create it. A mailbox holds up to 200 rules.
+ *
+ */
+export const createMailboxReceiveRule = <ThrowOnError extends boolean = false>(
+  options: Options<CreateMailboxReceiveRuleData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateMailboxReceiveRuleResponses,
+    CreateMailboxReceiveRuleErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/receive-rules",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a receive rule
+ *
+ * Removes a receive rule from the mailbox. To change an entry from allow to block (or back), delete the rule and create a new one.
+ *
+ */
+export const deleteMailboxReceiveRule = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteMailboxReceiveRuleData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteMailboxReceiveRuleResponses,
+    DeleteMailboxReceiveRuleErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/receive-rules/{rule_id}",
+    ...options,
+  });
+
+/**
+ * List threads
+ *
+ * Returns a paginated list of conversations across the workspace's mailboxes, most recently active first. `label` selects the view: the inbox (the default when omitted), `archive`, `spam`, `blocked`, or any custom label. Filter by mailbox, linked contact, or last-activity time, or pass `q` to full-text search conversations by their messages' subject and text. Conversations whose every message has been trashed are omitted; restoring a message returns its conversation to the list. `before` and `after` filter by time; to page through results pass the response cursors back as `starting_after` or `ending_before`.
+ *
+ */
+export const listEmailThreads = <ThrowOnError extends boolean = false>(
+  options?: Options<ListEmailThreadsData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListEmailThreadsResponses,
+    ListEmailThreadsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads",
+    ...options,
+  });
+
+/**
+ * Delete a thread
+ *
+ * Moves the conversation and all of its messages to the trash. Trashed messages are permanently deleted after 30 days. Pass `permanent=true` to permanently delete the conversation and its messages immediately.
+ *
+ */
+export const deleteEmailThread = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteEmailThreadData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteEmailThreadResponses,
+    DeleteEmailThreadErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}",
+    ...options,
+  });
+
+/**
+ * Get a thread
+ *
+ * Returns a single conversation. Fetch the messages in the conversation with `GET /v1/email/threads/{thread_id}/messages`. A thread whose retention period has ended returns `410 Gone`.
+ *
+ */
+export const getEmailThread = <ThrowOnError extends boolean = false>(
+  options: Options<GetEmailThreadData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetEmailThreadResponses,
+    GetEmailThreadErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}",
+    ...options,
+  });
+
+/**
+ * Update a thread
+ *
+ * Applies label changes to a conversation and links or unlinks a contact. System labels move the conversation: adding `spam` files it (and its received messages) as spam, adding `archive` files it away without deleting it, and adding `inbox` — or removing `spam`, `blocked`, or `archive` — returns it to the inbox; unread counts recompute to match. An archived conversation returns to the inbox by itself when a new message arrives. To block a sender going forward, add a receive rule instead. Omitted fields are left unchanged.
+ *
+ */
+export const updateEmailThread = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateEmailThreadData, ThrowOnError>,
+) =>
+  (options.client ?? client).patch<
+    UpdateEmailThreadResponses,
+    UpdateEmailThreadErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List messages in a thread
+ *
+ * Returns the messages in a conversation newest first, both received and sent; page older messages with `starting_after` (fixed sort — render conversation order by reversing the page). By default every message that is not in the trash is returned, whichever folder the conversation is in; pass `label` to narrow the view instead — `trash` for trashed messages, or any custom label. Pass `include=extracted_text` to inline each message's extracted plain text. A thread whose retention period has ended returns `410 Gone`.
+ *
+ */
+export const listEmailThreadMessages = <ThrowOnError extends boolean = false>(
+  options: Options<ListEmailThreadMessagesData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListEmailThreadMessagesResponses,
+    ListEmailThreadMessagesErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}/messages",
+    ...options,
+  });
+
+/**
+ * Get a message in a thread
+ *
+ * Returns a single message in a conversation, including its extracted plain text. Metadata and extracted text remain readable for the mailbox's retention period; a message that has passed it returns `410 Gone`. A message that exists but does not belong to this thread returns `404`.
+ *
+ */
+export const getEmailThreadMessage = <ThrowOnError extends boolean = false>(
+  options: Options<GetEmailThreadMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetEmailThreadMessageResponses,
+    GetEmailThreadMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}/messages/{message_id}",
+    ...options,
+  });
+
+/**
+ * Get a thread message's original body
+ *
+ * Returns the original rendered HTML and plain-text body of a message in a conversation. The original body is available for 30 days after the message occurred; after that this endpoint returns `410 Gone` while the message's extracted text remains readable on the message itself.
+ *
+ */
+export const getEmailThreadMessageBody = <ThrowOnError extends boolean = false>(
+  options: Options<GetEmailThreadMessageBodyData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetEmailThreadMessageBodyResponses,
+    GetEmailThreadMessageBodyErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}/messages/{message_id}/body",
+    ...options,
+  });
+
+/**
+ * List a thread message's attachments
+ *
+ * Returns the attachments on a message in a conversation. Attachment bytes are downloadable for 30 days after the message occurred; after that this endpoint returns `410 Gone` while the attachment metadata remains readable on the message's `attachment_manifest`.
+ *
+ */
+export const listEmailThreadMessageAttachments = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ListEmailThreadMessageAttachmentsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListEmailThreadMessageAttachmentsResponses,
+    ListEmailThreadMessageAttachmentsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}/messages/{message_id}/attachments",
+    ...options,
+  });
+
+/**
+ * Reply to a thread message
+ *
+ * Sends a reply to a specific message in a conversation, from the mailbox's own address. Recipients are derived from the message being replied to — its Reply-To address when present, otherwise its From address; set `reply_all` to also include the original To and Cc recipients. The subject and the threading headers that keep the reply in this conversation are set automatically, and the reply is recorded in the conversation. To reply to a conversation as a whole, target its newest received message.
+ *
+ */
+export const replyEmailThreadMessage = <ThrowOnError extends boolean = false>(
+  options: Options<ReplyEmailThreadMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    ReplyEmailThreadMessageResponses,
+    ReplyEmailThreadMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/threads/{thread_id}/messages/{message_id}/reply",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Send a message from a mailbox
+ *
+ * Sends a new message from the mailbox's own address and starts a new conversation with it. The request mirrors the plain send request minus `from` — the mailbox is the sender identity — and Bird mints the RFC 5322 Message-ID, so later replies from the recipients thread back into the conversation automatically. The send is recorded in the mailbox's durable memory and returned as the conversation's first message. Scheduled sends are not accepted on the mailbox surface. A suspended mailbox cannot send and returns `403`.
+ *
+ */
+export const createMailboxMessage = <ThrowOnError extends boolean = false>(
+  options: Options<CreateMailboxMessageData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateMailboxMessageResponses,
+    CreateMailboxMessageErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/messages",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List a mailbox's labels
+ *
+ * Returns the labels available in a mailbox: the built-in system labels — the placements `inbox`, `archive`, `spam`, `blocked`, and `sent`, plus `trash` and `unread` — followed by every custom label currently in use on its conversations and messages. Apply and remove labels through the conversation and message update endpoints; custom labels exist by being applied, so this list is discovery, not management.
+ *
+ */
+export const listMailboxLabels = <ThrowOnError extends boolean = false>(
+  options: Options<ListMailboxLabelsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListMailboxLabelsResponses,
+    ListMailboxLabelsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/email/mailboxes/{mailbox_id}/labels",
     ...options,
   });

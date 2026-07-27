@@ -17,7 +17,7 @@ import type {
   ListEmailMessagesData,
 } from "../generated/types.gen.js";
 import { Resource } from "./base.js";
-import { EmailStatsResource } from "./emailStats.js";
+import { EmailStatsResource } from "./emailStats.gen.js";
 import type {
   APIPromise,
   PaginatedPromise,

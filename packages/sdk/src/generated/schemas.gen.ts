@@ -4096,6 +4096,919 @@ export const EmailSmtpConfigSchema = {
   ],
 } as const;
 
+export const EmailMailboxLabelListSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The labels available in a mailbox.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailMailboxLabel",
+      },
+    },
+  },
+} as const;
+
+export const EmailMailboxLabelSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "One label available in a mailbox.",
+  required: ["name", "type"],
+  properties: {
+    name: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      maxLength: 64,
+      description:
+        "The label name, as it appears on conversations and messages.",
+      example: "inbox",
+    },
+    type: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      enum: ["system", "custom"],
+      description:
+        "`system` labels are built in and carry state — the placements `inbox`, `archive`, `spam`, `blocked`, and `sent`, plus `trash` and `unread`. `custom` labels are the workspace's own tags.",
+    },
+  },
+} as const;
+
+export const EmailMailboxComposeRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A new message sent from a mailbox, starting a new conversation. Mirrors the plain send request minus `from` — the mailbox is the sender identity — and minus `scheduled_at` (mailbox sends are immediate). Bird mints the RFC 5322 Message-ID so replies thread back to this conversation. At least one of `html` or `text` must be provided.\n",
+  required: ["to", "subject"],
+  properties: {
+    to: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      minItems: 1,
+      maxItems: 50,
+      description:
+        "Primary recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.",
+    },
+    cc: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      maxItems: 50,
+      description:
+        "CC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.",
+    },
+    bcc: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      maxItems: 50,
+      description:
+        "BCC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.",
+    },
+    subject: {
+      type: "string",
+      minLength: 1,
+      maxLength: 998,
+      description: "Message subject line.",
+    },
+    html: {
+      type: "string",
+      maxLength: 524288,
+      description: "HTML body. At least one of html or text must be provided.",
+    },
+    text: {
+      type: "string",
+      maxLength: 524288,
+      description:
+        "Plain-text body. At least one of html or text must be provided.",
+    },
+    reply_to: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAddressInput",
+      },
+      minItems: 1,
+      maxItems: 25,
+      description:
+        "Reply-To addresses. When omitted, the mailbox's `default_reply_to` applies (replies then come back to the mailbox itself).\n",
+    },
+    attachments: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAttachment",
+      },
+      maxItems: 20,
+      description:
+        "File attachments. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Attachment metadata endures on the message's `attachment_manifest`; the bytes are downloadable for 30 days.\n",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
+    },
+    category: {
+      type: "string",
+      enum: ["marketing", "transactional"],
+      default: "transactional",
+      description:
+        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
+    },
+  },
+  example: {
+    to: ["customer@example.com"],
+    subject: "Your quote",
+    text: "Hi — here is the quote you asked for.",
+  },
+} as const;
+
+export const EmailAttachmentSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["filename", "content"],
+  description:
+    "File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.\nInline images for `<img src=\"cid:...\"/>` references in the HTML body use the `content_id` field together with `content`.\nBird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.\nRecipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.\nBatch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.\n",
+  properties: {
+    filename: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description: "Filename shown to the recipient. Required.",
+      example: "invoice.pdf",
+    },
+    content: {
+      type: "string",
+      format: "byte",
+      minLength: 1,
+      description:
+        "Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
+    },
+    path: {
+      type: "string",
+      format: "uri",
+      description:
+        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `UnsupportedEmailFeature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
+    },
+    content_type: {
+      type: "string",
+      description:
+        "MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.\n",
+      example: "application/pdf",
+    },
+    content_id: {
+      type: "string",
+      minLength: 1,
+      maxLength: 128,
+      pattern: "^[A-Za-z0-9._-]+$",
+      description:
+        'RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.\n',
+      example: "invoice-logo",
+    },
+  },
+} as const;
+
+export const EmailAddressSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "An email address with an optional display name.",
+  required: ["email"],
+  properties: {
+    email: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      description: "Email address.",
+      example: "jane@example.com",
+    },
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 256,
+      pattern: "^[^\\r\\n]+$",
+      description: "Display name shown alongside the address in mail clients.",
+      example: "Jane Doe",
+    },
+  },
+} as const;
+
+export const EmailAddressInputSchema = {
+  description:
+    "A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.\n",
+  oneOf: [
+    {
+      type: "string",
+      minLength: 5,
+      maxLength: 998,
+      pattern: "^[^\\r\\n]+$",
+      title: "Email string",
+      description:
+        "Email address, optionally in RFC 5322 mailbox form with an embedded display name.",
+      example: "Jane Doe <jane@example.com>",
+    },
+    {
+      $ref: "#/components/schemas/EmailAddress",
+    },
+  ],
+} as const;
+
+export const EmailThreadMessageReplyRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A reply to a conversation message. Recipients are derived from the message being replied to: its Reply-To address when present, otherwise its From address. Set `reply_all` to also include the original To and Cc recipients (minus the mailbox's own address). The subject and threading headers are set automatically. At least one of `html` or `text` must be provided.\n",
+  properties: {
+    html: {
+      type: "string",
+      maxLength: 524288,
+      description:
+        "HTML body of the reply. At least one of html or text must be provided.",
+    },
+    text: {
+      type: "string",
+      maxLength: 524288,
+      description:
+        "Plain-text body of the reply. At least one of html or text must be provided.",
+    },
+    reply_all: {
+      type: "boolean",
+      default: false,
+      description:
+        "Also send the reply to the original To and Cc recipients, minus the mailbox's own address.",
+    },
+    tags: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/Tag",
+      },
+      maxItems: 20,
+      description:
+        "Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
+    },
+    category: {
+      type: "string",
+      enum: ["marketing", "transactional"],
+      default: "transactional",
+      description:
+        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
+    },
+  },
+  example: {
+    text: "Thanks — confirming we received your request.",
+  },
+} as const;
+
+export const EmailThreadMessageAttachmentListSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The attachments on a conversation message.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailThreadMessageAttachment",
+      },
+    },
+  },
+} as const;
+
+export const EmailThreadMessageAttachmentSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Attachment metadata on a conversation message. The metadata remains readable for the mailbox's retention period; the attachment bytes are downloadable for 30 days after the message occurred.\n",
+  required: ["id", "filename", "content_type", "size"],
+  properties: {
+    id: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "Attachment ID, used to download the attachment bytes.",
+      example: "rea_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    filename: {
+      type: ["string", "null"],
+      readOnly: true,
+      description: "Original filename, or null when the attachment had none.",
+      example: "invoice.pdf",
+    },
+    content_type: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "MIME content type, or null when it could not be determined.",
+      example: "application/pdf",
+    },
+    size: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description: "Attachment size in bytes.",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The original rendered body of a conversation message. Available for 30 days after the message occurred; after that the endpoint returns `410 Gone` while the message's extracted text remains readable on the message itself.\n",
+  required: ["html", "text"],
+  properties: {
+    html: {
+      type: ["string", "null"],
+      description:
+        "The HTML body of the message, or null when the message had no HTML part.",
+    },
+    text: {
+      type: ["string", "null"],
+      description:
+        "The plain-text body of the message, or null when the message had no text part.",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Changes to apply to a conversation message. Omitted fields are left unchanged.",
+  properties: {
+    labels: {
+      $ref: "#/components/schemas/EmailLabelsUpdate",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact to link this message to, or null to unlink the current contact.",
+    },
+  },
+} as const;
+
+export const ContactIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^con_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "con_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EmailLabelsUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Label changes to apply. Labels in `add` are applied and labels in `remove` are taken off; other labels are left untouched. Adding a label that is already present, or removing one that is not, has no effect. System labels express state changes: on a conversation, adding `spam` files it as spam, adding `archive` files it away without deleting it, adding `inbox` (or removing `spam` or `archive`) returns it to the inbox, and removing `unread` marks all retained received messages as read in one call; on a message, adding or removing `unread` flips read state, and adding or removing `trash` moves it to or out of the trash. Changes that contradict this model are rejected: adding more than one placement label in one request, adding `blocked` (blocking a sender is a receive-rule decision), removing `inbox` without adding a destination, adding `trash` or `unread` to a conversation (removing `unread` is the mark-all-read shortcut; `trash` uses the DELETE verb), placement labels on a message (move its conversation instead), and `unread` on a sent message. Custom labels are 1-64 characters with no commas, control characters, or leading or trailing whitespace. System label names and a small reserved set (`all`, `archived`, `deleted`, `draft`, `drafts`, `flagged`, `important`, `junk`, `muted`, `none`, `outbox`, `pinned`, `read`, `scheduled`, `snoozed`, `starred`) cannot be used as custom labels, in any casing. A conversation or message carries at most 20 labels, system labels included.\n",
+  properties: {
+    add: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+        pattern: "^[^,\\s](?:[^,]*[^,\\s])?$",
+      },
+      maxItems: 20,
+      description: "Labels to apply.",
+      example: ["urgent"],
+    },
+    remove: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+        pattern: "^[^,\\s](?:[^,]*[^,\\s])?$",
+      },
+      maxItems: 20,
+      description: "Labels to take off.",
+      example: ["pending"],
+    },
+  },
+} as const;
+
+export const EmailThreadMessageListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThreadMessage",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadMessageSourceSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Link to the message's entry in the received-message or sent-message log, which carries delivery analytics such as per-recipient events. Log entries expire 30 days after the message occurred.\n",
+  required: ["resource", "available_until"],
+  properties: {
+    resource: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "API path of the log entry for this message.",
+      example: "/v1/email/inbound-messages/rem_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    available_until: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "When the log entry (and the message's original rendered source) expires.",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageRecipientSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "One recipient's terminal delivery outcome on a sent conversation message, folded into the message's durable memory when the outcome becomes known.\n",
+  required: ["address", "status"],
+  properties: {
+    address: {
+      type: "string",
+      format: "email",
+      readOnly: true,
+      minLength: 1,
+      description: "Recipient address.",
+    },
+    status: {
+      type: "string",
+      enum: ["delivered", "failed"],
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Terminal outcome: `delivered`, or `failed` (bounce or provider rejection).",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.\n",
+  required: [
+    "id",
+    "direction",
+    "channel",
+    "thread_id",
+    "from",
+    "to",
+    "cc",
+    "delivered_to",
+    "subject",
+    "preview",
+    "labels",
+    "status",
+    "authentication",
+    "spf_pass",
+    "dkim_pass",
+    "dmarc_pass",
+    "attachment_count",
+    "attachment_manifest",
+    "reference_ids",
+    "contact_id",
+    "recipients",
+    "purge_at",
+    "source",
+    "occurred_at",
+  ],
+  properties: {
+    id: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      pattern: "^(rem|em)_[0-9a-hjkmnp-tv-z]{26}$",
+      description:
+        "Message ID. Received messages carry a `rem_` ID, sent messages an `em_` ID — the same IDs used by the received-message and sent-message logs.\n",
+      example: "rem_01krdgeqcxet5s7t44vh8rt9mg",
+    },
+    direction: {
+      type: "string",
+      enum: ["inbound", "outbound"],
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Direction of the message — `inbound` for a received message, `outbound` for a sent one.",
+    },
+    channel: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "Channel this message was carried on. Always `email`.",
+      example: "email",
+    },
+    thread_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/ThreadID",
+      description: "Conversation this message belongs to.",
+    },
+    from: {
+      type: "string",
+      format: "email",
+      readOnly: true,
+      minLength: 1,
+      description: "Sender address.",
+    },
+    to: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description: "Recipient addresses on the To line.",
+    },
+    cc: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description:
+        "Recipient addresses on the Cc line. Empty when the message had none.",
+    },
+    delivered_to: {
+      type: ["string", "null"],
+      format: "email",
+      readOnly: true,
+      description:
+        "Address the message was actually delivered to, when it differs from the mailbox address (for example mail routed in from another address). Null for sent messages and for mail addressed directly to the mailbox.\n",
+    },
+    subject: {
+      type: ["string", "null"],
+      readOnly: true,
+      description: "Message subject. Null when the message had no subject.",
+      example: "Re: Your order",
+    },
+    preview: {
+      type: ["string", "null"],
+      readOnly: true,
+      description: "Short plain-text preview of the message body.",
+    },
+    extracted_text: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Plain-text content of the message with quoted history stripped — readable for the mailbox's full retention period, both directions. Always present when fetching a single message; on list endpoints it is included only when the request sets `include=extracted_text`. Null when no text could be extracted.\n",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels on this message. System labels carry its state: a received message holds exactly one placement label — `inbox` for accepted mail, `archive` when its conversation was filed away, `spam` (failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — plus `unread` until it is read. `trash` marks a message in the trash, either direction. Custom labels share the same list; a message carries at most 20.\n",
+      example: ["inbox", "unread"],
+    },
+    status: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Folded delivery status of a sent message: `accepted`, `sent` (provider handoff), `delivered` (all attempted recipients delivered), or `failed` (terminal failure). Null for received messages.\n",
+    },
+    recipients: {
+      type: ["array", "null"],
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/EmailThreadMessageRecipient",
+      },
+      description:
+        "Terminal per-recipient delivery outcomes of a sent message, folded in as they become known — part of the message's durable memory. Null for received messages and before any recipient reaches a terminal state. Per-recipient event detail lives on the sent-message log (`source`) for 30 days.\n",
+    },
+    authentication: {
+      type: ["string", "null"],
+      enum: ["pass", "fail", "unknown", null],
+      readOnly: true,
+      description:
+        "Whether the sender of a received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict could be determined and the sender should not be treated as verified. Null for sent messages. Part of the message's durable memory — readable for the mailbox's full retention period, so the verdict survives after the 30-day inbound log has expired.\n",
+    },
+    spf_pass: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Whether SPF passed for the sender of a received message. Null for sent messages and when no verdict is available. Durable for the mailbox's retention period.\n",
+    },
+    dkim_pass: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Whether DKIM passed for the sender of a received message. Null for sent messages and when no verdict is available. Durable for the mailbox's retention period.\n",
+    },
+    dmarc_pass: {
+      type: ["boolean", "null"],
+      readOnly: true,
+      description:
+        "Whether DMARC passed for the sender of a received message. Null for sent messages and when no verdict is available. Durable for the mailbox's retention period.\n",
+    },
+    purge_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        'When the message will be permanently deleted: the end of the mailbox\'s retention period, pulled nearer (at most 30 days out) while the message is in the trash. Restore a trashed message before then with `PATCH {"labels": {"remove": ["trash"]}}`.\n',
+    },
+    attachment_count: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description: "Number of attachments on the message.",
+    },
+    attachment_manifest: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/EmailThreadMessageAttachment",
+      },
+      description:
+        "Attachment metadata (filename, content type, size). Remains readable for the mailbox's retention period even after the attachment bytes themselves have expired.\n",
+    },
+    reference_ids: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+      },
+      description:
+        "RFC 5322 References header entries used to thread the conversation.",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this message, or null when none is linked.",
+    },
+    source: {
+      readOnly: true,
+      $ref: "#/components/schemas/EmailThreadMessageSource",
+    },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the message was received or accepted for sending.",
+    },
+  },
+} as const;
+
+export const EmailThreadUpdateRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Changes to apply to a thread. Omitted fields are left unchanged.",
+  properties: {
+    labels: {
+      $ref: "#/components/schemas/EmailLabelsUpdate",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact to link this conversation to, or null to unlink the current contact.",
+    },
+  },
+} as const;
+
+export const EmailThreadListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThread",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadHighlightsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Matched search fragments for a thread, one array per field the query matched, with the matched terms wrapped in `**`. A field is present only when the query matched it, so the keys that are present tell you which fields produced the hit. Returned only on thread search results.\n",
+  properties: {
+    subject: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+      },
+      description: "Matched fragments from the conversation's subject.",
+      example: ["Re: your **order** **4821**"],
+    },
+    text: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+      },
+      description: "Matched fragments from a message's body text.",
+      example: ["confirming your **order** **4821** shipped"],
+    },
+  },
+} as const;
+
+export const EmailThreadSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.\n",
+  required: [
+    "id",
+    "mailbox_id",
+    "channel",
+    "contact_id",
+    "subject",
+    "participants",
+    "message_count",
+    "unread_count",
+    "last_message_at",
+    "last_direction",
+    "labels",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/ThreadID",
+      description: "Thread ID.",
+    },
+    mailbox_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxID",
+      description: "Mailbox this conversation belongs to.",
+    },
+    channel: {
+      type: "string",
+      readOnly: true,
+      minLength: 1,
+      description: "Channel this conversation lives on. Always `email`.",
+      example: "email",
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this conversation, or null when none is linked.",
+    },
+    subject: {
+      type: ["string", "null"],
+      readOnly: true,
+      description:
+        "Subject of the conversation, taken from its first message. Null when that message had no subject.",
+      example: "Re: Your order",
+    },
+    participants: {
+      type: "array",
+      readOnly: true,
+      items: {
+        type: "string",
+        format: "email",
+      },
+      description:
+        "Addresses that appear on the retained messages in this conversation, including the mailbox's own address.",
+    },
+    message_count: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description:
+        "Number of retained messages in this conversation, both directions.",
+    },
+    unread_count: {
+      type: "integer",
+      readOnly: true,
+      minimum: 0,
+      description:
+        "Number of retained received messages that are still unread. Spam and blocked mail is not counted.",
+    },
+    last_message_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "When the most recent retained message in this conversation was received or sent.",
+    },
+    last_direction: {
+      type: "string",
+      enum: ["inbound", "outbound"],
+      minLength: 1,
+      readOnly: true,
+      description:
+        "Direction of the most recent message — `inbound` for a received message, `outbound` for a sent one.",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels on this conversation. Exactly one system placement label is always present — `inbox`, `archive` (filed away, done for now), `spam` (the opening message failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — set by the message that started the conversation. Move a conversation by updating its labels: add `spam` to file it as spam, add `archive` to clean it out of the inbox, and add `inbox` — or remove `spam`, `blocked`, or `archive` — to bring it back. An archived conversation returns to the inbox by itself when a new message arrives. Custom labels share the same list; a conversation carries at most 20.\n",
+      example: ["inbox", "urgent"],
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the thread was created.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the thread last changed.",
+    },
+    highlights: {
+      $ref: "#/components/schemas/EmailThreadHighlights",
+      readOnly: true,
+      description:
+        "Matched search fragments, keyed by the field that matched. Returned only by thread search; omitted when listing threads.\n",
+    },
+  },
+} as const;
+
 export const InboundRouteUpdateSchema = {
   type: "object",
   additionalProperties: false,
@@ -4335,6 +5248,1029 @@ export const InboundRouteSchema = {
   },
 } as const;
 
+export const ReceiveRuleCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for adding a receive rule to a mailbox.",
+  required: ["action", "entry"],
+  properties: {
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["allow", "block"],
+      description:
+        "What the rule does when it matches. Block rules always win. To flip an entry's action, delete the existing rule and re-create it.",
+    },
+    entry: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "The sender address (`alice@example.com`) or domain (`example.com`) to match. Domains also match their subdomains. Stored lowercase.",
+      example: "partner.example.com",
+    },
+    note: {
+      type: "string",
+      minLength: 1,
+      maxLength: 512,
+      description: "Your own note about why the rule exists.",
+    },
+  },
+  example: {
+    action: "allow",
+    entry: "partner.example.com",
+    note: "Approved partner senders",
+  },
+} as const;
+
+export const ReceiveRuleListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/ReceiveRule",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const ReceiveRuleIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^erl_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "erl_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const ReceiveRuleSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An allow or block entry on a mailbox, evaluated when inbound mail arrives. Matching is against the message's envelope sender; domain entries also match subdomains. A given entry can be allow or block, never both.\n",
+  required: [
+    "id",
+    "mailbox_id",
+    "action",
+    "entry",
+    "entry_type",
+    "note",
+    "created_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/ReceiveRuleID",
+      description: "Receive rule ID.",
+    },
+    mailbox_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxID",
+      description: "The mailbox the rule applies to.",
+    },
+    action: {
+      type: "string",
+      minLength: 1,
+      enum: ["allow", "block"],
+      readOnly: true,
+      description:
+        "What the rule does when it matches. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes.",
+    },
+    entry: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      readOnly: true,
+      description:
+        "The sender address or domain the rule matches. Domains also match their subdomains.",
+      example: "partner.example.com",
+    },
+    entry_type: {
+      type: "string",
+      minLength: 1,
+      enum: ["address", "domain"],
+      readOnly: true,
+      description: "Whether the entry is a full address or a domain.",
+    },
+    note: {
+      type: ["string", "null"],
+      maxLength: 512,
+      readOnly: true,
+      description: "Your own note about why the rule exists. Null when unset.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the rule was created.",
+    },
+  },
+} as const;
+
+export const MailboxStatsResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A mailbox's sent and received email statistics: a period-wide summary plus a bucketed time series. `period` echoes the range and grain the server computed against; `data` is one row per bucket in chronological order.\n",
+  required: ["period", "summary", "data"],
+  properties: {
+    period: {
+      $ref: "#/components/schemas/EmailStatsSeriesPeriod",
+    },
+    summary: {
+      $ref: "#/components/schemas/MailboxStatsSummary",
+    },
+    data: {
+      type: "array",
+      readOnly: true,
+      description:
+        "One row per bucket in the period, in chronological order. Buckets with no activity are included with zero counts.",
+      items: {
+        $ref: "#/components/schemas/MailboxStatsPoint",
+      },
+    },
+  },
+} as const;
+
+export const MailboxStatsPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Per-mailbox email activity for one time bucket, bucketed by event time. Sent-mail metrics carry the same delivery, engagement, and latency breakdowns as the email stats endpoints; `received` counts mail that arrived at the mailbox. Buckets with no activity are included with zero counts and null latency percentiles.\n",
+  required: [
+    "bucket",
+    "sends_accepted",
+    "delivery",
+    "engagement",
+    "latency",
+    "received",
+  ],
+  properties: {
+    bucket: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The day (YYYY-MM-DD) or instant (RFC 3339, on the bucket boundary) this point covers, matching the period's grain.",
+      example: "2026-07-21T00:00:00.000Z",
+    },
+    sends_accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct email messages the mailbox sent that were accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other sent-mail metric in `delivery` and `engagement` is recipient-level or event-level.\n",
+      example: 12,
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    received: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Distinct emails the mailbox received in this bucket.",
+      example: 34,
+    },
+  },
+} as const;
+
+export const EmailLatencyQuantilesSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. Percentiles are approximate (computed from a high-volume aggregation pipeline). All three are null together when no qualifying event contributed a latency measurement in the bucket.\n",
+  required: ["p50_ms", "p95_ms", "p99_ms"],
+  properties: {
+    p50_ms: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.",
+      example: 420,
+    },
+    p95_ms: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.",
+      example: 1820,
+    },
+    p99_ms: {
+      type: ["integer", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.",
+      example: 4920,
+    },
+  },
+} as const;
+
+export const EmailLatencyStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:\n\n- `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.\n- `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n- `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n\nEach family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.\n",
+  properties: {
+    processing: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+    delivery: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+    total: {
+      $ref: "#/components/schemas/EmailLatencyQuantiles",
+    },
+  },
+} as const;
+
+export const EmailEngagementStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences); the `unique_*` fields count distinct recipients; `unsubscribes` counts distinct unsubscribe events. Counts are attributed by event time (not send time), so an open recorded today for a message sent earlier counts in today's row. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.\n",
+  required: [
+    "opens",
+    "opens_non_prefetched",
+    "unique_opens",
+    "unique_opens_non_prefetched",
+    "clicks",
+    "unique_clicks",
+    "unsubscribes",
+    "open_rate",
+    "click_rate",
+    "unsubscribe_rate",
+  ],
+  properties: {
+    opens: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).\n",
+      example: 5420,
+    },
+    opens_non_prefetched: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.\n",
+      example: 3210,
+    },
+    unique_opens: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.",
+      example: 3640,
+    },
+    unique_opens_non_prefetched: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.\n",
+      example: 2480,
+    },
+    clicks: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct click events, counting repeat clicks from the same recipient.",
+      example: 924,
+    },
+    unique_clicks: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Distinct recipients who clicked at least once.",
+      example: 621,
+    },
+    unsubscribes: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.",
+      example: 12,
+    },
+    open_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.\n",
+      example: 0.1683,
+    },
+    click_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.\n",
+      example: 0.0422,
+    },
+    unsubscribe_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.\n",
+      example: 0.0009,
+    },
+  },
+} as const;
+
+export const EmailBounceStatsWithRatesSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.\n",
+  required: [
+    "hard",
+    "soft",
+    "admin",
+    "block",
+    "undetermined",
+    "hard_rate",
+    "soft_rate",
+    "admin_rate",
+    "block_rate",
+    "undetermined_rate",
+  ],
+  properties: {
+    hard: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).",
+      example: 12410,
+    },
+    soft: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).",
+      example: 14290,
+    },
+    admin: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced by an upstream policy block (relaying denied, blocklisted domain).",
+      example: 410,
+    },
+    block: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.",
+      example: 920,
+    },
+    undetermined: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients bounced where the receiving server's response did not allow precise classification.",
+      example: 80,
+    },
+    hard_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.\n",
+      example: 0.454,
+    },
+    soft_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.\n",
+      example: 0.523,
+    },
+    admin_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.\n",
+      example: 0.015,
+    },
+    block_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.\n",
+      example: 0.0337,
+    },
+    undetermined_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.\n",
+      example: 0.0029,
+    },
+  },
+} as const;
+
+export const EmailDeliveryStatsSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Delivery pipeline counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). Every count is the number of distinct recipients that reached the named lifecycle stage in scope (on the period summary, the sum of the per-bucket distinct counts), attributed by event time (not send time): a recipient delivered on Monday counts in Monday's row, and a recipient who bounced then succeeded on a retry can appear in both `bounced` and `delivered`. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. These counts are successive lifecycle stages, not interchangeable categories: `rejected` happens before any send attempt (suppression, policy, generation failure); `deferred` is a temporary in-flight delay still being retried; `bounced` (with its hard/soft/admin/block/undetermined sub-types) is a delivery failure; and `complained` is post-delivery spam feedback. Each rate is a fraction in the range 0 to 1 and is null when its denominator is zero. `accepted` is reported only where it can be attributed (time buckets and the period summary); breakdown rows omit it.\n",
+  required: [
+    "processed",
+    "delivered",
+    "bounced",
+    "complained",
+    "deferred",
+    "rejected",
+    "oob_bounces",
+    "effective_delivered",
+    "all_bounces",
+    "oob_rate",
+    "bounces",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+  ],
+  properties: {
+    accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients accepted for delivery after suppression filtering. Reported on time buckets and the period summary; omitted on breakdown rows, whose rollups do not carry it.",
+      example: 14820,
+    },
+    processed: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose message was processed and handed off for delivery.",
+      example: 14810,
+    },
+    delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose message the receiving mail server accepted.",
+      example: 14720,
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.\n",
+      example: 90,
+    },
+    bounces: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailBounceStatsWithRates",
+        },
+      ],
+    },
+    complained: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients who reported the message as spam via a feedback loop.",
+      example: 3,
+    },
+    deferred: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients whose delivery the receiving server temporarily delayed and is still being retried.\n",
+      example: 14,
+    },
+    rejected: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct recipients rejected before any delivery attempt. Includes recipients on the workspace suppression list, transmissions that could not be completed, message-generation failures, and recipients refused by sending policy. The per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` surfaces the specific cause.\n",
+      example: 10,
+    },
+    oob_bounces: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Out-of-band bounce events: distinct failure notifications received after the receiving server had initially confirmed delivery. Counted as deduplicated events, not unique recipients.\n",
+      example: 2,
+    },
+    effective_delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Recipients who remain in-inbox in this scope after all bounce signals resolve, computed as `delivered - oob_bounces`. Use this as the base for engagement-rate denominators. Clamped to 0 when `oob_bounces` exceeds `delivered`.",
+      example: 14718,
+    },
+    all_bounces: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Total recipients in this scope who did not receive the message, computed as `bounced + oob_bounces`.",
+      example: 92,
+    },
+    oob_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this scope's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when there were no attempts.",
+      example: 0.00014,
+    },
+    delivery_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this scope's delivery attempts that resulted in a message remaining in-inbox, computed as `effective_delivered / (delivered + bounced)`. Null when there were no attempts.\n",
+      example: 0.9939,
+    },
+    bounce_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Share of this scope's delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Because `oob_bounces` counts events rather than recipients, `all_bounces` can exceed the attempt count; the rate is clamped to 1. Null when there were no attempts.\n",
+      example: 0.0061,
+    },
+    complaint_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Spam complaints in this scope relative to effectively delivered recipients, computed as `complained / effective_delivered`. Complaints are attributed by event time, so a scope can record more of them than it effectively delivered, pushing the rate above 1. Null when `effective_delivered` is zero.\n",
+      example: 0.0002,
+    },
+  },
+} as const;
+
+export const MailboxStatsSummarySchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Single-row aggregate of the mailbox's email activity across the full requested period. Counts are sums of per-bucket counts across the window; latency percentiles are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.\n",
+  required: ["sends_accepted", "delivery", "engagement", "latency", "received"],
+  properties: {
+    sends_accepted: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct email messages the mailbox sent that were accepted, counted at the message level and summed per bucket across the period.",
+      example: 231,
+    },
+    delivery: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailDeliveryStats",
+        },
+      ],
+    },
+    engagement: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailEngagementStats",
+        },
+      ],
+    },
+    latency: {
+      readOnly: true,
+      allOf: [
+        {
+          $ref: "#/components/schemas/EmailLatencyStats",
+        },
+      ],
+    },
+    received: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Distinct emails the mailbox received, summed per bucket across the period.",
+      example: 519,
+    },
+  },
+} as const;
+
+export const EmailStatsSeriesPeriodSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.\n",
+  required: ["from", "to", "grain"],
+  properties: {
+    from: {
+      type: "string",
+      minLength: 1,
+      pattern:
+        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
+      readOnly: true,
+      description:
+        "Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.",
+      example: {},
+    },
+    to: {
+      type: "string",
+      minLength: 1,
+      pattern:
+        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
+      readOnly: true,
+      description:
+        "Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.",
+      example: {},
+    },
+    grain: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The bucket grain of the series, either `day` or `hour`.",
+      example: "day",
+    },
+    data_as_of: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.\n",
+      example: {},
+    },
+  },
+} as const;
+
+export const MailboxUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "Fields to update on a mailbox. Omitted fields are unchanged; fields set to null are cleared. The address and domain are immutable.",
+  properties: {
+    display_name: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox. Null clears it.",
+    },
+    default_reply_to: {
+      type: ["string", "null"],
+      format: "email",
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox. Null clears it.",
+    },
+    receive_policy: {
+      type: "string",
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      description: "Which inbound mail the mailbox accepts.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d"],
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Replaces the mailbox's key/value data. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+  },
+  example: {
+    display_name: "Acme Concierge",
+    retention_tier: "30d",
+  },
+} as const;
+
+export const MailboxCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "Parameters for creating a mailbox.",
+  properties: {
+    local_part: {
+      type: "string",
+      minLength: 1,
+      maxLength: 64,
+      pattern: "^[A-Za-z0-9._-]+$",
+      description:
+        "The local part of the mailbox address (the part before `@`). Letters, digits, dots, underscores, and hyphens; stored lowercase. On the shared `inbox.ai` domain, separators must sit between letters or digits (no leading, trailing, or repeated separators), reserved names such as `postmaster` or `abuse` are unavailable, and choosing your own local part uses one of your plan's custom-handle allowance slots (generated addresses are always available). Omit to have Bird generate a random local part.",
+      example: "concierge",
+    },
+    domain: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      default: "inbox.ai",
+      description:
+        "The domain the address lives under. Defaults to `inbox.ai`, Bird's shared mailbox domain, where creating the mailbox claims the address for your organization: first come, first served, and permanently reserved to your organization even after the mailbox is deleted. May instead name one of your own domains that is enabled for receiving email.",
+      example: "mail.acme.com",
+    },
+    display_name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox.",
+      example: "Acme Concierge",
+    },
+    default_reply_to: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox.",
+    },
+    receive_policy: {
+      type: "string",
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      default: "open",
+      description:
+        "Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule; `drop` stores nothing.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d"],
+      default: "30d",
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Your own key/value data to attach to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+  },
+  example: {
+    local_part: "concierge",
+    display_name: "Acme Concierge",
+    receive_policy: "open",
+    retention_tier: "30d",
+  },
+} as const;
+
+export const MailboxListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/Mailbox",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const InboundAddressIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^ina_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "ina_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const MailboxOwnerSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The principal that owns the mailbox. Always the workspace.",
+  required: ["type", "id"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["workspace"],
+      readOnly: true,
+      description: "Owner principal type.",
+    },
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "Owner principal ID.",
+    },
+  },
+} as const;
+
+export const MailboxSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.\n",
+  required: [
+    "id",
+    "address",
+    "display_name",
+    "default_reply_to",
+    "receive_policy",
+    "state",
+    "channel",
+    "owner",
+    "inbound_address_id",
+    "retention_tier",
+    "message_count",
+    "thread_count",
+    "metadata",
+    "created_at",
+    "updated_at",
+  ],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxID",
+      description: "Mailbox ID.",
+    },
+    address: {
+      type: "string",
+      format: "email",
+      minLength: 5,
+      readOnly: true,
+      description: "The mailbox's email address. Immutable once created.",
+      example: "concierge@inbox.ai",
+    },
+    display_name: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox. Null when unset.",
+      example: "Acme Concierge",
+    },
+    default_reply_to: {
+      type: ["string", "null"],
+      format: "email",
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox. Null when unset.",
+    },
+    receive_policy: {
+      type: "string",
+      minLength: 1,
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      description:
+        "Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.",
+    },
+    state: {
+      type: "string",
+      minLength: 1,
+      enum: ["active", "suspended"],
+      readOnly: true,
+      description:
+        "Lifecycle state. Suspended mailboxes stop emitting events; inbound mail is retained as blocked.",
+    },
+    channel: {
+      type: "string",
+      minLength: 1,
+      enum: ["email"],
+      readOnly: true,
+      description: "The channel this mailbox receives on. Always `email`.",
+    },
+    owner: {
+      readOnly: true,
+      $ref: "#/components/schemas/MailboxOwner",
+    },
+    inbound_address_id: {
+      readOnly: true,
+      $ref: "#/components/schemas/InboundAddressID",
+      description:
+        "The underlying inbound address that receives this mailbox's mail.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d", "90d", "1y"],
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.",
+    },
+    message_count: {
+      type: "integer",
+      format: "int64",
+      readOnly: true,
+      description: "Number of retained messages across all threads.",
+    },
+    thread_count: {
+      type: "integer",
+      format: "int64",
+      readOnly: true,
+      description: "Number of retained threads.",
+    },
+    unread_thread_count: {
+      type: ["integer", "null"],
+      format: "int64",
+      readOnly: true,
+      description:
+        "Number of threads with unread messages in this mailbox, excluding trash. Null on create/update responses.\n",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.",
+    },
+    local_part_generated: {
+      readOnly: true,
+      type: "boolean",
+      description:
+        "Whether Bird generated the local part of the address. `false` means a custom handle was chosen at creation; on the shared `inbox.ai` domain a custom handle counts against your plan's custom-handle allowance.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the mailbox was created.",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+      description: "When the mailbox was last updated.",
+    },
+    deleted_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description:
+        "When the mailbox was deleted, or null if it is active. A deleted mailbox stops receiving mail immediately but can be restored for 30 days, after which it and its remembered messages are permanently removed.",
+    },
+  },
+} as const;
+
 export const InboundAttachmentListSchema = {
   type: "object",
   additionalProperties: false,
@@ -4431,30 +6367,6 @@ export const InboundEmailMessageListSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
-} as const;
-
-export const EmailAddressSchema = {
-  type: "object",
-  additionalProperties: false,
-  description: "An email address with an optional display name.",
-  required: ["email"],
-  properties: {
-    email: {
-      type: "string",
-      format: "email",
-      minLength: 5,
-      description: "Email address.",
-      example: "jane@example.com",
-    },
-    name: {
-      type: "string",
-      minLength: 1,
-      maxLength: 256,
-      pattern: "^[^\\r\\n]+$",
-      description: "Display name shown alongside the address in mail clients.",
-      example: "Jane Doe",
-    },
-  },
 } as const;
 
 export const InboundEmailMessageSchema = {
@@ -4633,13 +6545,6 @@ export const InboundAddressListSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
-} as const;
-
-export const InboundAddressIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^ina_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "ina_01krdgeqcxet5s7t44vh8rt9mg",
 } as const;
 
 export const InboundAddressSchema = {
@@ -5607,417 +7512,6 @@ export const EmailStatsSeriesPointSchema = {
       readOnly: true,
       description:
         "Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
-    },
-  },
-} as const;
-
-export const EmailLatencyQuantilesSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. Percentiles are approximate (computed from a high-volume aggregation pipeline). All three are null together when no qualifying event contributed a latency measurement in the bucket.\n",
-  required: ["p50_ms", "p95_ms", "p99_ms"],
-  properties: {
-    p50_ms: {
-      type: ["integer", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.",
-      example: 420,
-    },
-    p95_ms: {
-      type: ["integer", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.",
-      example: 1820,
-    },
-    p99_ms: {
-      type: ["integer", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.",
-      example: 4920,
-    },
-  },
-} as const;
-
-export const EmailLatencyStatsSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:\n\n- `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.\n- `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n- `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n\nEach family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.\n",
-  properties: {
-    processing: {
-      $ref: "#/components/schemas/EmailLatencyQuantiles",
-    },
-    delivery: {
-      $ref: "#/components/schemas/EmailLatencyQuantiles",
-    },
-    total: {
-      $ref: "#/components/schemas/EmailLatencyQuantiles",
-    },
-  },
-} as const;
-
-export const EmailEngagementStatsSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences); the `unique_*` fields count distinct recipients; `unsubscribes` counts distinct unsubscribe events. Counts are attributed by event time (not send time), so an open recorded today for a message sent earlier counts in today's row. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.\n",
-  required: [
-    "opens",
-    "opens_non_prefetched",
-    "unique_opens",
-    "unique_opens_non_prefetched",
-    "clicks",
-    "unique_clicks",
-    "unsubscribes",
-    "open_rate",
-    "click_rate",
-    "unsubscribe_rate",
-  ],
-  properties: {
-    opens: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).\n",
-      example: 5420,
-    },
-    opens_non_prefetched: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.\n",
-      example: 3210,
-    },
-    unique_opens: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.",
-      example: 3640,
-    },
-    unique_opens_non_prefetched: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.\n",
-      example: 2480,
-    },
-    clicks: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct click events, counting repeat clicks from the same recipient.",
-      example: 924,
-    },
-    unique_clicks: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description: "Distinct recipients who clicked at least once.",
-      example: 621,
-    },
-    unsubscribes: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.",
-      example: 12,
-    },
-    open_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.\n",
-      example: 0.1683,
-    },
-    click_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.\n",
-      example: 0.0422,
-    },
-    unsubscribe_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.\n",
-      example: 0.0009,
-    },
-  },
-} as const;
-
-export const EmailBounceStatsWithRatesSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.\n",
-  required: [
-    "hard",
-    "soft",
-    "admin",
-    "block",
-    "undetermined",
-    "hard_rate",
-    "soft_rate",
-    "admin_rate",
-    "block_rate",
-    "undetermined_rate",
-  ],
-  properties: {
-    hard: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).",
-      example: 12410,
-    },
-    soft: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).",
-      example: 14290,
-    },
-    admin: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients bounced by an upstream policy block (relaying denied, blocklisted domain).",
-      example: 410,
-    },
-    block: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.",
-      example: 920,
-    },
-    undetermined: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients bounced where the receiving server's response did not allow precise classification.",
-      example: 80,
-    },
-    hard_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.\n",
-      example: 0.454,
-    },
-    soft_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.\n",
-      example: 0.523,
-    },
-    admin_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.\n",
-      example: 0.015,
-    },
-    block_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.\n",
-      example: 0.0337,
-    },
-    undetermined_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.\n",
-      example: 0.0029,
-    },
-  },
-} as const;
-
-export const EmailDeliveryStatsSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "Delivery pipeline counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). Every count is the number of distinct recipients that reached the named lifecycle stage in scope (on the period summary, the sum of the per-bucket distinct counts), attributed by event time (not send time): a recipient delivered on Monday counts in Monday's row, and a recipient who bounced then succeeded on a retry can appear in both `bounced` and `delivered`. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. These counts are successive lifecycle stages, not interchangeable categories: `rejected` happens before any send attempt (suppression, policy, generation failure); `deferred` is a temporary in-flight delay still being retried; `bounced` (with its hard/soft/admin/block/undetermined sub-types) is a delivery failure; and `complained` is post-delivery spam feedback. Each rate is a fraction in the range 0 to 1 and is null when its denominator is zero. `accepted` is reported only where it can be attributed (time buckets and the period summary); breakdown rows omit it.\n",
-  required: [
-    "processed",
-    "delivered",
-    "bounced",
-    "complained",
-    "deferred",
-    "rejected",
-    "oob_bounces",
-    "effective_delivered",
-    "all_bounces",
-    "oob_rate",
-    "bounces",
-    "delivery_rate",
-    "bounce_rate",
-    "complaint_rate",
-  ],
-  properties: {
-    accepted: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients accepted for delivery after suppression filtering. Reported on time buckets and the period summary; omitted on breakdown rows, whose rollups do not carry it.",
-      example: 14820,
-    },
-    processed: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients whose message was processed and handed off for delivery.",
-      example: 14810,
-    },
-    delivered: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients whose message the receiving mail server accepted.",
-      example: 14720,
-    },
-    bounced: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.\n",
-      example: 90,
-    },
-    bounces: {
-      readOnly: true,
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailBounceStatsWithRates",
-        },
-      ],
-    },
-    complained: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients who reported the message as spam via a feedback loop.",
-      example: 3,
-    },
-    deferred: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients whose delivery the receiving server temporarily delayed and is still being retried.\n",
-      example: 14,
-    },
-    rejected: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Distinct recipients rejected before any delivery attempt. Includes recipients on the workspace suppression list, transmissions that could not be completed, message-generation failures, and recipients refused by sending policy. The per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` surfaces the specific cause.\n",
-      example: 10,
-    },
-    oob_bounces: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Out-of-band bounce events: distinct failure notifications received after the receiving server had initially confirmed delivery. Counted as deduplicated events, not unique recipients.\n",
-      example: 2,
-    },
-    effective_delivered: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Recipients who remain in-inbox in this scope after all bounce signals resolve, computed as `delivered - oob_bounces`. Use this as the base for engagement-rate denominators. Clamped to 0 when `oob_bounces` exceeds `delivered`.",
-      example: 14718,
-    },
-    all_bounces: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Total recipients in this scope who did not receive the message, computed as `bounced + oob_bounces`.",
-      example: 92,
-    },
-    oob_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Share of this scope's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when there were no attempts.",
-      example: 0.00014,
-    },
-    delivery_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Share of this scope's delivery attempts that resulted in a message remaining in-inbox, computed as `effective_delivered / (delivered + bounced)`. Null when there were no attempts.\n",
-      example: 0.9939,
-    },
-    bounce_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Share of this scope's delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Because `oob_bounces` counts events rather than recipients, `all_bounces` can exceed the attempt count; the rate is clamped to 1. Null when there were no attempts.\n",
-      example: 0.0061,
-    },
-    complaint_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Spam complaints in this scope relative to effectively delivered recipients, computed as `complained / effective_delivered`. Complaints are attributed by event time, so a scope can record more of them than it effectively delivered, pushing the rate above 1. Null when `effective_delivered` is zero.\n",
-      example: 0.0002,
     },
   },
 } as const;
@@ -7923,51 +9417,6 @@ export const EmailStatsPointSchema = {
   },
 } as const;
 
-export const EmailStatsSeriesPeriodSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.\n",
-  required: ["from", "to", "grain"],
-  properties: {
-    from: {
-      type: "string",
-      minLength: 1,
-      pattern:
-        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
-      readOnly: true,
-      description:
-        "Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.",
-      example: {},
-    },
-    to: {
-      type: "string",
-      minLength: 1,
-      pattern:
-        "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$",
-      readOnly: true,
-      description:
-        "Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.",
-      example: {},
-    },
-    grain: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "The bucket grain of the series, either `day` or `hour`.",
-      example: "day",
-    },
-    data_as_of: {
-      type: ["string", "null"],
-      format: "date-time",
-      readOnly: true,
-      description:
-        "The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.\n",
-      example: {},
-    },
-  },
-} as const;
-
 export const WhatsAppTemplateListSchema = {
   type: "object",
   additionalProperties: false,
@@ -9751,13 +11200,6 @@ export const AudienceContactsRemoveRequestSchema = {
   },
 } as const;
 
-export const ContactIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^con_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "con_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
 export const AudienceContactsAddRequestSchema = {
   type: "object",
   additionalProperties: false,
@@ -10823,51 +12265,6 @@ export const EmailMessageBatchRequestSchema = {
   ],
 } as const;
 
-export const EmailAttachmentSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["filename", "content"],
-  description:
-    "File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.\nInline images for `<img src=\"cid:...\"/>` references in the HTML body use the `content_id` field together with `content`.\nBird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.\nRecipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.\nBatch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.\n",
-  properties: {
-    filename: {
-      type: "string",
-      minLength: 1,
-      maxLength: 255,
-      description: "Filename shown to the recipient. Required.",
-      example: "invoice.pdf",
-    },
-    content: {
-      type: "string",
-      format: "byte",
-      minLength: 1,
-      description:
-        "Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
-    },
-    path: {
-      type: "string",
-      format: "uri",
-      description:
-        "Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `UnsupportedEmailFeature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.\n",
-    },
-    content_type: {
-      type: "string",
-      description:
-        "MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.\n",
-      example: "application/pdf",
-    },
-    content_id: {
-      type: "string",
-      minLength: 1,
-      maxLength: 128,
-      pattern: "^[A-Za-z0-9._-]+$",
-      description:
-        'RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.\n',
-      example: "invoice-logo",
-    },
-  },
-} as const;
-
 export const EmailTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
@@ -10906,26 +12303,6 @@ export const EmailTemplateSendSchema = {
       },
     },
   },
-} as const;
-
-export const EmailAddressInputSchema = {
-  description:
-    "A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.\n",
-  oneOf: [
-    {
-      type: "string",
-      minLength: 5,
-      maxLength: 998,
-      pattern: "^[^\\r\\n]+$",
-      title: "Email string",
-      description:
-        "Email address, optionally in RFC 5322 mailbox form with an embedded display name.",
-      example: "Jane Doe <jane@example.com>",
-    },
-    {
-      $ref: "#/components/schemas/EmailAddress",
-    },
-  ],
 } as const;
 
 export const EmailMessageSendRequestSchema = {
@@ -12570,6 +13947,138 @@ export const EmailSmtpConfigWritableSchema = {
   ],
 } as const;
 
+export const EmailMailboxLabelListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The labels available in a mailbox.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageAttachmentListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The attachments on a conversation message.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+    },
+  },
+} as const;
+
+export const EmailThreadMessageListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThreadMessageWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadMessageWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.\n",
+  required: ["labels", "contact_id"],
+  properties: {
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels on this message. System labels carry its state: a received message holds exactly one placement label — `inbox` for accepted mail, `archive` when its conversation was filed away, `spam` (failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — plus `unread` until it is read. `trash` marks a message in the trash, either direction. Custom labels share the same list; a message carries at most 20.\n",
+      example: ["inbox", "unread"],
+    },
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this message, or null when none is linked.",
+    },
+  },
+} as const;
+
+export const EmailThreadListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/EmailThreadWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const EmailThreadWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.\n",
+  required: ["contact_id", "labels"],
+  properties: {
+    contact_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/ContactID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description:
+        "Contact linked to this conversation, or null when none is linked.",
+    },
+    labels: {
+      type: "array",
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 64,
+      },
+      maxItems: 20,
+      description:
+        "Labels on this conversation. Exactly one system placement label is always present — `inbox`, `archive` (filed away, done for now), `spam` (the opening message failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — set by the message that started the conversation. Move a conversation by updating its labels: add `spam` to file it as spam, add `archive` to clean it out of the inbox, and add `inbox` — or remove `spam`, `blocked`, or `archive` — to bring it back. An archived conversation returns to the inbox by itself when a new message arrives. Custom labels share the same list; a conversation carries at most 20.\n",
+      example: ["inbox", "urgent"],
+    },
+  },
+} as const;
+
 export const InboundRouteListWritableSchema = {
   allOf: [
     {
@@ -12650,6 +14159,128 @@ export const InboundRouteWritableSchema = {
       type: "boolean",
       description:
         "Whether the route is evaluated. Disabled routes are kept but skipped.",
+    },
+  },
+} as const;
+
+export const ReceiveRuleListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const MailboxStatsResponseWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A mailbox's sent and received email statistics: a period-wide summary plus a bucketed time series. `period` echoes the range and grain the server computed against; `data` is one row per bucket in chronological order.\n",
+  required: ["summary"],
+  properties: {
+    summary: {
+      $ref: "#/components/schemas/MailboxStatsSummaryWritable",
+    },
+  },
+} as const;
+
+export const MailboxStatsPointWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Per-mailbox email activity for one time bucket, bucketed by event time. Sent-mail metrics carry the same delivery, engagement, and latency breakdowns as the email stats endpoints; `received` counts mail that arrived at the mailbox. Buckets with no activity are included with zero counts and null latency percentiles.\n",
+} as const;
+
+export const EmailLatencyStatsWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:\n\n- `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.\n- `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n- `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n\nEach family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.\n",
+} as const;
+
+export const MailboxStatsSummaryWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "Single-row aggregate of the mailbox's email activity across the full requested period. Counts are sums of per-bucket counts across the window; latency percentiles are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.\n",
+} as const;
+
+export const MailboxListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/MailboxWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelope",
+    },
+  ],
+} as const;
+
+export const MailboxWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.\n",
+  required: [
+    "display_name",
+    "default_reply_to",
+    "receive_policy",
+    "retention_tier",
+    "metadata",
+  ],
+  properties: {
+    display_name: {
+      type: ["string", "null"],
+      maxLength: 255,
+      description:
+        "Display name used as the sender name on mail from this mailbox. Null when unset.",
+      example: "Acme Concierge",
+    },
+    default_reply_to: {
+      type: ["string", "null"],
+      format: "email",
+      description:
+        "Default Reply-To address stamped on mail sent from this mailbox. Null when unset.",
+    },
+    receive_policy: {
+      type: "string",
+      minLength: 1,
+      enum: ["open", "replies_only", "allowlist", "drop"],
+      description:
+        "Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.",
+    },
+    retention_tier: {
+      type: "string",
+      enum: ["30d", "90d", "1y"],
+      description:
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.",
+    },
+    metadata: {
+      type: "object",
+      additionalProperties: true,
+      description:
+        "Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.",
     },
   },
 } as const;
@@ -13186,14 +14817,6 @@ export const EmailStatsByBroadcastResponseWritableSchema = {
       ],
     },
   },
-} as const;
-
-export const EmailLatencyStatsWritableSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:\n\n- `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.\n- `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n- `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.\n\nEach family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.\n",
 } as const;
 
 export const EmailBroadcastStatsPointWritableSchema = {

@@ -2071,6 +2071,494 @@ export type EmailSmtpConfig = {
 } & Timestamps;
 
 /**
+ * The labels available in a mailbox.
+ */
+export type EmailMailboxLabelList = {
+  data: Array<EmailMailboxLabel>;
+};
+
+/**
+ * One label available in a mailbox.
+ */
+export type EmailMailboxLabel = {
+  /**
+   * The label name, as it appears on conversations and messages.
+   */
+  readonly name: string;
+  /**
+   * `system` labels are built in and carry state — the placements `inbox`, `archive`, `spam`, `blocked`, and `sent`, plus `trash` and `unread`. `custom` labels are the workspace's own tags.
+   */
+  readonly type: "system" | "custom";
+};
+
+/**
+ * A new message sent from a mailbox, starting a new conversation. Mirrors the plain send request minus `from` — the mailbox is the sender identity — and minus `scheduled_at` (mailbox sends are immediate). Bird mints the RFC 5322 Message-ID so replies thread back to this conversation. At least one of `html` or `text` must be provided.
+ *
+ */
+export type EmailMailboxComposeRequest = {
+  /**
+   * Primary recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.
+   */
+  to: Array<EmailAddressInput>;
+  /**
+   * CC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.
+   */
+  cc?: Array<EmailAddressInput>;
+  /**
+   * BCC recipients. Each entry is a plain email string, an RFC 5322 mailbox string (`Jane <jane@example.com>`), or an object with an optional display name.
+   */
+  bcc?: Array<EmailAddressInput>;
+  /**
+   * Message subject line.
+   */
+  subject: string;
+  /**
+   * HTML body. At least one of html or text must be provided.
+   */
+  html?: string;
+  /**
+   * Plain-text body. At least one of html or text must be provided.
+   */
+  text?: string;
+  /**
+   * Reply-To addresses. When omitted, the mailbox's `default_reply_to` applies (replies then come back to the mailbox itself).
+   *
+   */
+  reply_to?: Array<EmailAddressInput>;
+  /**
+   * File attachments. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Attachment metadata endures on the message's `attachment_manifest`; the bytes are downloadable for 30 days.
+   *
+   */
+  attachments?: Array<EmailAttachment>;
+  /**
+   * Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
+   *
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
+   *
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
+   *
+   */
+  category?: "marketing" | "transactional";
+};
+
+/**
+ * File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.
+ * Inline images for `<img src="cid:..."/>` references in the HTML body use the `content_id` field together with `content`.
+ * Bird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.
+ * Recipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.
+ * Batch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.
+ *
+ */
+export type EmailAttachment = {
+  /**
+   * Filename shown to the recipient. Required.
+   */
+  filename: string;
+  /**
+   * Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
+   *
+   */
+  content: string;
+  /**
+   * Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `UnsupportedEmailFeature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
+   *
+   */
+  path?: string;
+  /**
+   * MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.
+   *
+   */
+  content_type?: string;
+  /**
+   * RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.
+   *
+   */
+  content_id?: string;
+};
+
+/**
+ * An email address with an optional display name.
+ */
+export type EmailAddress = {
+  /**
+   * Email address.
+   */
+  email: string;
+  /**
+   * Display name shown alongside the address in mail clients.
+   */
+  name?: string;
+};
+
+/**
+ * A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.
+ *
+ */
+export type EmailAddressInput = string | EmailAddress;
+
+/**
+ * A reply to a conversation message. Recipients are derived from the message being replied to: its Reply-To address when present, otherwise its From address. Set `reply_all` to also include the original To and Cc recipients (minus the mailbox's own address). The subject and threading headers are set automatically. At least one of `html` or `text` must be provided.
+ *
+ */
+export type EmailThreadMessageReplyRequest = {
+  /**
+   * HTML body of the reply. At least one of html or text must be provided.
+   */
+  html?: string;
+  /**
+   * Plain-text body of the reply. At least one of html or text must be provided.
+   */
+  text?: string;
+  /**
+   * Also send the reply to the original To and Cc recipients, minus the mailbox's own address.
+   */
+  reply_all?: boolean;
+  /**
+   * Structured `{name, value}` labels for filtering and analytics on the sent-message log. Cap: 20 tags per send.
+   *
+   */
+  tags?: Array<Tag>;
+  /**
+   * Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.
+   *
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
+   *
+   */
+  category?: "marketing" | "transactional";
+};
+
+/**
+ * The attachments on a conversation message.
+ */
+export type EmailThreadMessageAttachmentList = {
+  data: Array<EmailThreadMessageAttachment>;
+};
+
+/**
+ * Attachment metadata on a conversation message. The metadata remains readable for the mailbox's retention period; the attachment bytes are downloadable for 30 days after the message occurred.
+ *
+ */
+export type EmailThreadMessageAttachment = {
+  /**
+   * Attachment ID, used to download the attachment bytes.
+   */
+  readonly id: string;
+  /**
+   * Original filename, or null when the attachment had none.
+   */
+  readonly filename: string | null;
+  /**
+   * MIME content type, or null when it could not be determined.
+   */
+  readonly content_type: string | null;
+  /**
+   * Attachment size in bytes.
+   */
+  readonly size: number;
+};
+
+/**
+ * The original rendered body of a conversation message. Available for 30 days after the message occurred; after that the endpoint returns `410 Gone` while the message's extracted text remains readable on the message itself.
+ *
+ */
+export type EmailThreadMessageBody = {
+  /**
+   * The HTML body of the message, or null when the message had no HTML part.
+   */
+  html: string | null;
+  /**
+   * The plain-text body of the message, or null when the message had no text part.
+   */
+  text: string | null;
+};
+
+/**
+ * Changes to apply to a conversation message. Omitted fields are left unchanged.
+ */
+export type EmailThreadMessageUpdateRequest = {
+  labels?: EmailLabelsUpdate;
+  /**
+   * Contact to link this message to, or null to unlink the current contact.
+   */
+  contact_id?: ContactId | null;
+};
+
+export type ContactId = string;
+
+/**
+ * Label changes to apply. Labels in `add` are applied and labels in `remove` are taken off; other labels are left untouched. Adding a label that is already present, or removing one that is not, has no effect. System labels express state changes: on a conversation, adding `spam` files it as spam, adding `archive` files it away without deleting it, adding `inbox` (or removing `spam` or `archive`) returns it to the inbox, and removing `unread` marks all retained received messages as read in one call; on a message, adding or removing `unread` flips read state, and adding or removing `trash` moves it to or out of the trash. Changes that contradict this model are rejected: adding more than one placement label in one request, adding `blocked` (blocking a sender is a receive-rule decision), removing `inbox` without adding a destination, adding `trash` or `unread` to a conversation (removing `unread` is the mark-all-read shortcut; `trash` uses the DELETE verb), placement labels on a message (move its conversation instead), and `unread` on a sent message. Custom labels are 1-64 characters with no commas, control characters, or leading or trailing whitespace. System label names and a small reserved set (`all`, `archived`, `deleted`, `draft`, `drafts`, `flagged`, `important`, `junk`, `muted`, `none`, `outbox`, `pinned`, `read`, `scheduled`, `snoozed`, `starred`) cannot be used as custom labels, in any casing. A conversation or message carries at most 20 labels, system labels included.
+ *
+ */
+export type EmailLabelsUpdate = {
+  /**
+   * Labels to apply.
+   */
+  add?: Array<string>;
+  /**
+   * Labels to take off.
+   */
+  remove?: Array<string>;
+};
+
+export type EmailThreadMessageList = {
+  data: Array<EmailThreadMessage>;
+} & ListEnvelope;
+
+/**
+ * Link to the message's entry in the received-message or sent-message log, which carries delivery analytics such as per-recipient events. Log entries expire 30 days after the message occurred.
+ *
+ */
+export type EmailThreadMessageSource = {
+  /**
+   * API path of the log entry for this message.
+   */
+  readonly resource: string;
+  /**
+   * When the log entry (and the message's original rendered source) expires.
+   */
+  readonly available_until: string;
+};
+
+/**
+ * One recipient's terminal delivery outcome on a sent conversation message, folded into the message's durable memory when the outcome becomes known.
+ *
+ */
+export type EmailThreadMessageRecipient = {
+  /**
+   * Recipient address.
+   */
+  readonly address: string;
+  /**
+   * Terminal outcome: `delivered`, or `failed` (bounce or provider rejection).
+   */
+  readonly status: "delivered" | "failed";
+};
+
+/**
+ * A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.
+ *
+ */
+export type EmailThreadMessage = {
+  /**
+   * Message ID. Received messages carry a `rem_` ID, sent messages an `em_` ID — the same IDs used by the received-message and sent-message logs.
+   *
+   */
+  readonly id: string;
+  /**
+   * Direction of the message — `inbound` for a received message, `outbound` for a sent one.
+   */
+  readonly direction: "inbound" | "outbound";
+  /**
+   * Channel this message was carried on. Always `email`.
+   */
+  readonly channel: string;
+  /**
+   * Conversation this message belongs to.
+   */
+  readonly thread_id: ThreadId;
+  /**
+   * Sender address.
+   */
+  readonly from: string;
+  /**
+   * Recipient addresses on the To line.
+   */
+  readonly to: Array<string>;
+  /**
+   * Recipient addresses on the Cc line. Empty when the message had none.
+   */
+  readonly cc: Array<string>;
+  /**
+   * Address the message was actually delivered to, when it differs from the mailbox address (for example mail routed in from another address). Null for sent messages and for mail addressed directly to the mailbox.
+   *
+   */
+  readonly delivered_to: string | null;
+  /**
+   * Message subject. Null when the message had no subject.
+   */
+  readonly subject: string | null;
+  /**
+   * Short plain-text preview of the message body.
+   */
+  readonly preview: string | null;
+  /**
+   * Plain-text content of the message with quoted history stripped — readable for the mailbox's full retention period, both directions. Always present when fetching a single message; on list endpoints it is included only when the request sets `include=extracted_text`. Null when no text could be extracted.
+   *
+   */
+  readonly extracted_text?: string | null;
+  /**
+   * Labels on this message. System labels carry its state: a received message holds exactly one placement label — `inbox` for accepted mail, `archive` when its conversation was filed away, `spam` (failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — plus `unread` until it is read. `trash` marks a message in the trash, either direction. Custom labels share the same list; a message carries at most 20.
+   *
+   */
+  labels: Array<string>;
+  /**
+   * Folded delivery status of a sent message: `accepted`, `sent` (provider handoff), `delivered` (all attempted recipients delivered), or `failed` (terminal failure). Null for received messages.
+   *
+   */
+  readonly status: string | null;
+  /**
+   * Terminal per-recipient delivery outcomes of a sent message, folded in as they become known — part of the message's durable memory. Null for received messages and before any recipient reaches a terminal state. Per-recipient event detail lives on the sent-message log (`source`) for 30 days.
+   *
+   */
+  readonly recipients: Array<EmailThreadMessageRecipient> | null;
+  /**
+   * Whether the sender of a received message was authenticated. `pass` means the sender's identity was verified; `fail` means it was checked and did not verify; `unknown` means no verdict could be determined and the sender should not be treated as verified. Null for sent messages. Part of the message's durable memory — readable for the mailbox's full retention period, so the verdict survives after the 30-day inbound log has expired.
+   *
+   */
+  readonly authentication: "pass" | "fail" | "unknown" | null;
+  /**
+   * Whether SPF passed for the sender of a received message. Null for sent messages and when no verdict is available. Durable for the mailbox's retention period.
+   *
+   */
+  readonly spf_pass: boolean | null;
+  /**
+   * Whether DKIM passed for the sender of a received message. Null for sent messages and when no verdict is available. Durable for the mailbox's retention period.
+   *
+   */
+  readonly dkim_pass: boolean | null;
+  /**
+   * Whether DMARC passed for the sender of a received message. Null for sent messages and when no verdict is available. Durable for the mailbox's retention period.
+   *
+   */
+  readonly dmarc_pass: boolean | null;
+  /**
+   * When the message will be permanently deleted: the end of the mailbox's retention period, pulled nearer (at most 30 days out) while the message is in the trash. Restore a trashed message before then with `PATCH {"labels": {"remove": ["trash"]}}`.
+   *
+   */
+  readonly purge_at: string;
+  /**
+   * Number of attachments on the message.
+   */
+  readonly attachment_count: number;
+  /**
+   * Attachment metadata (filename, content type, size). Remains readable for the mailbox's retention period even after the attachment bytes themselves have expired.
+   *
+   */
+  readonly attachment_manifest: Array<EmailThreadMessageAttachment>;
+  /**
+   * RFC 5322 References header entries used to thread the conversation.
+   */
+  readonly reference_ids: Array<string>;
+  /**
+   * Contact linked to this message, or null when none is linked.
+   */
+  contact_id: ContactId | null;
+  readonly source: EmailThreadMessageSource;
+  /**
+   * When the message was received or accepted for sending.
+   */
+  readonly occurred_at: string;
+};
+
+/**
+ * Changes to apply to a thread. Omitted fields are left unchanged.
+ */
+export type EmailThreadUpdateRequest = {
+  labels?: EmailLabelsUpdate;
+  /**
+   * Contact to link this conversation to, or null to unlink the current contact.
+   */
+  contact_id?: ContactId | null;
+};
+
+export type EmailThreadList = {
+  data: Array<EmailThread>;
+} & ListEnvelope;
+
+/**
+ * Matched search fragments for a thread, one array per field the query matched, with the matched terms wrapped in `**`. A field is present only when the query matched it, so the keys that are present tell you which fields produced the hit. Returned only on thread search results.
+ *
+ */
+export type EmailThreadHighlights = {
+  /**
+   * Matched fragments from the conversation's subject.
+   */
+  subject?: Array<string>;
+  /**
+   * Matched fragments from a message's body text.
+   */
+  text?: Array<string>;
+};
+
+/**
+ * A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.
+ *
+ */
+export type EmailThread = {
+  /**
+   * Thread ID.
+   */
+  readonly id: ThreadId;
+  /**
+   * Mailbox this conversation belongs to.
+   */
+  readonly mailbox_id: MailboxId;
+  /**
+   * Channel this conversation lives on. Always `email`.
+   */
+  readonly channel: string;
+  /**
+   * Contact linked to this conversation, or null when none is linked.
+   */
+  contact_id: ContactId | null;
+  /**
+   * Subject of the conversation, taken from its first message. Null when that message had no subject.
+   */
+  readonly subject: string | null;
+  /**
+   * Addresses that appear on the retained messages in this conversation, including the mailbox's own address.
+   */
+  readonly participants: Array<string>;
+  /**
+   * Number of retained messages in this conversation, both directions.
+   */
+  readonly message_count: number;
+  /**
+   * Number of retained received messages that are still unread. Spam and blocked mail is not counted.
+   */
+  readonly unread_count: number;
+  /**
+   * When the most recent retained message in this conversation was received or sent.
+   */
+  readonly last_message_at: string;
+  /**
+   * Direction of the most recent message — `inbound` for a received message, `outbound` for a sent one.
+   */
+  readonly last_direction: "inbound" | "outbound";
+  /**
+   * Labels on this conversation. Exactly one system placement label is always present — `inbox`, `archive` (filed away, done for now), `spam` (the opening message failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — set by the message that started the conversation. Move a conversation by updating its labels: add `spam` to file it as spam, add `archive` to clean it out of the inbox, and add `inbox` — or remove `spam`, `blocked`, or `archive` — to bring it back. An archived conversation returns to the inbox by itself when a new message arrives. Custom labels share the same list; a conversation carries at most 20.
+   *
+   */
+  labels: Array<string>;
+  /**
+   * When the thread was created.
+   */
+  readonly created_at: string;
+  /**
+   * When the thread last changed.
+   */
+  readonly updated_at: string;
+  /**
+   * Matched search fragments, keyed by the field that matched. Returned only by thread search; omitted when listing threads.
+   *
+   */
+  readonly highlights?: EmailThreadHighlights;
+};
+
+/**
  * Fields to update on an inbound route. Omitted fields are unchanged. The domain is immutable.
  */
 export type InboundRouteUpdate = {
@@ -2191,6 +2679,517 @@ export type InboundRoute = {
 };
 
 /**
+ * Parameters for adding a receive rule to a mailbox.
+ */
+export type ReceiveRuleCreate = {
+  /**
+   * What the rule does when it matches. Block rules always win. To flip an entry's action, delete the existing rule and re-create it.
+   */
+  action: "allow" | "block";
+  /**
+   * The sender address (`alice@example.com`) or domain (`example.com`) to match. Domains also match their subdomains. Stored lowercase.
+   */
+  entry: string;
+  /**
+   * Your own note about why the rule exists.
+   */
+  note?: string;
+};
+
+export type ReceiveRuleList = {
+  data: Array<ReceiveRule>;
+} & ListEnvelope;
+
+export type ReceiveRuleId = string;
+
+/**
+ * An allow or block entry on a mailbox, evaluated when inbound mail arrives. Matching is against the message's envelope sender; domain entries also match subdomains. A given entry can be allow or block, never both.
+ *
+ */
+export type ReceiveRule = {
+  /**
+   * Receive rule ID.
+   */
+  readonly id: ReceiveRuleId;
+  /**
+   * The mailbox the rule applies to.
+   */
+  readonly mailbox_id: MailboxId;
+  /**
+   * What the rule does when it matches. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes.
+   */
+  readonly action: "allow" | "block";
+  /**
+   * The sender address or domain the rule matches. Domains also match their subdomains.
+   */
+  readonly entry: string;
+  /**
+   * Whether the entry is a full address or a domain.
+   */
+  readonly entry_type: "address" | "domain";
+  /**
+   * Your own note about why the rule exists. Null when unset.
+   */
+  readonly note: string | null;
+  /**
+   * When the rule was created.
+   */
+  readonly created_at: string;
+};
+
+/**
+ * A mailbox's sent and received email statistics: a period-wide summary plus a bucketed time series. `period` echoes the range and grain the server computed against; `data` is one row per bucket in chronological order.
+ *
+ */
+export type MailboxStatsResponse = {
+  period: EmailStatsSeriesPeriod;
+  summary: MailboxStatsSummary;
+  /**
+   * One row per bucket in the period, in chronological order. Buckets with no activity are included with zero counts.
+   */
+  readonly data: Array<MailboxStatsPoint>;
+};
+
+/**
+ * Per-mailbox email activity for one time bucket, bucketed by event time. Sent-mail metrics carry the same delivery, engagement, and latency breakdowns as the email stats endpoints; `received` counts mail that arrived at the mailbox. Buckets with no activity are included with zero counts and null latency percentiles.
+ *
+ */
+export type MailboxStatsPoint = {
+  /**
+   * The day (YYYY-MM-DD) or instant (RFC 3339, on the bucket boundary) this point covers, matching the period's grain.
+   */
+  readonly bucket: string;
+  /**
+   * Distinct email messages the mailbox sent that were accepted in this bucket, counted at the message level (one per accepted send regardless of how many recipients it addresses). Every other sent-mail metric in `delivery` and `engagement` is recipient-level or event-level.
+   *
+   */
+  readonly sends_accepted: number;
+  readonly delivery: EmailDeliveryStats;
+  readonly engagement: EmailEngagementStats;
+  readonly latency: EmailLatencyStats;
+  /**
+   * Distinct emails the mailbox received in this bucket.
+   */
+  readonly received: number;
+};
+
+/**
+ * p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. Percentiles are approximate (computed from a high-volume aggregation pipeline). All three are null together when no qualifying event contributed a latency measurement in the bucket.
+ *
+ */
+export type EmailLatencyQuantiles = {
+  /**
+   * Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
+   */
+  readonly p50_ms: number | null;
+  /**
+   * 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+   */
+  readonly p95_ms: number | null;
+  /**
+   * 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
+   */
+  readonly p99_ms: number | null;
+};
+
+/**
+ * Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
+ *
+ * - `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
+ * - `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+ * - `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+ *
+ * Each family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.
+ *
+ */
+export type EmailLatencyStats = {
+  processing?: EmailLatencyQuantiles;
+  delivery?: EmailLatencyQuantiles;
+  total?: EmailLatencyQuantiles;
+};
+
+/**
+ * Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences); the `unique_*` fields count distinct recipients; `unsubscribes` counts distinct unsubscribe events. Counts are attributed by event time (not send time), so an open recorded today for a message sent earlier counts in today's row. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.
+ *
+ */
+export type EmailEngagementStats = {
+  /**
+   * Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).
+   *
+   */
+  readonly opens: number;
+  /**
+   * Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.
+   *
+   */
+  readonly opens_non_prefetched: number;
+  /**
+   * Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.
+   */
+  readonly unique_opens: number;
+  /**
+   * Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.
+   *
+   */
+  readonly unique_opens_non_prefetched: number;
+  /**
+   * Distinct click events, counting repeat clicks from the same recipient.
+   */
+  readonly clicks: number;
+  /**
+   * Distinct recipients who clicked at least once.
+   */
+  readonly unique_clicks: number;
+  /**
+   * Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.
+   */
+  readonly unsubscribes: number;
+  /**
+   * Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
+   *
+   */
+  readonly open_rate: number | null;
+  /**
+   * Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
+   *
+   */
+  readonly click_rate: number | null;
+  /**
+   * Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.
+   *
+   */
+  readonly unsubscribe_rate: number | null;
+};
+
+/**
+ * Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.
+ *
+ */
+export type EmailBounceStatsWithRates = {
+  /**
+   * Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).
+   */
+  readonly hard: number;
+  /**
+   * Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).
+   */
+  readonly soft: number;
+  /**
+   * Distinct recipients bounced by an upstream policy block (relaying denied, blocklisted domain).
+   */
+  readonly admin: number;
+  /**
+   * Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.
+   */
+  readonly block: number;
+  /**
+   * Distinct recipients bounced where the receiving server's response did not allow precise classification.
+   */
+  readonly undetermined: number;
+  /**
+   * Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.
+   *
+   */
+  readonly hard_rate: number | null;
+  /**
+   * Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.
+   *
+   */
+  readonly soft_rate: number | null;
+  /**
+   * Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.
+   *
+   */
+  readonly admin_rate: number | null;
+  /**
+   * Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.
+   *
+   */
+  readonly block_rate: number | null;
+  /**
+   * Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.
+   *
+   */
+  readonly undetermined_rate: number | null;
+};
+
+/**
+ * Delivery pipeline counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). Every count is the number of distinct recipients that reached the named lifecycle stage in scope (on the period summary, the sum of the per-bucket distinct counts), attributed by event time (not send time): a recipient delivered on Monday counts in Monday's row, and a recipient who bounced then succeeded on a retry can appear in both `bounced` and `delivered`. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. These counts are successive lifecycle stages, not interchangeable categories: `rejected` happens before any send attempt (suppression, policy, generation failure); `deferred` is a temporary in-flight delay still being retried; `bounced` (with its hard/soft/admin/block/undetermined sub-types) is a delivery failure; and `complained` is post-delivery spam feedback. Each rate is a fraction in the range 0 to 1 and is null when its denominator is zero. `accepted` is reported only where it can be attributed (time buckets and the period summary); breakdown rows omit it.
+ *
+ */
+export type EmailDeliveryStats = {
+  /**
+   * Distinct recipients accepted for delivery after suppression filtering. Reported on time buckets and the period summary; omitted on breakdown rows, whose rollups do not carry it.
+   */
+  readonly accepted?: number;
+  /**
+   * Distinct recipients whose message was processed and handed off for delivery.
+   */
+  readonly processed: number;
+  /**
+   * Distinct recipients whose message the receiving mail server accepted.
+   */
+  readonly delivered: number;
+  /**
+   * Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.
+   *
+   */
+  readonly bounced: number;
+  readonly bounces: EmailBounceStatsWithRates;
+  /**
+   * Distinct recipients who reported the message as spam via a feedback loop.
+   */
+  readonly complained: number;
+  /**
+   * Distinct recipients whose delivery the receiving server temporarily delayed and is still being retried.
+   *
+   */
+  readonly deferred: number;
+  /**
+   * Distinct recipients rejected before any delivery attempt. Includes recipients on the workspace suppression list, transmissions that could not be completed, message-generation failures, and recipients refused by sending policy. The per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` surfaces the specific cause.
+   *
+   */
+  readonly rejected: number;
+  /**
+   * Out-of-band bounce events: distinct failure notifications received after the receiving server had initially confirmed delivery. Counted as deduplicated events, not unique recipients.
+   *
+   */
+  readonly oob_bounces: number;
+  /**
+   * Recipients who remain in-inbox in this scope after all bounce signals resolve, computed as `delivered - oob_bounces`. Use this as the base for engagement-rate denominators. Clamped to 0 when `oob_bounces` exceeds `delivered`.
+   */
+  readonly effective_delivered: number;
+  /**
+   * Total recipients in this scope who did not receive the message, computed as `bounced + oob_bounces`.
+   */
+  readonly all_bounces: number;
+  /**
+   * Share of this scope's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when there were no attempts.
+   */
+  readonly oob_rate: number | null;
+  /**
+   * Share of this scope's delivery attempts that resulted in a message remaining in-inbox, computed as `effective_delivered / (delivered + bounced)`. Null when there were no attempts.
+   *
+   */
+  readonly delivery_rate: number | null;
+  /**
+   * Share of this scope's delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Because `oob_bounces` counts events rather than recipients, `all_bounces` can exceed the attempt count; the rate is clamped to 1. Null when there were no attempts.
+   *
+   */
+  readonly bounce_rate: number | null;
+  /**
+   * Spam complaints in this scope relative to effectively delivered recipients, computed as `complained / effective_delivered`. Complaints are attributed by event time, so a scope can record more of them than it effectively delivered, pushing the rate above 1. Null when `effective_delivered` is zero.
+   *
+   */
+  readonly complaint_rate: number | null;
+};
+
+/**
+ * Single-row aggregate of the mailbox's email activity across the full requested period. Counts are sums of per-bucket counts across the window; latency percentiles are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.
+ *
+ */
+export type MailboxStatsSummary = {
+  /**
+   * Distinct email messages the mailbox sent that were accepted, counted at the message level and summed per bucket across the period.
+   */
+  readonly sends_accepted: number;
+  readonly delivery: EmailDeliveryStats;
+  readonly engagement: EmailEngagementStats;
+  readonly latency: EmailLatencyStats;
+  /**
+   * Distinct emails the mailbox received, summed per bucket across the period.
+   */
+  readonly received: number;
+};
+
+/**
+ * The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
+ *
+ */
+export type EmailStatsSeriesPeriod = {
+  /**
+   * Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.
+   */
+  readonly from: string;
+  /**
+   * Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
+   */
+  readonly to: string;
+  /**
+   * The bucket grain of the series, either `day` or `hour`.
+   */
+  readonly grain: string;
+  /**
+   * The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
+   *
+   */
+  readonly data_as_of?: string | null;
+};
+
+/**
+ * Fields to update on a mailbox. Omitted fields are unchanged; fields set to null are cleared. The address and domain are immutable.
+ */
+export type MailboxUpdate = {
+  /**
+   * Display name used as the sender name on mail from this mailbox. Null clears it.
+   */
+  display_name?: string | null;
+  /**
+   * Default Reply-To address stamped on mail sent from this mailbox. Null clears it.
+   */
+  default_reply_to?: string | null;
+  /**
+   * Which inbound mail the mailbox accepts.
+   */
+  receive_policy?: "open" | "replies_only" | "allowlist" | "drop";
+  /**
+   * How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.
+   */
+  retention_tier?: "30d";
+  /**
+   * Replaces the mailbox's key/value data. Up to 2 KB; keys starting with `__bird` are reserved.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+};
+
+/**
+ * Parameters for creating a mailbox.
+ */
+export type MailboxCreate = {
+  /**
+   * The local part of the mailbox address (the part before `@`). Letters, digits, dots, underscores, and hyphens; stored lowercase. On the shared `inbox.ai` domain, separators must sit between letters or digits (no leading, trailing, or repeated separators), reserved names such as `postmaster` or `abuse` are unavailable, and choosing your own local part uses one of your plan's custom-handle allowance slots (generated addresses are always available). Omit to have Bird generate a random local part.
+   */
+  local_part?: string;
+  /**
+   * The domain the address lives under. Defaults to `inbox.ai`, Bird's shared mailbox domain, where creating the mailbox claims the address for your organization: first come, first served, and permanently reserved to your organization even after the mailbox is deleted. May instead name one of your own domains that is enabled for receiving email.
+   */
+  domain?: string;
+  /**
+   * Display name used as the sender name on mail from this mailbox.
+   */
+  display_name?: string;
+  /**
+   * Default Reply-To address stamped on mail sent from this mailbox.
+   */
+  default_reply_to?: string;
+  /**
+   * Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule; `drop` stores nothing.
+   */
+  receive_policy?: "open" | "replies_only" | "allowlist" | "drop";
+  /**
+   * How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.
+   */
+  retention_tier?: "30d";
+  /**
+   * Your own key/value data to attach to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.
+   */
+  metadata?: {
+    [key: string]: unknown;
+  };
+};
+
+export type MailboxList = {
+  data: Array<Mailbox>;
+} & ListEnvelope;
+
+export type InboundAddressId = string;
+
+/**
+ * The principal that owns the mailbox. Always the workspace.
+ */
+export type MailboxOwner = {
+  /**
+   * Owner principal type.
+   */
+  readonly type: "workspace";
+  /**
+   * Owner principal ID.
+   */
+  readonly id: WorkspaceId;
+};
+
+/**
+ * A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.
+ *
+ */
+export type Mailbox = {
+  /**
+   * Mailbox ID.
+   */
+  readonly id: MailboxId;
+  /**
+   * The mailbox's email address. Immutable once created.
+   */
+  readonly address: string;
+  /**
+   * Display name used as the sender name on mail from this mailbox. Null when unset.
+   */
+  display_name: string | null;
+  /**
+   * Default Reply-To address stamped on mail sent from this mailbox. Null when unset.
+   */
+  default_reply_to: string | null;
+  /**
+   * Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.
+   */
+  receive_policy: "open" | "replies_only" | "allowlist" | "drop";
+  /**
+   * Lifecycle state. Suspended mailboxes stop emitting events; inbound mail is retained as blocked.
+   */
+  readonly state: "active" | "suspended";
+  /**
+   * The channel this mailbox receives on. Always `email`.
+   */
+  readonly channel: "email";
+  readonly owner: MailboxOwner;
+  /**
+   * The underlying inbound address that receives this mailbox's mail.
+   */
+  readonly inbound_address_id: InboundAddressId;
+  /**
+   * How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.
+   */
+  retention_tier: "30d" | "90d" | "1y";
+  /**
+   * Number of retained messages across all threads.
+   */
+  readonly message_count: number;
+  /**
+   * Number of retained threads.
+   */
+  readonly thread_count: number;
+  /**
+   * Number of threads with unread messages in this mailbox, excluding trash. Null on create/update responses.
+   *
+   */
+  readonly unread_thread_count?: number | null;
+  /**
+   * Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.
+   */
+  metadata: {
+    [key: string]: unknown;
+  };
+  /**
+   * Whether Bird generated the local part of the address. `false` means a custom handle was chosen at creation; on the shared `inbox.ai` domain a custom handle counts against your plan's custom-handle allowance.
+   */
+  readonly local_part_generated?: boolean;
+  /**
+   * When the mailbox was created.
+   */
+  readonly created_at: string;
+  /**
+   * When the mailbox was last updated.
+   */
+  readonly updated_at: string;
+  /**
+   * When the mailbox was deleted, or null if it is active. A deleted mailbox stops receiving mail immediately but can be restored for 30 days, after which it and its remembered messages are permanently removed.
+   */
+  readonly deleted_at?: string | null;
+};
+
+/**
  * The attachments on a received email. Not paginated — a message carries a small, bounded set of attachments, all returned at once.
  */
 export type InboundAttachmentList = {
@@ -2245,20 +3244,6 @@ export type InboundEmailMessageList = {
    */
   data: Array<InboundEmailMessage>;
 } & ListEnvelope;
-
-/**
- * An email address with an optional display name.
- */
-export type EmailAddress = {
-  /**
-   * Email address.
-   */
-  email: string;
-  /**
-   * Display name shown alongside the address in mail clients.
-   */
-  name?: string;
-};
 
 /**
  * An email Bird received on your behalf, parsed from the original message. Fetch the body with `/body`, the original MIME with `/raw`, and attachment bytes with `/attachments/{attachment_id}`.
@@ -2358,8 +3343,6 @@ export type InboundAddressList = {
    */
   data: Array<InboundAddress>;
 } & ListEnvelope;
-
-export type InboundAddressId = string;
 
 /**
  * A Bird-minted email address that receives mail on your behalf. Forward a real mailbox (for example, a support inbox) to this address and Bird parses every message it receives into a received email.
@@ -2863,217 +3846,6 @@ export type EmailStatsSeriesPoint = {
    * Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
    */
   readonly click_rate: number | null;
-};
-
-/**
- * p50, p95, and p99 latency percentiles in milliseconds for one latency family over the bucket. Percentiles are approximate (computed from a high-volume aggregation pipeline). All three are null together when no qualifying event contributed a latency measurement in the bucket.
- *
- */
-export type EmailLatencyQuantiles = {
-  /**
-   * Median (50th percentile) latency in milliseconds. Null when no qualifying event contributed a measurement.
-   */
-  readonly p50_ms: number | null;
-  /**
-   * 95th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
-   */
-  readonly p95_ms: number | null;
-  /**
-   * 99th percentile latency in milliseconds. Null when no qualifying event contributed a measurement.
-   */
-  readonly p99_ms: number | null;
-};
-
-/**
- * Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
- *
- * - `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
- * - `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.
- * - `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.
- *
- * Each family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.
- *
- */
-export type EmailLatencyStats = {
-  processing?: EmailLatencyQuantiles;
-  delivery?: EmailLatencyQuantiles;
-  total?: EmailLatencyQuantiles;
-};
-
-/**
- * Engagement counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). `opens`, `opens_non_prefetched` and `clicks` count distinct engagement events (deduplicated occurrences); the `unique_*` fields count distinct recipients; `unsubscribes` counts distinct unsubscribe events. Counts are attributed by event time (not send time), so an open recorded today for a message sent earlier counts in today's row. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. Each rate divides the counts in this scope and is null when its denominator is zero.
- *
- */
-export type EmailEngagementStats = {
-  /**
-   * Distinct open events, counting repeat opens from the same recipient and opens auto-fetched by inbox privacy features (such as Apple Mail Privacy Protection and the Gmail image proxy).
-   *
-   */
-  readonly opens: number;
-  /**
-   * Distinct open events excluding those auto-fetched by inbox privacy features. Same event-counting semantics as `opens` (repeat opens from the same recipient count separately), with prefetched opens removed.
-   *
-   */
-  readonly opens_non_prefetched: number;
-  /**
-   * Distinct recipients who opened at least once, including opens auto-fetched by inbox privacy features.
-   */
-  readonly unique_opens: number;
-  /**
-   * Distinct recipients who opened at least once, excluding opens auto-fetched by inbox privacy features. This is the numerator used for open rate, so iOS-heavy audiences (Apple Mail Privacy Protection and similar) do not inflate it.
-   *
-   */
-  readonly unique_opens_non_prefetched: number;
-  /**
-   * Distinct click events, counting repeat clicks from the same recipient.
-   */
-  readonly clicks: number;
-  /**
-   * Distinct recipients who clicked at least once.
-   */
-  readonly unique_clicks: number;
-  /**
-   * Distinct unsubscribe events, recorded via the list-unsubscribe header or the footer link.
-   */
-  readonly unsubscribes: number;
-  /**
-   * Distinct non-prefetched openers relative to effectively delivered recipients in the same scope, computed as `unique_opens_non_prefetched / delivery.effective_delivered`; on rows without an `effective_delivered` field (the mailbox-provider breakdowns) the denominator equals `delivery.delivered`. The numerator excludes opens auto-fetched by inbox privacy features. Opens are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
-   *
-   */
-  readonly open_rate: number | null;
-  /**
-   * Distinct clickers relative to effectively delivered recipients in the same scope, computed as `unique_clicks / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Clicks are attributed by event time, so engagement earned by earlier deliveries can push the rate above 1. Null when the denominator is zero.
-   *
-   */
-  readonly click_rate: number | null;
-  /**
-   * Unsubscribe events relative to effectively delivered recipients in the same scope, computed as `unsubscribes / delivery.effective_delivered` (`delivery.delivered` on rows without an `effective_delivered` field). Unsubscribes are attributed by event time, so the rate can exceed 1. Null when the denominator is zero.
-   *
-   */
-  readonly unsubscribe_rate: number | null;
-};
-
-/**
- * Breakdown of `bounced` by failure type, with each rate as a fraction of `bounced`. Counts are distinct bounced recipients of that type; the five types approximately partition `bounced`, so the five rates sum to roughly 1.0 when `bounced` is non-zero.
- *
- */
-export type EmailBounceStatsWithRates = {
-  /**
-   * Distinct recipients with a permanent delivery failure (invalid address or non-existent domain).
-   */
-  readonly hard: number;
-  /**
-   * Distinct recipients with a transient delivery failure (mailbox full or server temporarily unavailable).
-   */
-  readonly soft: number;
-  /**
-   * Distinct recipients bounced by an upstream policy block (relaying denied, blocklisted domain).
-   */
-  readonly admin: number;
-  /**
-   * Distinct recipients bounced because the receiving mail server blocked the sending IP for reputation reasons.
-   */
-  readonly block: number;
-  /**
-   * Distinct recipients bounced where the receiving server's response did not allow precise classification.
-   */
-  readonly undetermined: number;
-  /**
-   * Fraction of bounced recipients that hard bounced, computed as `hard / bounced`. Null when `bounced` is zero.
-   *
-   */
-  readonly hard_rate: number | null;
-  /**
-   * Fraction of bounced recipients that soft bounced, computed as `soft / bounced`. Null when `bounced` is zero.
-   *
-   */
-  readonly soft_rate: number | null;
-  /**
-   * Fraction of bounced recipients that admin bounced, computed as `admin / bounced`. Null when `bounced` is zero.
-   *
-   */
-  readonly admin_rate: number | null;
-  /**
-   * Fraction of bounced recipients that block bounced, computed as `block / bounced`. Null when `bounced` is zero.
-   *
-   */
-  readonly block_rate: number | null;
-  /**
-   * Fraction of bounced recipients with undetermined classification, computed as `undetermined / bounced`. Null when `bounced` is zero.
-   *
-   */
-  readonly undetermined_rate: number | null;
-};
-
-/**
- * Delivery pipeline counts and rates for the scope of the containing row (a time bucket, a breakdown dimension, or the whole period). Every count is the number of distinct recipients that reached the named lifecycle stage in scope (on the period summary, the sum of the per-bucket distinct counts), attributed by event time (not send time): a recipient delivered on Monday counts in Monday's row, and a recipient who bounced then succeeded on a retry can appear in both `bounced` and `delivered`. Counts are deduplicated with a scalable approximate counting method, so very large counts are close estimates rather than exact tallies. These counts are successive lifecycle stages, not interchangeable categories: `rejected` happens before any send attempt (suppression, policy, generation failure); `deferred` is a temporary in-flight delay still being retried; `bounced` (with its hard/soft/admin/block/undetermined sub-types) is a delivery failure; and `complained` is post-delivery spam feedback. Each rate is a fraction in the range 0 to 1 and is null when its denominator is zero. `accepted` is reported only where it can be attributed (time buckets and the period summary); breakdown rows omit it.
- *
- */
-export type EmailDeliveryStats = {
-  /**
-   * Distinct recipients accepted for delivery after suppression filtering. Reported on time buckets and the period summary; omitted on breakdown rows, whose rollups do not carry it.
-   */
-  readonly accepted?: number;
-  /**
-   * Distinct recipients whose message was processed and handed off for delivery.
-   */
-  readonly processed: number;
-  /**
-   * Distinct recipients whose message the receiving mail server accepted.
-   */
-  readonly delivered: number;
-  /**
-   * Distinct recipients whose delivery failed. Approximately the sum of the five `bounces.*` sub-counts (hard, soft, admin, block, undetermined); the totals are computed independently so they may differ slightly at the approximation error.
-   *
-   */
-  readonly bounced: number;
-  readonly bounces: EmailBounceStatsWithRates;
-  /**
-   * Distinct recipients who reported the message as spam via a feedback loop.
-   */
-  readonly complained: number;
-  /**
-   * Distinct recipients whose delivery the receiving server temporarily delayed and is still being retried.
-   *
-   */
-  readonly deferred: number;
-  /**
-   * Distinct recipients rejected before any delivery attempt. Includes recipients on the workspace suppression list, transmissions that could not be completed, message-generation failures, and recipients refused by sending policy. The per-recipient `rejection_reason` field on `GET /v1/email/messages/{message_id}/recipients` surfaces the specific cause.
-   *
-   */
-  readonly rejected: number;
-  /**
-   * Out-of-band bounce events: distinct failure notifications received after the receiving server had initially confirmed delivery. Counted as deduplicated events, not unique recipients.
-   *
-   */
-  readonly oob_bounces: number;
-  /**
-   * Recipients who remain in-inbox in this scope after all bounce signals resolve, computed as `delivered - oob_bounces`. Use this as the base for engagement-rate denominators. Clamped to 0 when `oob_bounces` exceeds `delivered`.
-   */
-  readonly effective_delivered: number;
-  /**
-   * Total recipients in this scope who did not receive the message, computed as `bounced + oob_bounces`.
-   */
-  readonly all_bounces: number;
-  /**
-   * Share of this scope's delivery attempts that resulted in an out-of-band bounce, computed as `oob_bounces / (delivered + bounced)`. Null when there were no attempts.
-   */
-  readonly oob_rate: number | null;
-  /**
-   * Share of this scope's delivery attempts that resulted in a message remaining in-inbox, computed as `effective_delivered / (delivered + bounced)`. Null when there were no attempts.
-   *
-   */
-  readonly delivery_rate: number | null;
-  /**
-   * Share of this scope's delivery attempts that ultimately failed (inband or out-of-band), computed as `all_bounces / (delivered + bounced)`. Because `oob_bounces` counts events rather than recipients, `all_bounces` can exceed the attempt count; the rate is clamped to 1. Null when there were no attempts.
-   *
-   */
-  readonly bounce_rate: number | null;
-  /**
-   * Spam complaints in this scope relative to effectively delivered recipients, computed as `complained / effective_delivered`. Complaints are attributed by event time, so a scope can record more of them than it effectively delivered, pushing the rate above 1. Null when `effective_delivered` is zero.
-   *
-   */
-  readonly complaint_rate: number | null;
 };
 
 /**
@@ -3917,30 +4689,6 @@ export type EmailStatsPoint = {
   readonly delivery: EmailDeliveryStats;
   readonly engagement: EmailEngagementStats;
   readonly latency: EmailLatencyStats;
-};
-
-/**
- * The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
- *
- */
-export type EmailStatsSeriesPeriod = {
-  /**
-   * Inclusive start of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the first hour bucket, which falls on a local hour boundary when `timezone` is set.
-   */
-  readonly from: string;
-  /**
-   * Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
-   */
-  readonly to: string;
-  /**
-   * The bucket grain of the series, either `day` or `hour`.
-   */
-  readonly grain: string;
-  /**
-   * The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
-   *
-   */
-  readonly data_as_of?: string | null;
 };
 
 export type WhatsAppTemplateList = {
@@ -4799,8 +5547,6 @@ export type AudienceContactsRemoveRequest = {
   contact_ids: Array<ContactId>;
 };
 
-export type ContactId = string;
-
 export type AudienceContactsAddRequest = {
   /**
    * Contacts to add to the audience. Adding a contact that is already a member has no effect and keeps its original join time; duplicate IDs in the list are collapsed. If any ID does not exist in the workspace, the whole request fails with a validation error and no contacts are added.
@@ -5351,41 +6097,6 @@ export type EmailMessageBatchItem = {
  */
 export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
 
-/**
- * File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.
- * Inline images for `<img src="cid:..."/>` references in the HTML body use the `content_id` field together with `content`.
- * Bird enforces a **20 MB estimated generated message size** cap. The estimate is the HTML and text body plus all attachments and inline images measured after base64 encoding. This is not a raw file-size cap. As a rule of thumb, keep total raw attachment content at or below **15 MB** so the generated message has enough room after encoding and MIME wrapping.
- * Recipient-side delivery reality: downstream limits vary by product and tenant/server policy. Gmail personal and Outlook.com document 25 MB attachment limits. Exchange Online defaults to 35 MB send / 36 MB receive, but admins can configure limits; on-prem Exchange Server organizational defaults are 10 MB. Sends close to Bird's 20 MB generated-message cap may be accepted by Bird but bounce at the recipient's mail server.
- * Batch sends can include attachments on individual message objects. Each message still has the 20 MB estimated generated-size cap, and the serialized JSON request body for the whole batch has a hard 20 MB cap. Certain executable / script content types are rejected at validation time.
- *
- */
-export type EmailAttachment = {
-  /**
-   * Filename shown to the recipient. Required.
-   */
-  filename: string;
-  /**
-   * Base64-encoded attachment bytes. Required. Counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
-   *
-   */
-  content: string;
-  /**
-   * Preview feature — provide a URL and Bird fetches the attachment for you. Currently unavailable. Use `content` instead. The schema currently requires `content`, so a request with only `path` is rejected with 422 for missing `content`; a request supplying both `content` and `path` is rejected with 422 `UnsupportedEmailFeature` until this preview ships. When generally available: HTTPS-only, single redirect followed and re-validated, private IP ranges blocked, request timeout enforced, fetched content counts toward the 20 MB estimated generated message-size cap after encoding and MIME wrapping.
-   *
-   */
-  path?: string;
-  /**
-   * MIME type. Inferred from `filename` extension when omitted. Used to enforce the blocklist of disallowed executable / script types.
-   *
-   */
-  content_type?: string;
-  /**
-   * RFC 2392 Content-ID. When set, the attachment is rendered inline and can be referenced from the HTML body as `<img src="cid:{content_id}"/>`. When omitted, the attachment is rendered as a regular file attachment.
-   *
-   */
-  content_id?: string;
-};
-
 export type EmailTemplateSend = unknown & {
   /**
    * The template to send, by its id.
@@ -5403,12 +6114,6 @@ export type EmailTemplateSend = unknown & {
     [key: string]: unknown;
   };
 };
-
-/**
- * A sender or recipient address. Accepts a plain email string (`jane@example.com`), an RFC 5322 mailbox string with an embedded display name (`Jane Doe <jane@example.com>`), or an object carrying the address and an optional display name. All forms can be mixed freely within one request; responses always return the object form.
- *
- */
-export type EmailAddressInput = string | EmailAddress;
 
 export type EmailMessageSendRequest = {
   /**
@@ -6349,6 +7054,60 @@ export type EmailSmtpConfigWritable = {
   track_clicks: boolean;
 };
 
+/**
+ * The labels available in a mailbox.
+ */
+export type EmailMailboxLabelListWritable = {
+  data: Array<unknown>;
+};
+
+/**
+ * The attachments on a conversation message.
+ */
+export type EmailThreadMessageAttachmentListWritable = {
+  data: Array<unknown>;
+};
+
+export type EmailThreadMessageListWritable = {
+  data: Array<EmailThreadMessageWritable>;
+} & ListEnvelope;
+
+/**
+ * A message in a mailbox conversation, either direction. Message metadata and extracted text remain readable for the mailbox's retention period; the original rendered source (HTML body, raw MIME, attachment bytes) is available through the body, raw, and attachment endpoints for 30 days after the message occurred.
+ *
+ */
+export type EmailThreadMessageWritable = {
+  /**
+   * Labels on this message. System labels carry its state: a received message holds exactly one placement label — `inbox` for accepted mail, `archive` when its conversation was filed away, `spam` (failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — plus `unread` until it is read. `trash` marks a message in the trash, either direction. Custom labels share the same list; a message carries at most 20.
+   *
+   */
+  labels: Array<string>;
+  /**
+   * Contact linked to this message, or null when none is linked.
+   */
+  contact_id: ContactId | null;
+};
+
+export type EmailThreadListWritable = {
+  data: Array<EmailThreadWritable>;
+} & ListEnvelope;
+
+/**
+ * A conversation in a mailbox. Threads group related messages both directions — mail the mailbox received and replies it sent — and carry the conversation-level read state, labels, and participant list. Message counts reflect the messages currently retained under the mailbox's retention period.
+ *
+ */
+export type EmailThreadWritable = {
+  /**
+   * Contact linked to this conversation, or null when none is linked.
+   */
+  contact_id: ContactId | null;
+  /**
+   * Labels on this conversation. Exactly one system placement label is always present — `inbox`, `archive` (filed away, done for now), `spam` (the opening message failed sender authentication), or `blocked` (rejected by the mailbox's receive policy or rules) — set by the message that started the conversation. Move a conversation by updating its labels: add `spam` to file it as spam, add `archive` to clean it out of the inbox, and add `inbox` — or remove `spam`, `blocked`, or `archive` — to bring it back. An archived conversation returns to the inbox by itself when a new message arrives. Custom labels share the same list; a conversation carries at most 20.
+   *
+   */
+  labels: Array<string>;
+};
+
 export type InboundRouteListWritable = {
   /**
    * Page of inbound routes in evaluation order: lowest priority number first.
@@ -6385,6 +7144,81 @@ export type InboundRouteWritable = {
    * Whether the route is evaluated. Disabled routes are kept but skipped.
    */
   enabled: boolean;
+};
+
+export type ReceiveRuleListWritable = {
+  data: Array<unknown>;
+} & ListEnvelope;
+
+/**
+ * A mailbox's sent and received email statistics: a period-wide summary plus a bucketed time series. `period` echoes the range and grain the server computed against; `data` is one row per bucket in chronological order.
+ *
+ */
+export type MailboxStatsResponseWritable = {
+  summary: MailboxStatsSummaryWritable;
+};
+
+/**
+ * Per-mailbox email activity for one time bucket, bucketed by event time. Sent-mail metrics carry the same delivery, engagement, and latency breakdowns as the email stats endpoints; `received` counts mail that arrived at the mailbox. Buckets with no activity are included with zero counts and null latency percentiles.
+ *
+ */
+export type MailboxStatsPointWritable = {
+  [key: string]: never;
+};
+
+/**
+ * Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
+ *
+ * - `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
+ * - `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+ * - `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.
+ *
+ * Each family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.
+ *
+ */
+export type EmailLatencyStatsWritable = {
+  [key: string]: never;
+};
+
+/**
+ * Single-row aggregate of the mailbox's email activity across the full requested period. Counts are sums of per-bucket counts across the window; latency percentiles are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.
+ *
+ */
+export type MailboxStatsSummaryWritable = {
+  [key: string]: never;
+};
+
+export type MailboxListWritable = {
+  data: Array<MailboxWritable>;
+} & ListEnvelope;
+
+/**
+ * A durable mailbox identity for an agent. A mailbox owns an email address, groups mail into threads, applies receive policy, and remembers message metadata and extracted text for its retention tier. The original rendered source of each message remains available for 30 days.
+ *
+ */
+export type MailboxWritable = {
+  /**
+   * Display name used as the sender name on mail from this mailbox. Null when unset.
+   */
+  display_name: string | null;
+  /**
+   * Default Reply-To address stamped on mail sent from this mailbox. Null when unset.
+   */
+  default_reply_to: string | null;
+  /**
+   * Which inbound mail the mailbox accepts. `open` accepts everything not blocked by a rule; `replies_only` accepts only replies to messages this mailbox has sent (a reply must match a message the mailbox sent, not merely land in an existing thread); `allowlist` accepts only senders matching an allow rule (replies to prior outbound are always admitted unless blocked); `drop` stores nothing.
+   */
+  receive_policy: "open" | "replies_only" | "allowlist" | "drop";
+  /**
+   * How long the mailbox remembers message metadata and extracted text. Original rendered source (HTML, raw message, attachments) is always available for 30 days regardless of tier. `3y` and `10y` are reserved future tiers.
+   */
+  retention_tier: "30d" | "90d" | "1y";
+  /**
+   * Your own key/value data attached to the mailbox. Up to 2 KB; keys starting with `__bird` are reserved.
+   */
+  metadata: {
+    [key: string]: unknown;
+  };
 };
 
 /**
@@ -6631,20 +7465,6 @@ export type EmailStatsByBroadcastResponseWritable = {
    * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
    */
   period: unknown;
-};
-
-/**
- * Latency percentiles (p50, p95, p99) in milliseconds for the bucket. On the summary endpoint these are computed across the whole period rather than per bucket. Three families are reported:
- *
- * - `processing`: time from accepting the send to handing the message off for delivery, covering internal queue depth and handoff. Measured per processed recipient; null when no recipient in the bucket has reached the processed stage.
- * - `delivery`: time from handoff to the receiving mail server accepting the message, dominated by recipient-side delivery behaviour. Measured per delivered recipient; null when no deliveries occurred in the bucket.
- * - `total`: end-to-end time from accepting the send to delivery, the most useful tile for a customer SLO. Measured per delivered recipient; null when no deliveries occurred in the bucket.
- *
- * Each family is reported independently and is omitted entirely when no qualifying event contributed a latency measurement in the bucket (including when latency for that stage has not yet been recorded for the workspace), so `processing` can be present while `delivery` and `total` are absent. A client must handle a missing family, and a null p50/p95/p99 within a present family, by rendering a placeholder rather than assuming a number.
- *
- */
-export type EmailLatencyStatsWritable = {
-  [key: string]: never;
 };
 
 /**
@@ -11815,3 +12635,1516 @@ export type VerifyDomainResponses = {
 
 export type VerifyDomainResponse =
   VerifyDomainResponses[keyof VerifyDomainResponses];
+
+export type ListMailboxesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Filter to the mailbox with exactly this address.
+     */
+    address?: string;
+    /**
+     * Case-insensitive search matching the mailbox's address or display name (substring).
+     */
+    q?: string;
+    /**
+     * Filter by lifecycle state.
+     */
+    state?: "active" | "suspended";
+    /**
+     * Filter to mailboxes whose address is on this domain.
+     */
+    domain?: string;
+    /**
+     * Include mailboxes deleted within their 30-day restore window. Defaults to false, so only active and suspended mailboxes are returned. Deleted mailboxes carry a non-null `deleted_at`.
+     */
+    include_deleted?: boolean;
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/email/mailboxes";
+};
+
+export type ListMailboxesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListMailboxesError = ListMailboxesErrors[keyof ListMailboxesErrors];
+
+export type ListMailboxesResponses = {
+  /**
+   * Paginated list of mailboxes.
+   */
+  200: MailboxList;
+};
+
+export type ListMailboxesResponse =
+  ListMailboxesResponses[keyof ListMailboxesResponses];
+
+export type CreateMailboxData = {
+  body: MailboxCreate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/v1/email/mailboxes";
+};
+
+export type CreateMailboxErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateMailboxError = CreateMailboxErrors[keyof CreateMailboxErrors];
+
+export type CreateMailboxResponses = {
+  /**
+   * Mailbox created.
+   */
+  201: Mailbox;
+};
+
+export type CreateMailboxResponse =
+  CreateMailboxResponses[keyof CreateMailboxResponses];
+
+export type DeleteMailboxData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}";
+};
+
+export type DeleteMailboxErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteMailboxError = DeleteMailboxErrors[keyof DeleteMailboxErrors];
+
+export type DeleteMailboxResponses = {
+  /**
+   * Mailbox deleted.
+   */
+  204: void;
+};
+
+export type DeleteMailboxResponse =
+  DeleteMailboxResponses[keyof DeleteMailboxResponses];
+
+export type GetMailboxData = {
+  body?: never;
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}";
+};
+
+export type GetMailboxErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetMailboxError = GetMailboxErrors[keyof GetMailboxErrors];
+
+export type GetMailboxResponses = {
+  /**
+   * Mailbox object.
+   */
+  200: Mailbox;
+};
+
+export type GetMailboxResponse = GetMailboxResponses[keyof GetMailboxResponses];
+
+export type UpdateMailboxData = {
+  body: MailboxUpdate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: {
+    /**
+     * Required as `true` when lowering `retention_tier`, acknowledging that remembered messages older than the new horizon are deleted.
+     */
+    confirm?: boolean;
+  };
+  url: "/v1/email/mailboxes/{mailbox_id}";
+};
+
+export type UpdateMailboxErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateMailboxError = UpdateMailboxErrors[keyof UpdateMailboxErrors];
+
+export type UpdateMailboxResponses = {
+  /**
+   * Mailbox updated.
+   */
+  200: Mailbox;
+};
+
+export type UpdateMailboxResponse =
+  UpdateMailboxResponses[keyof UpdateMailboxResponses];
+
+export type RestoreMailboxData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}/restore";
+};
+
+export type RestoreMailboxErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type RestoreMailboxError =
+  RestoreMailboxErrors[keyof RestoreMailboxErrors];
+
+export type RestoreMailboxResponses = {
+  /**
+   * Mailbox restored.
+   */
+  200: Mailbox;
+};
+
+export type RestoreMailboxResponse =
+  RestoreMailboxResponses[keyof RestoreMailboxResponses];
+
+export type GetMailboxStatsData = {
+  body?: never;
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: {
+    /**
+     * Inclusive start of the window: a calendar day (YYYY-MM-DD, `day` granularity only) or an RFC 3339 instant rounded down to the hour (`hour` granularity only). Interpreted in `timezone`, or in UTC when `timezone` is omitted. A numeric UTC offset is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant. Must use the same form as `to`. Defaults to 30 days before `to` at `day` granularity and 7 days before `to` at `hour`, when omitted.
+     *
+     */
+    from?: string;
+    /**
+     * Inclusive end of the window: a calendar day (YYYY-MM-DD, `day` granularity only) or an RFC 3339 instant rounded down to the hour (`hour` granularity only). Interpreted in `timezone`, or in UTC when `timezone` is omitted. A numeric UTC offset is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant. Must use the same form as `from`. Defaults to today (day) or the current hour (hour) in that timezone when omitted. Window may not exceed 365 days at `day` or 30 days at `hour` granularity.
+     *
+     */
+    to?: string;
+    /**
+     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     *
+     */
+    timezone?: string;
+    /**
+     * Bucket grain of the series: `day` (default) or `hour`. Echoed back as `period.grain`.
+     *
+     */
+    granularity?: "day" | "hour";
+  };
+  url: "/v1/email/mailboxes/{mailbox_id}/stats";
+};
+
+export type GetMailboxStatsErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+  /**
+   * The data behind this endpoint is temporarily unavailable. The request is safe to retry; responses resume automatically once availability is restored.
+   *
+   */
+  503: Error;
+};
+
+export type GetMailboxStatsError =
+  GetMailboxStatsErrors[keyof GetMailboxStatsErrors];
+
+export type GetMailboxStatsResponses = {
+  /**
+   * The mailbox's sent and received email statistics for the requested period.
+   */
+  200: MailboxStatsResponse;
+};
+
+export type GetMailboxStatsResponse =
+  GetMailboxStatsResponses[keyof GetMailboxStatsResponses];
+
+export type ResumeMailboxData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}/resume";
+};
+
+export type ResumeMailboxErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ResumeMailboxError = ResumeMailboxErrors[keyof ResumeMailboxErrors];
+
+export type ResumeMailboxResponses = {
+  /**
+   * Mailbox activated.
+   */
+  200: Mailbox;
+};
+
+export type ResumeMailboxResponse =
+  ResumeMailboxResponses[keyof ResumeMailboxResponses];
+
+export type ListMailboxReceiveRulesData = {
+  body?: never;
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: {
+    /**
+     * Filter by rule action.
+     */
+    action?: "allow" | "block";
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/email/mailboxes/{mailbox_id}/receive-rules";
+};
+
+export type ListMailboxReceiveRulesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListMailboxReceiveRulesError =
+  ListMailboxReceiveRulesErrors[keyof ListMailboxReceiveRulesErrors];
+
+export type ListMailboxReceiveRulesResponses = {
+  /**
+   * Paginated list of receive rules.
+   */
+  200: ReceiveRuleList;
+};
+
+export type ListMailboxReceiveRulesResponse =
+  ListMailboxReceiveRulesResponses[keyof ListMailboxReceiveRulesResponses];
+
+export type CreateMailboxReceiveRuleData = {
+  body: ReceiveRuleCreate;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}/receive-rules";
+};
+
+export type CreateMailboxReceiveRuleErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateMailboxReceiveRuleError =
+  CreateMailboxReceiveRuleErrors[keyof CreateMailboxReceiveRuleErrors];
+
+export type CreateMailboxReceiveRuleResponses = {
+  /**
+   * Receive rule created.
+   */
+  201: ReceiveRule;
+};
+
+export type CreateMailboxReceiveRuleResponse =
+  CreateMailboxReceiveRuleResponses[keyof CreateMailboxReceiveRuleResponses];
+
+export type DeleteMailboxReceiveRuleData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+    /**
+     * Receive rule ID.
+     */
+    rule_id: ReceiveRuleId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}/receive-rules/{rule_id}";
+};
+
+export type DeleteMailboxReceiveRuleErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteMailboxReceiveRuleError =
+  DeleteMailboxReceiveRuleErrors[keyof DeleteMailboxReceiveRuleErrors];
+
+export type DeleteMailboxReceiveRuleResponses = {
+  /**
+   * Receive rule deleted.
+   */
+  204: void;
+};
+
+export type DeleteMailboxReceiveRuleResponse =
+  DeleteMailboxReceiveRuleResponses[keyof DeleteMailboxReceiveRuleResponses];
+
+export type ListEmailThreadsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Filter to conversations in a specific mailbox.
+     */
+    mailbox_id?: MailboxId;
+    /**
+     * Filter to conversations linked to a specific contact.
+     */
+    contact_id?: ContactId;
+    /**
+     * Filter to conversations carrying this label. Repeat the parameter to require several — only conversations carrying every listed label match. A placement label selects a folder (`inbox`, `archive`, `spam`, `blocked`); a custom label matches conversations in any folder. Defaults to `inbox` when omitted.
+     */
+    label?: Array<string>;
+    /**
+     * When `true`, only conversations with unread messages are returned. This filters on the conversation's unread state, so it combines with `label` — for example, unread conversations in the archive. (The `unread` label itself lives on messages, not conversations.)
+     */
+    has_unread?: boolean;
+    /**
+     * Conversations involving this address — matches the sender or any recipient, as a case-insensitive contains-match, so a full address or any fragment of one works.
+     */
+    participant?: string;
+    /**
+     * Conversations whose subject contains this text (case-insensitive).
+     */
+    subject?: string;
+    /**
+     * Filter to conversations whose most recent message is at or after this time. This is a time filter, not a cursor.
+     */
+    after?: string;
+    /**
+     * Filter to conversations whose most recent message is at or before this time. This is a time filter, not a cursor.
+     */
+    before?: string;
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/email/threads";
+};
+
+export type ListEmailThreadsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListEmailThreadsError =
+  ListEmailThreadsErrors[keyof ListEmailThreadsErrors];
+
+export type ListEmailThreadsResponses = {
+  /**
+   * Paginated list of threads.
+   */
+  200: EmailThreadList;
+};
+
+export type ListEmailThreadsResponse =
+  ListEmailThreadsResponses[keyof ListEmailThreadsResponses];
+
+export type DeleteEmailThreadData = {
+  body?: never;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+  };
+  query?: {
+    /**
+     * Permanently delete the conversation and its messages immediately instead of moving them to the trash.
+     */
+    permanent?: boolean;
+  };
+  url: "/v1/email/threads/{thread_id}";
+};
+
+export type DeleteEmailThreadErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DeleteEmailThreadError =
+  DeleteEmailThreadErrors[keyof DeleteEmailThreadErrors];
+
+export type DeleteEmailThreadResponses = {
+  /**
+   * Thread deleted.
+   */
+  204: void;
+};
+
+export type DeleteEmailThreadResponse =
+  DeleteEmailThreadResponses[keyof DeleteEmailThreadResponses];
+
+export type GetEmailThreadData = {
+  body?: never;
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+  };
+  query?: never;
+  url: "/v1/email/threads/{thread_id}";
+};
+
+export type GetEmailThreadErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetEmailThreadError =
+  GetEmailThreadErrors[keyof GetEmailThreadErrors];
+
+export type GetEmailThreadResponses = {
+  /**
+   * Thread object.
+   */
+  200: EmailThread;
+};
+
+export type GetEmailThreadResponse =
+  GetEmailThreadResponses[keyof GetEmailThreadResponses];
+
+export type UpdateEmailThreadData = {
+  body: EmailThreadUpdateRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+  };
+  query?: never;
+  url: "/v1/email/threads/{thread_id}";
+};
+
+export type UpdateEmailThreadErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type UpdateEmailThreadError =
+  UpdateEmailThreadErrors[keyof UpdateEmailThreadErrors];
+
+export type UpdateEmailThreadResponses = {
+  /**
+   * The updated thread.
+   */
+  200: EmailThread;
+};
+
+export type UpdateEmailThreadResponse =
+  UpdateEmailThreadResponses[keyof UpdateEmailThreadResponses];
+
+export type ListEmailThreadMessagesData = {
+  body?: never;
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+  };
+  query?: {
+    /**
+     * Filter to received (`inbound`) or sent (`outbound`) messages.
+     */
+    direction?: "inbound" | "outbound";
+    /**
+     * Filter to messages carrying this label. `trash` lists trashed messages; any other label — `archive`, `spam`, `blocked`, `unread`, or a custom label — lists its non-trashed carriers. When omitted, received messages in the inbox and all sent messages are returned.
+     *
+     */
+    label?: string;
+    /**
+     * Set to `extracted_text` to inline each message's extracted plain text.
+     */
+    include?: "extracted_text";
+    /**
+     * Maximum number of items to return per page.
+     */
+    limit?: number;
+    /**
+     * Cursor from the `next_cursor` field of a previous list response. Returns items immediately after the cursor position in the current sort order.
+     */
+    starting_after?: string;
+    /**
+     * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
+     */
+    ending_before?: string;
+  };
+  url: "/v1/email/threads/{thread_id}/messages";
+};
+
+export type ListEmailThreadMessagesErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListEmailThreadMessagesError =
+  ListEmailThreadMessagesErrors[keyof ListEmailThreadMessagesErrors];
+
+export type ListEmailThreadMessagesResponses = {
+  /**
+   * Paginated list of messages in the conversation.
+   */
+  200: EmailThreadMessageList;
+};
+
+export type ListEmailThreadMessagesResponse =
+  ListEmailThreadMessagesResponses[keyof ListEmailThreadMessagesResponses];
+
+export type GetEmailThreadMessageData = {
+  body?: never;
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+    /**
+     * Message ID (`rem_` for a received message, `em_` for a sent one).
+     */
+    message_id: string;
+  };
+  query?: never;
+  url: "/v1/email/threads/{thread_id}/messages/{message_id}";
+};
+
+export type GetEmailThreadMessageErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetEmailThreadMessageError =
+  GetEmailThreadMessageErrors[keyof GetEmailThreadMessageErrors];
+
+export type GetEmailThreadMessageResponses = {
+  /**
+   * The message.
+   */
+  200: EmailThreadMessage;
+};
+
+export type GetEmailThreadMessageResponse =
+  GetEmailThreadMessageResponses[keyof GetEmailThreadMessageResponses];
+
+export type GetEmailThreadMessageBodyData = {
+  body?: never;
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+    /**
+     * Message ID (`rem_` for a received message, `em_` for a sent one).
+     */
+    message_id: string;
+  };
+  query?: never;
+  url: "/v1/email/threads/{thread_id}/messages/{message_id}/body";
+};
+
+export type GetEmailThreadMessageBodyErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetEmailThreadMessageBodyError =
+  GetEmailThreadMessageBodyErrors[keyof GetEmailThreadMessageBodyErrors];
+
+export type GetEmailThreadMessageBodyResponses = {
+  /**
+   * The original rendered body.
+   */
+  200: EmailThreadMessageBody;
+};
+
+export type GetEmailThreadMessageBodyResponse =
+  GetEmailThreadMessageBodyResponses[keyof GetEmailThreadMessageBodyResponses];
+
+export type ListEmailThreadMessageAttachmentsData = {
+  body?: never;
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+    /**
+     * Message ID (`rem_` for a received message, `em_` for a sent one).
+     */
+    message_id: string;
+  };
+  query?: never;
+  url: "/v1/email/threads/{thread_id}/messages/{message_id}/attachments";
+};
+
+export type ListEmailThreadMessageAttachmentsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListEmailThreadMessageAttachmentsError =
+  ListEmailThreadMessageAttachmentsErrors[keyof ListEmailThreadMessageAttachmentsErrors];
+
+export type ListEmailThreadMessageAttachmentsResponses = {
+  /**
+   * The message's attachments.
+   */
+  200: EmailThreadMessageAttachmentList;
+};
+
+export type ListEmailThreadMessageAttachmentsResponse =
+  ListEmailThreadMessageAttachmentsResponses[keyof ListEmailThreadMessageAttachmentsResponses];
+
+export type ReplyEmailThreadMessageData = {
+  body: EmailThreadMessageReplyRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Thread ID.
+     */
+    thread_id: ThreadId;
+    /**
+     * Message ID (`rem_` for a received message, `em_` for a sent one).
+     */
+    message_id: string;
+  };
+  query?: never;
+  url: "/v1/email/threads/{thread_id}/messages/{message_id}/reply";
+};
+
+export type ReplyEmailThreadMessageErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient balance
+   */
+  402: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * The resource existed but is no longer available.
+   */
+  410: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ReplyEmailThreadMessageError =
+  ReplyEmailThreadMessageErrors[keyof ReplyEmailThreadMessageErrors];
+
+export type ReplyEmailThreadMessageResponses = {
+  /**
+   * Reply accepted for asynchronous delivery and recorded in the conversation.
+   */
+  202: EmailThreadMessage;
+};
+
+export type ReplyEmailThreadMessageResponse =
+  ReplyEmailThreadMessageResponses[keyof ReplyEmailThreadMessageResponses];
+
+export type CreateMailboxMessageData = {
+  body: EmailMailboxComposeRequest;
+  headers?: {
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+  };
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}/messages";
+};
+
+export type CreateMailboxMessageErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient balance
+   */
+  402: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type CreateMailboxMessageError =
+  CreateMailboxMessageErrors[keyof CreateMailboxMessageErrors];
+
+export type CreateMailboxMessageResponses = {
+  /**
+   * Message accepted for asynchronous delivery and recorded as the first message of a new conversation.
+   */
+  202: EmailThreadMessage;
+};
+
+export type CreateMailboxMessageResponse =
+  CreateMailboxMessageResponses[keyof CreateMailboxMessageResponses];
+
+export type ListMailboxLabelsData = {
+  body?: never;
+  path: {
+    /**
+     * Mailbox ID.
+     */
+    mailbox_id: MailboxId;
+  };
+  query?: never;
+  url: "/v1/email/mailboxes/{mailbox_id}/labels";
+};
+
+export type ListMailboxLabelsErrors = {
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListMailboxLabelsError =
+  ListMailboxLabelsErrors[keyof ListMailboxLabelsErrors];
+
+export type ListMailboxLabelsResponses = {
+  /**
+   * The mailbox's labels.
+   */
+  200: EmailMailboxLabelList;
+};
+
+export type ListMailboxLabelsResponse =
+  ListMailboxLabelsResponses[keyof ListMailboxLabelsResponses];

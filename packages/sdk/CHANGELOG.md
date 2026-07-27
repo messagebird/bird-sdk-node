@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0
+
+- Agent mailboxes (inbox.ai): bird.mailbox, bird.mailboxReceiveRule, bird.mailboxThread, bird.mailboxThreadMessage
+- Internal pipeline improvements.
+
 ## 0.11.0
 
 - Add the `rejected` WhatsApp message delivery status, returned when the recipient is on the workspace's suppression list.

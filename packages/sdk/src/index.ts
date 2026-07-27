@@ -80,7 +80,7 @@ export type {
   EmailStatsByBounceCodeQuery,
   EmailStatsByComplaintTypeQuery,
   EmailStatsByBroadcastQuery,
-} from "./resources/emailStats.js";
+} from "./resources/emailStats.gen.js";
 export type {
   SmsMessage,
   SmsSendParams,
@@ -150,3 +150,29 @@ export type {
 } from "./resources/webhooks.js";
 export { WebhookEventType } from "./event-types.gen.js";
 export type { WebhookEventTypeValue } from "./event-types.gen.js";
+export type {
+  Mailbox,
+  MailboxList,
+  MailboxCreateParams,
+  MailboxUpdateParams,
+  MailboxListQuery,
+  MailboxStatsResponse,
+  EmailMailboxLabelList,
+  MailboxComposeParams,
+  EmailThreadMessage,
+  ReceiveRule,
+  ReceiveRuleList,
+  MailboxReceiveRuleCreateParams,
+  MailboxReceiveRuleListQuery,
+} from "./resources/mailbox.js";
+export type {
+  EmailThread,
+  EmailThreadList,
+  MailboxThreadUpdateParams,
+  MailboxThreadListQuery,
+  EmailThreadMessageList,
+  EmailThreadMessageBody,
+  EmailThreadMessageAttachmentList,
+  MailboxThreadMessageReplyParams,
+  MailboxThreadMessageListQuery,
+} from "./resources/mailboxThread.js";

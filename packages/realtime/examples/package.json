@@ -1,0 +1,9 @@
+{
+  "name": "@messagebird/realtime-examples",
+  "private": true,
+  "version": "0.0.0",
+  "devDependencies": {
+    "@messagebird/realtime": "workspace:*",
+    "typescript": "npm:@typescript/typescript6@^6"
+  }
+}

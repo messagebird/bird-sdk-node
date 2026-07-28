@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "paths": { "@messagebird/realtime": ["../src/index.ts"] }
+  },
+  "include": ["**/*.ts"]
+}

@@ -1,8 +1,5 @@
 // `bird.contacts` — the contacts collection (ADR-0042 §8: a collection, plural,
-// with CRUD verbs), gated on the `email_marketing` scope. `get`, `create`,
-// `delete`, and `list` are generated (contacts.gen.ts); `update` and `batch` are
-// hand-written here because they carry craft the generator does not express:
-// a partial patch and a batch upsert.
+// with CRUD verbs), gated on the `email_marketing` scope.
 
 import {
   createContactBatch,

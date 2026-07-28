@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1
+
+- Docs: resource and package docstrings now describe behavior only, without internal implementation notes.
+
 ## 0.12.0
 
 - Agent mailboxes (inbox.ai): bird.mailbox, bird.mailboxReceiveRule, bird.mailboxThread, bird.mailboxThreadMessage

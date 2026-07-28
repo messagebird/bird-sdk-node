@@ -23,7 +23,7 @@ describe("mapResponseToError", () => {
       code: "E10001",
       name: "InvalidApiKey",
       message: "bad key",
-      doc_url: "https://docs.bird.com/errors/E10001",
+      doc_url: "https://bird.com/docs/api/errors/E10001",
       request_id: "req_1",
     });
     expect(err).toBeInstanceOf(BirdAuthError);
@@ -31,7 +31,7 @@ describe("mapResponseToError", () => {
     expect(err.code).toBe("E10001");
     expect(err.type).toBe("auth_error");
     expect(err.errorName).toBe("InvalidApiKey");
-    expect(err.docUrl).toBe("https://docs.bird.com/errors/E10001");
+    expect(err.docUrl).toBe("https://bird.com/docs/api/errors/E10001");
     expect(err.requestId).toBe("req_1");
     expect(err.message).toBe("bad key");
   });

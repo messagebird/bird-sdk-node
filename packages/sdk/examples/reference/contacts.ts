@@ -3,9 +3,9 @@
 // @messagebird/sdk -> ../src). Each `bird:snippet` region is the single source
 // of truth for that key: the surfacegen TS writer injects it (unmarked) as the
 // @example on the generated method, and docsnippet-gen extracts it here for the
-// docs site + README. (Override methods — contacts.update/batch/list — keep
-// their examples inline in src/resources/contacts.ts, since nothing regenerates
-// over a hand-written method.)
+// docs site + README. (Override methods — contacts.update/batch — keep their
+// examples inline in src/resources/contacts.ts, since nothing regenerates over a
+// hand-written method.)
 
 import { BirdClient } from "@messagebird/sdk";
 

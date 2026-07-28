@@ -63,7 +63,8 @@ const bird = new BirdClient({
 }
 
 export async function _ex_10() {
-await bird.contactProperties.archive("cp_01krdgeqcxet5s7t44vh8rt9mg");
+const prop = await bird.contactProperties.archive("cp_01krdgeqcxet5s7t44vh8rt9mg");
+console.log(prop.key, prop.archived);
 }
 
 export async function _ex_11() {
@@ -73,12 +74,14 @@ console.log(prop.id); // "cp_…"
 
 export async function _ex_12() {
 const prop = await bird.contactProperties.get("cp_01krdgeqcxet5s7t44vh8rt9mg");
+console.log(prop.key, prop.type);
 }
 
 export async function _ex_13() {
 for await (const prop of bird.contactProperties.list()) {
   console.log(prop.key, prop.type);
 }
+const page = await bird.contactProperties.list({ limit: 50 }); // page.data, page.next_cursor
 }
 
 export async function _ex_14() {

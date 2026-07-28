@@ -463,6 +463,243 @@ export type EventVoiceCallAnswered = {
 };
 
 /**
+ * Payload of the verify.verification.verified event.
+ */
+export type EventVerifyVerificationVerifiedData = EventVerifyBase & {
+  /**
+   * The verification's state, always `verified`. Open enum for forward compatibility.
+   */
+  status: string;
+  /**
+   * The channel whose passcode the recipient confirmed, the channel that converted. Null when the verification was resolved without attributing a channel.
+   */
+  channel: VerificationChannel | null;
+  /**
+   * Time the verification was verified.
+   */
+  verified_at: string;
+};
+
+/**
+ * The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.
+ */
+export type VerificationChannel = string;
+
+/**
+ * The recipient to verify. Provide an `email_address`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.
+ *
+ */
+export type VerificationTo = {
+  /**
+   * The recipient's email address. Case does not matter; the address is lowercased before use.
+   */
+  email_address?: string;
+  /**
+   * The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).
+   */
+  phone_number?: string;
+};
+
+export type VerificationId = string;
+
+/**
+ * Identity fields shared by every Verify lifecycle event payload.
+ */
+export type EventVerifyBase = {
+  /**
+   * ID of the verification session.
+   */
+  verification_id: VerificationId;
+  /**
+   * ID of the workspace.
+   */
+  workspace_id: WorkspaceId;
+  /**
+   * The recipient identity of the verification session (email address, phone number, or both), echoed on every event so you can correlate without an extra lookup. An individual attempt reports the single address it was dispatched to in its own `address` field.
+   */
+  to: VerificationTo;
+  /**
+   * The metadata object provided when the verification was created, echoed on every event for the session so you can correlate events with your own records. Null when the verification carried no metadata.
+   *
+   */
+  metadata: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * The verification was successfully resolved: the recipient confirmed the correct code.
+ */
+export type EventVerifyVerificationVerified = {
+  /**
+   * Event type.
+   */
+  type: "verify.verification.verified";
+  /**
+   * Time the verification was verified.
+   */
+  timestamp: string;
+  data: EventVerifyVerificationVerifiedData;
+};
+
+/**
+ * Payload of the verify.verification.created event.
+ */
+export type EventVerifyVerificationCreatedData = EventVerifyBase & {
+  /**
+   * The first channel of the verification's resolved channel plan.
+   */
+  channel: VerificationChannel;
+  /**
+   * The verification's state at creation, always `pending`. Open enum for forward compatibility.
+   */
+  status: string;
+  /**
+   * Time the verification session was created.
+   */
+  created_at: string;
+};
+
+/**
+ * A verification session was created and its first one-time passcode is being sent.
+ */
+export type EventVerifyVerificationCreated = {
+  /**
+   * Event type.
+   */
+  type: "verify.verification.created";
+  /**
+   * Time the verification session was created.
+   */
+  timestamp: string;
+  data: EventVerifyVerificationCreatedData;
+};
+
+/**
+ * Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. v1 emits `carrier_rejected` (SMS), `hard_bounce` (email), `undelivered` (a generic terminal delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).
+ */
+export type VerificationAttemptFailureReason = string;
+
+/**
+ * Payload of the verify.attempt.undelivered event.
+ */
+export type EventVerifyAttemptUndeliveredData = EventVerifyBase & {
+  /**
+   * The channel this attempt was sent on.
+   */
+  channel: VerificationChannel;
+  /**
+   * The single address this attempt was dispatched to, an E.164 phone number or an email address.
+   */
+  address: string;
+  /**
+   * Why the attempt failed to reach the recipient.
+   */
+  reason: VerificationAttemptFailureReason;
+  /**
+   * Diagnostic text describing the failure, for display only. Null when none was reported.
+   */
+  error: string | null;
+  /**
+   * Time the failure was recorded.
+   */
+  failed_at: string;
+};
+
+/**
+ * A one-time passcode failed to deliver to the recipient.
+ */
+export type EventVerifyAttemptUndelivered = {
+  /**
+   * Event type.
+   */
+  type: "verify.attempt.undelivered";
+  /**
+   * Time the failure was recorded.
+   */
+  timestamp: string;
+  data: EventVerifyAttemptUndeliveredData;
+};
+
+/**
+ * Payload of the verify.attempt.sent event.
+ */
+export type EventVerifyAttemptSentData = EventVerifyBase & {
+  /**
+   * The channel this attempt was sent on.
+   */
+  channel: VerificationChannel;
+  /**
+   * The single address this attempt was dispatched to, an E.164 phone number or an email address.
+   */
+  address: string;
+  /**
+   * The sender the passcode was sent from: a phone number, alphanumeric sender ID, short code, or email address. Null when the channel exposes no sender.
+   */
+  from: string | null;
+  /**
+   * Time the passcode was dispatched.
+   */
+  sent_at: string;
+};
+
+/**
+ * A one-time passcode was dispatched to the recipient on a channel.
+ */
+export type EventVerifyAttemptSent = {
+  /**
+   * Event type.
+   */
+  type: "verify.attempt.sent";
+  /**
+   * Time the passcode was dispatched.
+   */
+  timestamp: string;
+  data: EventVerifyAttemptSentData;
+};
+
+/**
+ * Payload of the verify.attempt.delivered event.
+ */
+export type EventVerifyAttemptDeliveredData = EventVerifyBase & {
+  /**
+   * The channel this attempt was sent on.
+   */
+  channel: VerificationChannel;
+  /**
+   * The single address this attempt was dispatched to, an E.164 phone number or an email address.
+   */
+  address: string;
+  /**
+   * Carrier that delivered the message, when the carrier network reports it. Always null for email and WhatsApp.
+   */
+  carrier: string | null;
+  /**
+   * Mobile country code and mobile network code of the delivering carrier, when reported. Always null for email and WhatsApp.
+   */
+  mcc_mnc: string | null;
+  /**
+   * Time delivery was confirmed.
+   */
+  delivered_at: string;
+};
+
+/**
+ * The channel confirmed delivery of a one-time passcode to the recipient.
+ */
+export type EventVerifyAttemptDelivered = {
+  /**
+   * Event type.
+   */
+  type: "verify.attempt.delivered";
+  /**
+   * Time delivery was confirmed.
+   */
+  timestamp: string;
+  data: EventVerifyAttemptDeliveredData;
+};
+
+/**
  * Payload of the sms.undelivered event.
  */
 export type EventSmsUndeliveredData = EventSmsBase & {
@@ -1841,6 +2078,21 @@ export type WebhookEvent =
       type: "sms.undelivered";
     } & EventSmsUndelivered)
   | ({
+      type: "verify.attempt.delivered";
+    } & EventVerifyAttemptDelivered)
+  | ({
+      type: "verify.attempt.sent";
+    } & EventVerifyAttemptSent)
+  | ({
+      type: "verify.attempt.undelivered";
+    } & EventVerifyAttemptUndelivered)
+  | ({
+      type: "verify.verification.created";
+    } & EventVerifyVerificationCreated)
+  | ({
+      type: "verify.verification.verified";
+    } & EventVerifyVerificationVerified)
+  | ({
       type: "voice_call.answered";
     } & EventVoiceCallAnswered)
   | ({
@@ -3003,6 +3255,11 @@ export type MailboxStatsSummary = {
 };
 
 /**
+ * The bucket grain of the series, either `day` or `hour`.
+ */
+export type StatsGrain = "day" | "hour";
+
+/**
  * The window and bucket grain the response covers, echoed from the request, plus the freshness boundary the data is current to.
  *
  */
@@ -3015,10 +3272,7 @@ export type EmailStatsSeriesPeriod = {
    * Inclusive end of the window. A calendar day (YYYY-MM-DD, in the requested `timezone`) on the day grain; on the hour grain, an RFC 3339 UTC instant marking the start of the last hour bucket, which falls on a local hour boundary when `timezone` is set.
    */
   readonly to: string;
-  /**
-   * The bucket grain of the series, either `day` or `hour`.
-   */
-  readonly grain: string;
+  readonly grain: StatsGrain;
   /**
    * The instant the statistics in this response are current to: events recorded up to roughly this time are reflected, while more recent events may not be yet. Statistics are served from a rolling aggregation that refreshes every few seconds, so a response is near-real-time but not live; use this field to label data freshness rather than assuming the numbers are to-the-second. Null when the freshness boundary is not being reported.
    *
@@ -5035,31 +5289,14 @@ export type VerificationCheckResult = {
   readonly attempts_remaining?: number | null;
 };
 
-/**
- * The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.
- */
-export type VerificationChannel = string;
-
 export type VerificationChannelEntry = {
   channel: VerificationChannel;
 };
 
 /**
- * The recipient to verify. Provide an `email_address`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.
- *
+ * Why a verification session reached its final state without succeeding: `attempts_exhausted` (too many incorrect passcodes) or `ttl_elapsed` (the time window elapsed before a correct passcode). Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error.
  */
-export type VerificationTo = {
-  /**
-   * The recipient's email address. Case does not matter; the address is lowercased before use.
-   */
-  email_address?: string;
-  /**
-   * The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).
-   */
-  phone_number?: string;
-};
-
-export type VerificationId = string;
+export type VerificationTerminalReason = string;
 
 export type Verification = {
   readonly id: VerificationId;
@@ -5069,9 +5306,9 @@ export type Verification = {
   readonly status:
     "pending" | "verified" | "failed" | "expired" | "canceled" | "blocked";
   /**
-   * Why the verification reached its final state: `attempts_exhausted` (too many incorrect passcodes) or `ttl_elapsed` (the time window elapsed before a correct passcode). Null while `pending` and once `verified`. Open enum; treat any unrecognized value as a future reason.
+   * Why the verification reached its final state, or null while `pending` and once `verified`. See the enum for the values it can take.
    */
-  readonly reason?: string | null;
+  readonly reason?: VerificationTerminalReason | null;
   readonly to: VerificationTo;
   /**
    * The channels this verification uses to deliver the passcode, in attempt order: the first entry is tried first and later entries are fallbacks. An email recipient is verified over email; a phone recipient is verified over SMS.
@@ -6965,6 +7202,21 @@ export type WebhookEventWritable =
   | ({
       type: "sms.undelivered";
     } & EventSmsUndeliveredWritable)
+  | ({
+      type: "verify.attempt.delivered";
+    } & EventVerifyAttemptDelivered)
+  | ({
+      type: "verify.attempt.sent";
+    } & EventVerifyAttemptSent)
+  | ({
+      type: "verify.attempt.undelivered";
+    } & EventVerifyAttemptUndelivered)
+  | ({
+      type: "verify.verification.created";
+    } & EventVerifyVerificationCreated)
+  | ({
+      type: "verify.verification.verified";
+    } & EventVerifyVerificationVerified)
   | ({
       type: "voice_call.answered";
     } & EventVoiceCallAnswered)

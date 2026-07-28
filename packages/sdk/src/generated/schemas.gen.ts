@@ -61,6 +61,11 @@ export const WebhookEventTypeSchema = {
     "sms.tfn_verification.rejected",
     "sms.tfn_verification.submitted",
     "sms.undelivered",
+    "verify.attempt.delivered",
+    "verify.attempt.sent",
+    "verify.attempt.undelivered",
+    "verify.verification.created",
+    "verify.verification.verified",
     "voice_call.answered",
     "voice_call.ended",
     "voice_call.initiated",
@@ -959,6 +964,477 @@ export const EventVoiceCallAnsweredSchema = {
     },
     data: {
       $ref: "#/components/schemas/EventVoiceCallAnsweredData",
+    },
+  },
+} as const;
+
+export const EventVerifyVerificationVerifiedDataSchema = {
+  type: "object",
+  description: "Payload of the verify.verification.verified event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVerifyBase",
+    },
+    {
+      type: "object",
+      required: ["status", "channel", "verified_at"],
+      properties: {
+        status: {
+          type: "string",
+          minLength: 1,
+          "x-extensible-enum": ["verified"],
+          description:
+            "The verification's state, always `verified`. Open enum for forward compatibility.",
+          example: "verified",
+        },
+        channel: {
+          oneOf: [
+            {
+              $ref: "#/components/schemas/VerificationChannel",
+            },
+            {
+              type: "null",
+            },
+          ],
+          description:
+            "The channel whose passcode the recipient confirmed, the channel that converted. Null when the verification was resolved without attributing a channel.",
+          example: "sms",
+        },
+        verified_at: {
+          type: "string",
+          minLength: 1,
+          format: "date-time",
+          description: "Time the verification was verified.",
+          example: {},
+        },
+      },
+    },
+  ],
+} as const;
+
+export const VerificationChannelSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["email", "sms", "whatsapp"],
+  description:
+    "The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
+} as const;
+
+export const VerificationToSchema = {
+  type: "object",
+  additionalProperties: false,
+  minProperties: 1,
+  description:
+    "The recipient to verify. Provide an `email_address`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.\n",
+  properties: {
+    email_address: {
+      type: "string",
+      minLength: 1,
+      format: "email",
+      description:
+        "The recipient's email address. Case does not matter; the address is lowercased before use.",
+      example: "user@example.com",
+    },
+    phone_number: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).",
+      example: "+15551234567",
+    },
+  },
+} as const;
+
+export const VerificationIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^vrf_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "vrf_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const EventVerifyBaseSchema = {
+  type: "object",
+  "x-mixin": true,
+  description:
+    "Identity fields shared by every Verify lifecycle event payload.",
+  required: ["verification_id", "workspace_id", "to", "metadata"],
+  properties: {
+    verification_id: {
+      $ref: "#/components/schemas/VerificationID",
+      description: "ID of the verification session.",
+      "x-go-type": "domain.VerificationID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    workspace_id: {
+      $ref: "#/components/schemas/WorkspaceID",
+      description: "ID of the workspace.",
+      "x-go-type": "domain.WorkspaceID",
+      "x-go-type-import": {
+        name: "domain",
+        path: "bird/internal/domain",
+      },
+    },
+    to: {
+      $ref: "#/components/schemas/VerificationTo",
+      description:
+        "The recipient identity of the verification session (email address, phone number, or both), echoed on every event so you can correlate without an extra lookup. An individual attempt reports the single address it was dispatched to in its own `address` field.",
+    },
+    metadata: {
+      type: ["object", "null"],
+      additionalProperties: true,
+      description:
+        "The metadata object provided when the verification was created, echoed on every event for the session so you can correlate events with your own records. Null when the verification carried no metadata.\n",
+      example: {
+        user_id: "usr_123",
+      },
+    },
+  },
+} as const;
+
+export const EventVerifyVerificationVerifiedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The verification was successfully resolved: the recipient confirmed the correct code.",
+  "x-event-type-id": "verify.verification.verified",
+  "x-dedupe": {
+    scope: "verification",
+    stage: "verify.verification.verified",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["verify.verification.verified"],
+      description: "Event type.",
+      example: "verify.verification.verified",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the verification was verified.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVerifyVerificationVerifiedData",
+    },
+  },
+} as const;
+
+export const EventVerifyVerificationCreatedDataSchema = {
+  type: "object",
+  description: "Payload of the verify.verification.created event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVerifyBase",
+    },
+    {
+      type: "object",
+      required: ["channel", "status", "created_at"],
+      properties: {
+        channel: {
+          $ref: "#/components/schemas/VerificationChannel",
+          description:
+            "The first channel of the verification's resolved channel plan.",
+          example: "sms",
+        },
+        status: {
+          type: "string",
+          minLength: 1,
+          "x-extensible-enum": ["pending"],
+          description:
+            "The verification's state at creation, always `pending`. Open enum for forward compatibility.",
+          example: "pending",
+        },
+        created_at: {
+          type: "string",
+          minLength: 1,
+          format: "date-time",
+          description: "Time the verification session was created.",
+          example: {},
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventVerifyVerificationCreatedSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A verification session was created and its first one-time passcode is being sent.",
+  "x-event-type-id": "verify.verification.created",
+  "x-dedupe": {
+    scope: "verification",
+    stage: "verify.verification.created",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["verify.verification.created"],
+      description: "Event type.",
+      example: "verify.verification.created",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the verification session was created.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVerifyVerificationCreatedData",
+    },
+  },
+} as const;
+
+export const VerificationAttemptFailureReasonSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": [
+    "carrier_rejected",
+    "hard_bounce",
+    "undelivered",
+    "channel_unavailable",
+  ],
+  description:
+    "Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. v1 emits `carrier_rejected` (SMS), `hard_bounce` (email), `undelivered` (a generic terminal delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).",
+} as const;
+
+export const EventVerifyAttemptUndeliveredDataSchema = {
+  type: "object",
+  description: "Payload of the verify.attempt.undelivered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVerifyBase",
+    },
+    {
+      type: "object",
+      required: ["channel", "address", "reason", "error", "failed_at"],
+      properties: {
+        channel: {
+          $ref: "#/components/schemas/VerificationChannel",
+          description: "The channel this attempt was sent on.",
+          example: "sms",
+        },
+        address: {
+          type: "string",
+          minLength: 1,
+          description:
+            "The single address this attempt was dispatched to, an E.164 phone number or an email address.",
+          example: "+15551234567",
+        },
+        reason: {
+          $ref: "#/components/schemas/VerificationAttemptFailureReason",
+          description: "Why the attempt failed to reach the recipient.",
+          example: "carrier_rejected",
+        },
+        error: {
+          type: ["string", "null"],
+          description:
+            "Diagnostic text describing the failure, for display only. Null when none was reported.",
+          example: "550: mailbox unavailable",
+        },
+        failed_at: {
+          type: "string",
+          minLength: 1,
+          format: "date-time",
+          description: "Time the failure was recorded.",
+          example: {},
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventVerifyAttemptUndeliveredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "A one-time passcode failed to deliver to the recipient.",
+  "x-event-type-id": "verify.attempt.undelivered",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["verify.attempt.undelivered"],
+      description: "Event type.",
+      example: "verify.attempt.undelivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the failure was recorded.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVerifyAttemptUndeliveredData",
+    },
+  },
+} as const;
+
+export const EventVerifyAttemptSentDataSchema = {
+  type: "object",
+  description: "Payload of the verify.attempt.sent event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVerifyBase",
+    },
+    {
+      type: "object",
+      required: ["channel", "address", "from", "sent_at"],
+      properties: {
+        channel: {
+          $ref: "#/components/schemas/VerificationChannel",
+          description: "The channel this attempt was sent on.",
+          example: "sms",
+        },
+        address: {
+          type: "string",
+          minLength: 1,
+          description:
+            "The single address this attempt was dispatched to, an E.164 phone number or an email address.",
+          example: "+15551234567",
+        },
+        from: {
+          type: ["string", "null"],
+          description:
+            "The sender the passcode was sent from: a phone number, alphanumeric sender ID, short code, or email address. Null when the channel exposes no sender.",
+          example: "Authifly",
+        },
+        sent_at: {
+          type: "string",
+          minLength: 1,
+          format: "date-time",
+          description: "Time the passcode was dispatched.",
+          example: {},
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventVerifyAttemptSentSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A one-time passcode was dispatched to the recipient on a channel.",
+  "x-event-type-id": "verify.attempt.sent",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["verify.attempt.sent"],
+      description: "Event type.",
+      example: "verify.attempt.sent",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time the passcode was dispatched.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVerifyAttemptSentData",
+    },
+  },
+} as const;
+
+export const EventVerifyAttemptDeliveredDataSchema = {
+  type: "object",
+  description: "Payload of the verify.attempt.delivered event.",
+  allOf: [
+    {
+      $ref: "#/components/schemas/EventVerifyBase",
+    },
+    {
+      type: "object",
+      required: ["channel", "address", "carrier", "mcc_mnc", "delivered_at"],
+      properties: {
+        channel: {
+          $ref: "#/components/schemas/VerificationChannel",
+          description: "The channel this attempt was sent on.",
+          example: "sms",
+        },
+        address: {
+          type: "string",
+          minLength: 1,
+          description:
+            "The single address this attempt was dispatched to, an E.164 phone number or an email address.",
+          example: "+15551234567",
+        },
+        carrier: {
+          type: ["string", "null"],
+          description:
+            "Carrier that delivered the message, when the carrier network reports it. Always null for email and WhatsApp.",
+          example: "Verizon",
+        },
+        mcc_mnc: {
+          type: ["string", "null"],
+          description:
+            "Mobile country code and mobile network code of the delivering carrier, when reported. Always null for email and WhatsApp.",
+          example: "311480",
+        },
+        delivered_at: {
+          type: "string",
+          minLength: 1,
+          format: "date-time",
+          description: "Time delivery was confirmed.",
+          example: {},
+        },
+      },
+    },
+  ],
+} as const;
+
+export const EventVerifyAttemptDeliveredSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The channel confirmed delivery of a one-time passcode to the recipient.",
+  "x-event-type-id": "verify.attempt.delivered",
+  "x-dedupe": {
+    scope: "provider",
+  },
+  "x-event-type-source": "platform",
+  required: ["type", "timestamp", "data"],
+  properties: {
+    type: {
+      type: "string",
+      minLength: 1,
+      enum: ["verify.attempt.delivered"],
+      description: "Event type.",
+      example: "verify.attempt.delivered",
+    },
+    timestamp: {
+      type: "string",
+      minLength: 1,
+      format: "date-time",
+      description: "Time delivery was confirmed.",
+      example: {},
+    },
+    data: {
+      $ref: "#/components/schemas/EventVerifyAttemptDeliveredData",
     },
   },
 } as const;
@@ -3611,6 +4087,21 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventSMSUndelivered",
     },
     {
+      $ref: "#/components/schemas/EventVerifyAttemptDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyAttemptSent",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyAttemptUndelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyVerificationCreated",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyVerificationVerified",
+    },
+    {
       $ref: "#/components/schemas/EventVoiceCallAnswered",
     },
     {
@@ -3689,6 +4180,15 @@ export const WebhookEventSchema = {
       "sms.tfn_verification.submitted":
         "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
+      "verify.attempt.delivered":
+        "#/components/schemas/EventVerifyAttemptDelivered",
+      "verify.attempt.sent": "#/components/schemas/EventVerifyAttemptSent",
+      "verify.attempt.undelivered":
+        "#/components/schemas/EventVerifyAttemptUndelivered",
+      "verify.verification.created":
+        "#/components/schemas/EventVerifyVerificationCreated",
+      "verify.verification.verified":
+        "#/components/schemas/EventVerifyVerificationVerified",
       "voice_call.answered": "#/components/schemas/EventVoiceCallAnswered",
       "voice_call.ended": "#/components/schemas/EventVoiceCallEnded",
       "voice_call.initiated": "#/components/schemas/EventVoiceCallInitiated",
@@ -5927,6 +6427,15 @@ export const MailboxStatsSummarySchema = {
   },
 } as const;
 
+export const StatsGrainSchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["day", "hour"],
+  readOnly: true,
+  description: "The bucket grain of the series, either `day` or `hour`.",
+  example: "day",
+} as const;
+
 export const EmailStatsSeriesPeriodSchema = {
   type: "object",
   additionalProperties: false,
@@ -5955,11 +6464,8 @@ export const EmailStatsSeriesPeriodSchema = {
       example: {},
     },
     grain: {
-      type: "string",
-      minLength: 1,
+      $ref: "#/components/schemas/StatsGrain",
       readOnly: true,
-      description: "The bucket grain of the series, either `day` or `hour`.",
-      example: "day",
     },
     data_as_of: {
       type: ["string", "null"],
@@ -10190,14 +10696,6 @@ export const VerificationCheckResultSchema = {
   },
 } as const;
 
-export const VerificationChannelSchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": ["email", "sms", "whatsapp"],
-  description:
-    "The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.",
-} as const;
-
 export const VerificationChannelEntrySchema = {
   type: "object",
   additionalProperties: false,
@@ -10209,36 +10707,12 @@ export const VerificationChannelEntrySchema = {
   },
 } as const;
 
-export const VerificationToSchema = {
-  type: "object",
-  additionalProperties: false,
-  minProperties: 1,
-  description:
-    "The recipient to verify. Provide an `email_address`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.\n",
-  properties: {
-    email_address: {
-      type: "string",
-      minLength: 1,
-      format: "email",
-      description:
-        "The recipient's email address. Case does not matter; the address is lowercased before use.",
-      example: "user@example.com",
-    },
-    phone_number: {
-      type: "string",
-      minLength: 1,
-      description:
-        "The recipient's phone number in E.164 format, with the leading `+` and country code (for example `+15551234567`). A number in any other format is rejected as an invalid recipient (`422`).",
-      example: "+15551234567",
-    },
-  },
-} as const;
-
-export const VerificationIDSchema = {
+export const VerificationTerminalReasonSchema = {
   type: "string",
   minLength: 1,
-  pattern: "^vrf_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "vrf_01krdgeqcxet5s7t44vh8rt9mg",
+  "x-extensible-enum": ["attempts_exhausted", "ttl_elapsed"],
+  description:
+    "Why a verification session reached its final state without succeeding: `attempts_exhausted` (too many incorrect passcodes) or `ttl_elapsed` (the time window elapsed before a correct passcode). Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error.",
 } as const;
 
 export const VerificationSchema = {
@@ -10275,11 +10749,17 @@ export const VerificationSchema = {
             "The verification's current state: `pending` (the initial state, awaiting a correct passcode), `verified` (a correct passcode was submitted), `failed` (too many incorrect attempts), `expired` (the time window elapsed before a correct passcode), `canceled` (the verification was canceled before completing), or `blocked` (it was stopped by a fraud or abuse control).",
         },
         reason: {
-          type: ["string", "null"],
-          "x-extensible-enum": ["attempts_exhausted", "ttl_elapsed"],
           readOnly: true,
+          oneOf: [
+            {
+              $ref: "#/components/schemas/VerificationTerminalReason",
+            },
+            {
+              type: "null",
+            },
+          ],
           description:
-            "Why the verification reached its final state: `attempts_exhausted` (too many incorrect passcodes) or `ttl_elapsed` (the time window elapsed before a correct passcode). Null while `pending` and once `verified`. Open enum; treat any unrecognized value as a future reason.",
+            "Why the verification reached its final state, or null while `pending` and once `verified`. See the enum for the values it can take.",
         },
         to: {
           readOnly: true,
@@ -13717,6 +14197,21 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventSMSUndeliveredWritable",
     },
     {
+      $ref: "#/components/schemas/EventVerifyAttemptDelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyAttemptSent",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyAttemptUndelivered",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyVerificationCreated",
+    },
+    {
+      $ref: "#/components/schemas/EventVerifyVerificationVerified",
+    },
+    {
       $ref: "#/components/schemas/EventVoiceCallAnswered",
     },
     {
@@ -13795,6 +14290,15 @@ export const WebhookEventWritableSchema = {
       "sms.tfn_verification.submitted":
         "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
+      "verify.attempt.delivered":
+        "#/components/schemas/EventVerifyAttemptDelivered",
+      "verify.attempt.sent": "#/components/schemas/EventVerifyAttemptSent",
+      "verify.attempt.undelivered":
+        "#/components/schemas/EventVerifyAttemptUndelivered",
+      "verify.verification.created":
+        "#/components/schemas/EventVerifyVerificationCreated",
+      "verify.verification.verified":
+        "#/components/schemas/EventVerifyVerificationVerified",
       "voice_call.answered": "#/components/schemas/EventVoiceCallAnswered",
       "voice_call.ended": "#/components/schemas/EventVoiceCallEnded",
       "voice_call.initiated": "#/components/schemas/EventVoiceCallInitiated",

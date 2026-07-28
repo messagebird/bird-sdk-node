@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.2
+
+- Extract the verification terminal-reason enum into a shared `VerificationTerminalReason` type (no behavior change).
+- Internal improvements.
+- Stats `period.grain` is now typed as a shared `StatsGrain` (`day` | `hour`) instead of a plain string. No wire or behavioural change.
+
 ## 0.12.1
 
 - Docs: resource and package docstrings now describe behavior only, without internal implementation notes.

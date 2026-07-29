@@ -3736,14 +3736,26 @@ export type DomainEvent = {
  */
 export type DomainUpdate = {
   settings?: DomainSettings;
-  return_path?: DomainReturnPathConfig & unknown;
+  /**
+   * Change the return-path name part. Cannot be removed — the return-path is required for sending.
+   *
+   */
+  return_path?: DomainReturnPathConfig;
   /**
    * Set or change the tracking name part, or remove tracking by passing null. Removal requires `click_tracking` and `open_tracking` to be disabled first, and returns `409` otherwise. After removal, links in previously sent email keep resolving while the tracking records are reported as `deprecated`.
    *
    */
   tracking?: DomainTrackingConfig | null;
-  dkim?: DomainDkimConfig & unknown;
-  inbound?: DomainInboundConfig & unknown;
+  /**
+   * Change how the DKIM key is published. The current key keeps signing until the new configuration verifies, so mail is never sent unsigned during the transition.
+   *
+   */
+  dkim?: DomainDkimConfig;
+  /**
+   * Enable or disable receiving on this domain. Enabling claims the domain for inbound and moves `capabilities.inbound.status` from `not_configured` to `pending`, then `verified` once the MX records resolve to Bird. The MX records to publish are always present under `dns_records` (`purpose: inbound_mx`) as a regional reference, so their presence does not mean receiving is on — a domain still needs enabling whenever `capabilities.inbound.status` is `not_configured`. Enabling requires the domain's DKIM to be verified first (ownership proof): a fresh enable on a domain whose DKIM is not verified returns `422` `E05019` and claims nothing. A domain already receiving inbound for another organization returns `422` `E05018`.
+   *
+   */
+  inbound?: DomainInboundConfig;
 };
 
 /**
@@ -3956,11 +3968,31 @@ export type DomainCapability = {
 };
 
 export type DomainCapabilities = {
-  sending: DomainCapability & unknown;
-  return_path: DomainCapability & unknown;
-  dmarc: DomainCapability & unknown;
-  tracking: DomainCapability & unknown;
-  inbound?: DomainCapability & unknown;
+  /**
+   * Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.
+   *
+   */
+  sending: DomainCapability;
+  /**
+   * Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.
+   *
+   */
+  return_path: DomainCapability;
+  /**
+   * DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.
+   *
+   */
+  dmarc: DomainCapability;
+  /**
+   * Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.
+   *
+   */
+  tracking: DomainCapability;
+  /**
+   * Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.
+   *
+   */
+  inbound?: DomainCapability;
 };
 
 /**
@@ -4051,7 +4083,10 @@ export type Domain = {
  * Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByBroadcastResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Broadcast breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no broadcast messages were active in the period.
    */
@@ -4143,7 +4178,10 @@ export type EmailStatsPeriod = {
  * Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByComplaintTypeResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Complaint-type breakdown rows, ranked by `complained` descending. Empty when no complaints occurred in the period.
    */
@@ -4174,7 +4212,10 @@ export type EmailComplaintTypeStatsPoint = {
  * Per-SMTP-code bounce breakdown for the requested period, ranked by the `sort` metric (default `bounced`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByBounceCodeResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Bounce-code breakdown rows, ranked by the `sort` metric (default `bounced`) descending. Empty when no bounces occurred in the period.
    */
@@ -4238,7 +4279,10 @@ export type EmailBounceCodeStatsPoint = {
  * Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByClientResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Client breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a detected client occurred in the period.
    */
@@ -4307,7 +4351,10 @@ export type EmailClientStatsPoint = {
  * Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByLocationResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Location breakdown rows, ranked by the `sort` metric (default `unique_opens`) descending. Empty when no opens or clicks with a resolved location occurred in the period.
    */
@@ -4355,7 +4402,10 @@ export type EmailEngagementSortMetric =
  * Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByTemplateResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Template breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no templated messages were active in the period.
    */
@@ -4390,7 +4440,10 @@ export type EmailTemplateStatsPoint = {
  * Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByRecipientDomainResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Recipient-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.
    */
@@ -4423,7 +4476,10 @@ export type EmailRecipientDomainStatsPoint = {
  * Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByMailboxProviderRegionResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Provider-region breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no deliveries occurred in the period.
    */
@@ -4514,7 +4570,10 @@ export type EmailMailboxProviderRegionStatsPoint = {
  * Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByMailboxProviderResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Mailbox-provider breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no eligible activity occurred in the period.
    */
@@ -4581,7 +4640,10 @@ export type EmailMailboxProviderSortMetric =
  * Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByCategoryResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Category breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no sends occurred in the period.
    */
@@ -4614,7 +4676,10 @@ export type EmailCategoryStatsPoint = {
  * Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsBySendingDomainResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Sending-domain breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no eligible activity occurred in the period.
    */
@@ -4647,7 +4712,10 @@ export type EmailSendingDomainStatsPoint = {
  * Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsBySendingIpResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Sending-IP breakdown rows, ranked by the `sort` metric (default `delivered`) descending. Empty when no per-IP-attributable activity (delivery, bounce, deferral, or late bounce) occurred in the period.
    */
@@ -4746,7 +4814,10 @@ export type EmailSendingIpStatsPoint = {
  *
  */
 export type EmailStatsSummary = {
-  period: EmailStatsSummaryPeriod & unknown;
+  /**
+   * The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsSummaryPeriod;
   /**
    * Distinct email messages accepted, counted at the message level (one per accepted send regardless of recipient count) and summed per bucket across the period. This counts messages, not recipients, so it is not comparable to `delivery.accepted`, which counts recipients (a single message to 500 recipients is 1 here and up to 500 there).
    */
@@ -4813,7 +4884,10 @@ export type EmailStatsComparisonDelta = {
  *
  */
 export type EmailStatsComparison = {
-  period: EmailStatsSummaryPeriod & unknown;
+  /**
+   * The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.
+   */
+  period: EmailStatsSummaryPeriod;
   /**
    * Distinct email messages accepted in the preceding period, counted at the message level.
    */
@@ -4848,7 +4922,10 @@ export type EmailStatsSummaryPeriod = {
  * Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsTagsResponse = {
-  period: EmailStatsPeriod & unknown;
+  /**
+   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
+   */
+  period: EmailStatsPeriod;
   /**
    * Tag breakdown rows, ranked by the `sort` metric (default `processed`) descending. Empty when no tagged sends occurred in the period.
    */
@@ -6669,6 +6746,156 @@ export type EmailMessage = {
   readonly scheduled_at?: string | null;
 };
 
+/**
+ * The members present on a presence channel.
+ */
+export type RealtimeChannelMembers = {
+  members: Array<RealtimeChannelMember>;
+};
+
+/**
+ * An app-defined member id — the identity of your application's end user ("member"), assigned when your auth server authorizes them. Never a Bird user. Max 128 characters, restricted to URL-safe characters because member ids appear directly in API request paths. Broader than a channel name — allows `+ : @ . _ -` etc. for real identifiers (phone numbers, emails, `member:42`), but excludes `/ ? # %` and whitespace.
+ */
+export type RealtimeMemberId = string;
+
+/**
+ * A member present on a presence channel.
+ */
+export type RealtimeChannelMember = {
+  member_id: RealtimeMemberId;
+};
+
+export type RealtimeChannelInfo = RealtimeChannelCounts & {
+  /**
+   * Whether at least one client is subscribed.
+   */
+  occupied: boolean;
+};
+
+/**
+ * Per-channel counts, present only when requested via `include` and applicable.
+ */
+export type RealtimeChannelCounts = {
+  /**
+   * Distinct members (presence channels only; requires include=member_count).
+   */
+  member_count?: number;
+  /**
+   * Connections currently subscribed to this channel (requires include=connection_count and the app's connection-counting flag). Channel-scoped — distinct from the app-wide peak connections metric.
+   */
+  connection_count?: number;
+};
+
+/**
+ * The app's occupied channels. The Realtime service does not paginate this listing, so all occupied channels are returned in one response.
+ */
+export type RealtimeChannelsList = {
+  /**
+   * The occupied channels, sorted by name.
+   */
+  data: Array<RealtimeChannelListItem>;
+};
+
+/**
+ * A Realtime channel name. Only letters, digits, and _ - = @ , . ; Prefix with `private-` or `presence-` for authenticated channels.
+ */
+export type RealtimeChannelName = string;
+
+export type RealtimeChannelListItem = RealtimeChannelCounts & {
+  name: RealtimeChannelName;
+};
+
+/**
+ * The result of a Realtime batch publish. The events were accepted for delivery; delivery to connected clients is asynchronous.
+ *
+ */
+export type RealtimeBatchPublishResult = {
+  /**
+   * Per-event channel attributes at publish time, present only when at least one event asked for them via `include`. Positional: one item per event, in request order.
+   */
+  readonly data?: Array<RealtimeBatchPublishResultItem>;
+};
+
+export type RealtimeBatchPublishResultItem = RealtimeChannelCounts & {
+  channel: RealtimeChannelName;
+};
+
+/**
+ * A batch of events, each delivered to a single channel, in one request.
+ */
+export type RealtimeBatchPublish = {
+  /**
+   * Up to 10 events per batch.
+   */
+  events: Array<RealtimeBatchEvent>;
+};
+
+/**
+ * A per-channel attribute to include in the response. `member_count` is presence-channels only; `connection_count` requires the app's connection-counting flag.
+ */
+export type RealtimeChannelInclude = "member_count" | "connection_count";
+
+/**
+ * Exclude this connection from delivery, to avoid echoing a change back to the client that triggered it. The value is the client's connection id, assigned when its connection is established.
+ */
+export type RealtimeExcludeConnectionId = string;
+
+/**
+ * Arbitrary JSON payload delivered as the event data — an object, array, or scalar. Cap: 10 KB serialized.
+ */
+export type RealtimeEventData = unknown;
+
+/**
+ * The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.
+ */
+export type RealtimeEventName = string;
+
+/**
+ * One item of a batch publish — a single event to a single channel.
+ */
+export type RealtimeBatchEvent = {
+  event: RealtimeEventName;
+  channel: RealtimeChannelName;
+  data?: RealtimeEventData;
+  exclude_connection_id?: RealtimeExcludeConnectionId;
+  /**
+   * Attributes of this event's channel to return alongside the publish (same semantics and validation errors as on the channel endpoints). Requesting attributes counts as one additional message toward usage.
+   */
+  include?: Array<RealtimeChannelInclude>;
+};
+
+/**
+ * The result of a Realtime publish. The event was accepted and fanned out to the requested channels; delivery to connected clients is asynchronous.
+ *
+ */
+export type RealtimePublishResult = {
+  /**
+   * Per-channel attributes at publish time, present only when the request asked for them via `include`; one item per distinct target channel, sorted by name.
+   */
+  readonly data?: Array<RealtimeChannelListItem>;
+};
+
+/**
+ * A Realtime publish: delivers one event to one or more channels of the app. Listing several channels fans the event out to all of them (broadcast) in a single call.
+ *
+ */
+export type RealtimePublish = {
+  event: RealtimeEventName;
+  /**
+   * The channels to deliver the event to (up to 100 per call). Prefix with `private-` or `presence-` for authenticated channels.
+   *
+   */
+  channels: Array<RealtimeChannelName>;
+  data?: RealtimeEventData;
+  exclude_connection_id?: RealtimeExcludeConnectionId;
+  /**
+   * Per-channel attributes to return alongside the publish, reflecting each channel's state at publish time (same semantics and validation errors as on the channel endpoints: `member_count` is presence-channels only, `connection_count` requires the app's connection-counting flag). Requesting attributes counts as one additional message toward usage.
+   */
+  include?: Array<RealtimeChannelInclude>;
+};
+
+export type RealtimeAppId = string;
+
 export type DocsPage = {
   /**
    * Slug of the page, echoing the requested slug.
@@ -7697,11 +7924,31 @@ export type DomainCapabilityWritable = {
 };
 
 export type DomainCapabilitiesWritable = {
-  sending: DomainCapabilityWritable & unknown;
-  return_path: DomainCapabilityWritable & unknown;
-  dmarc: DomainCapabilityWritable & unknown;
-  tracking: DomainCapabilityWritable & unknown;
-  inbound?: DomainCapabilityWritable & unknown;
+  /**
+   * Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.
+   *
+   */
+  sending: DomainCapabilityWritable;
+  /**
+   * Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.
+   *
+   */
+  return_path: DomainCapabilityWritable;
+  /**
+   * DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.
+   *
+   */
+  dmarc: DomainCapabilityWritable;
+  /**
+   * Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.
+   *
+   */
+  tracking: DomainCapabilityWritable;
+  /**
+   * Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.
+   *
+   */
+  inbound?: DomainCapabilityWritable;
 };
 
 export type DomainWritable = {
@@ -7713,10 +7960,7 @@ export type DomainWritable = {
  * Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByBroadcastResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7730,50 +7974,35 @@ export type EmailBroadcastStatsPointWritable = {
  * Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByComplaintTypeResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
  * Per-SMTP-code bounce breakdown for the requested period, ranked by the `sort` metric (default `bounced`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByBounceCodeResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
  * Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByClientResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
  * Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByLocationResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
  * Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByTemplateResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7787,10 +8016,7 @@ export type EmailTemplateStatsPointWritable = {
  * Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByRecipientDomainResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7804,10 +8030,7 @@ export type EmailRecipientDomainStatsPointWritable = {
  * Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByMailboxProviderRegionResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7835,10 +8058,7 @@ export type EmailMailboxProviderRegionStatsPointWritable = {
  * Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByMailboxProviderResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7853,10 +8073,7 @@ export type EmailMailboxProviderStatsPointWritable = {
  * Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsByCategoryResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7870,10 +8087,7 @@ export type EmailCategoryStatsPointWritable = {
  * Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsBySendingDomainResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7887,10 +8101,7 @@ export type EmailSendingDomainStatsPointWritable = {
  * Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsBySendingIpResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7908,10 +8119,7 @@ export type EmailSendingIpStatsPointWritable = {
  *
  */
 export type EmailStatsSummaryWritable = {
-  /**
-   * The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -7919,20 +8127,14 @@ export type EmailStatsSummaryWritable = {
  *
  */
 export type EmailStatsComparisonWritable = {
-  /**
-   * The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
  * Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).
  */
 export type EmailStatsTagsResponseWritable = {
-  /**
-   * The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.
-   */
-  period: unknown;
+  [key: string]: never;
 };
 
 /**
@@ -8407,6 +8609,22 @@ export type EmailMessageWritable = {
   track_clicks: boolean;
 };
 
+/**
+ * The result of a Realtime batch publish. The events were accepted for delivery; delivery to connected clients is asynchronous.
+ *
+ */
+export type RealtimeBatchPublishResultWritable = {
+  [key: string]: never;
+};
+
+/**
+ * The result of a Realtime publish. The event was accepted and fanned out to the requested channels; delivery to connected clients is asynchronous.
+ *
+ */
+export type RealtimePublishResultWritable = {
+  [key: string]: never;
+};
+
 export type ErrorWritable = {
   error: ErrorBodyWritable;
 };
@@ -8508,6 +8726,18 @@ export type CreatedBefore = string;
 export type CreatedAfter = string;
 
 /**
+ * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+ *
+ */
+export type RealtimeSecret = string;
+
+/**
+ * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+ *
+ */
+export type RealtimeKey = string;
+
+/**
  * Workspace context. Required for session auth; derived from API key otherwise.
  */
 export type XWorkspaceId = string;
@@ -8551,6 +8781,489 @@ export type PaginationLimit = number;
  *
  */
 export type IdempotencyKey = string;
+
+export type PublishRealtimeAppEventData = {
+  body: RealtimePublish;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+  };
+  query?: never;
+  url: "/v1/realtime/apps/{realtime_app_id}/events";
+};
+
+export type PublishRealtimeAppEventErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type PublishRealtimeAppEventError =
+  PublishRealtimeAppEventErrors[keyof PublishRealtimeAppEventErrors];
+
+export type PublishRealtimeAppEventResponses = {
+  /**
+   * The event was accepted for delivery.
+   */
+  200: RealtimePublishResult;
+};
+
+export type PublishRealtimeAppEventResponse =
+  PublishRealtimeAppEventResponses[keyof PublishRealtimeAppEventResponses];
+
+export type PublishRealtimeAppBatchData = {
+  body: RealtimeBatchPublish;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+  };
+  query?: never;
+  url: "/v1/realtime/apps/{realtime_app_id}/batch-events";
+};
+
+export type PublishRealtimeAppBatchErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type PublishRealtimeAppBatchError =
+  PublishRealtimeAppBatchErrors[keyof PublishRealtimeAppBatchErrors];
+
+export type PublishRealtimeAppBatchResponses = {
+  /**
+   * The events were accepted for delivery.
+   */
+  200: RealtimeBatchPublishResult;
+};
+
+export type PublishRealtimeAppBatchResponse =
+  PublishRealtimeAppBatchResponses[keyof PublishRealtimeAppBatchResponses];
+
+export type ListRealtimeAppChannelsData = {
+  body?: never;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+  };
+  query?: {
+    /**
+     * Only channels whose name starts with this prefix (e.g. "presence-").
+     */
+    prefix?: string;
+    /**
+     * Per-channel attributes to include. Repeatable. Requesting `member_count` without a presence-channel `prefix`, or `connection_count` when the app's connection-counting flag is off, returns a validation error (400).
+     */
+    include?: Array<RealtimeChannelInclude>;
+  };
+  url: "/v1/realtime/apps/{realtime_app_id}/channels";
+};
+
+export type ListRealtimeAppChannelsErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListRealtimeAppChannelsError =
+  ListRealtimeAppChannelsErrors[keyof ListRealtimeAppChannelsErrors];
+
+export type ListRealtimeAppChannelsResponses = {
+  /**
+   * The occupied channels.
+   */
+  200: RealtimeChannelsList;
+};
+
+export type ListRealtimeAppChannelsResponse =
+  ListRealtimeAppChannelsResponses[keyof ListRealtimeAppChannelsResponses];
+
+export type GetRealtimeAppChannelData = {
+  body?: never;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+    /**
+     * Channel name
+     */
+    channel_name: RealtimeChannelName;
+  };
+  query?: {
+    /**
+     * Attributes to include. Repeatable. Requesting `member_count` for a non-presence channel, or `connection_count` when the app's connection-counting flag is off, returns a validation error (400).
+     */
+    include?: Array<RealtimeChannelInclude>;
+  };
+  url: "/v1/realtime/apps/{realtime_app_id}/channels/{channel_name}";
+};
+
+export type GetRealtimeAppChannelErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type GetRealtimeAppChannelError =
+  GetRealtimeAppChannelErrors[keyof GetRealtimeAppChannelErrors];
+
+export type GetRealtimeAppChannelResponses = {
+  /**
+   * The channel state.
+   */
+  200: RealtimeChannelInfo;
+};
+
+export type GetRealtimeAppChannelResponse =
+  GetRealtimeAppChannelResponses[keyof GetRealtimeAppChannelResponses];
+
+export type ListRealtimeAppChannelMembersData = {
+  body?: never;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+    /**
+     * Channel name
+     */
+    channel_name: RealtimeChannelName;
+  };
+  query?: never;
+  url: "/v1/realtime/apps/{realtime_app_id}/channels/{channel_name}/members";
+};
+
+export type ListRealtimeAppChannelMembersErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type ListRealtimeAppChannelMembersError =
+  ListRealtimeAppChannelMembersErrors[keyof ListRealtimeAppChannelMembersErrors];
+
+export type ListRealtimeAppChannelMembersResponses = {
+  /**
+   * The members on the presence channel.
+   */
+  200: RealtimeChannelMembers;
+};
+
+export type ListRealtimeAppChannelMembersResponse =
+  ListRealtimeAppChannelMembersResponses[keyof ListRealtimeAppChannelMembersResponses];
+
+export type DisconnectRealtimeAppMemberData = {
+  body?: never;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004) — the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+    /**
+     * The member id whose connections to disconnect.
+     */
+    member_id: RealtimeMemberId;
+  };
+  query?: never;
+  url: "/v1/realtime/apps/{realtime_app_id}/members/{member_id}/disconnect";
+};
+
+export type DisconnectRealtimeAppMemberErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type DisconnectRealtimeAppMemberError =
+  DisconnectRealtimeAppMemberErrors[keyof DisconnectRealtimeAppMemberErrors];
+
+export type DisconnectRealtimeAppMemberResponses = {
+  /**
+   * The member's connections were disconnected.
+   */
+  204: void;
+};
+
+export type DisconnectRealtimeAppMemberResponse =
+  DisconnectRealtimeAppMemberResponses[keyof DisconnectRealtimeAppMemberResponses];
 
 export type ListEmailMessagesData = {
   body?: never;

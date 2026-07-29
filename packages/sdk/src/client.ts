@@ -16,8 +16,8 @@ import {
   type RequestOptions,
 } from "./core/result.js";
 import { EmailResource, type EmailChannelDefaults } from "./resources/email.js";
-import { AudiencesResource } from "./resources/audiences.js";
-import { DomainsResource } from "./resources/domains.js";
+import { AudiencesResource } from "./resources/audiences.gen.js";
+import { DomainsResource } from "./resources/domains.gen.js";
 import { ContactPropertiesResource } from "./resources/contactProperties.js";
 import { ContactsResource } from "./resources/contacts.js";
 import { SmsResource } from "./resources/sms.js";
@@ -34,6 +34,7 @@ import {
   MailboxThreadResource,
   MailboxThreadMessageResource,
 } from "./resources/mailboxThread.js";
+import { RealtimeResource, type RealtimeOptions } from "./resources/realtime.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
 // package.json (tsdown/vitest `define`) so it never drifts from the published
@@ -64,6 +65,11 @@ export interface BirdClientOptions {
   email?: EmailChannelDefaults;
   /** Webhooks config — `secret` is the default used by `bird.webhooks.unwrap`. */
   webhooks?: WebhookOptions;
+  /**
+   * Realtime app credentials. Every `bird.realtime.*` call authenticates to the
+   * Realtime edge with this key/secret pair; a call's options can override it.
+   */
+  realtime?: RealtimeOptions;
 }
 
 /** A raw request for the `bird.request` escape hatch. */
@@ -207,6 +213,8 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
 
   /** Thread messages — `bird.mailboxThreadMessage.list(...)`, `.get(...)`, `.reply(...)`, `.body(...)`, … */
   readonly mailboxThreadMessage: MailboxThreadMessageResource;
+  /** Realtime — `bird.realtime.publish(...)`, `.channels.list(...)`, `.members.disconnect(...)`, … */
+  readonly realtime: RealtimeResource;
 
   constructor(options: O) {
     const opts: BirdClientOptions = options; // widen for safe optional access
@@ -264,6 +272,7 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     this.mailboxReceiveRule = new MailboxReceiveRuleResource(this.core, this.#client);
     this.mailboxThread = new MailboxThreadResource(this.core, this.#client);
     this.mailboxThreadMessage = new MailboxThreadMessageResource(this.core, this.#client);
+    this.realtime = new RealtimeResource(this.core, this.#client, opts.realtime);
   }
 
   /**

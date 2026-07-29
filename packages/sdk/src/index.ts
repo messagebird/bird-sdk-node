@@ -126,8 +126,8 @@ export type {
   AudienceAddContactsParams,
   AudienceRemoveContactsParams,
   AudienceListQuery,
-  AudienceContactsQuery,
-} from "./resources/audiences.js";
+  AudienceListContactsQuery,
+} from "./resources/audiences.gen.js";
 export type {
   ContactProperty,
   ContactPropertyCreateParams,
@@ -136,18 +136,39 @@ export type {
 } from "./resources/contactProperties.js";
 export type {
   Domain,
-  DnsRecord,
-  DomainDkim,
-  DomainCapabilities,
   DomainCreateParams,
   DomainUpdateParams,
   DomainListQuery,
-} from "./resources/domains.js";
+} from "./resources/domains.gen.js";
+export type {
+  DnsRecord,
+  DomainDkim,
+  DomainCapabilities,
+} from "./generated/types.gen.js";
 export type {
   BirdWebhookEvent,
   WebhookHeaders,
   WebhookOptions,
 } from "./resources/webhooks.js";
+export type {
+  // response types
+  RealtimePublishResult,
+  RealtimeBatchPublishResult,
+  RealtimeChannelsList,
+  RealtimeChannelListItem,
+  RealtimeChannelInfo,
+  RealtimeChannelMembers,
+  RealtimeChannelMember,
+  RealtimeChannelInclude,
+  // request params and query
+  RealtimePublishParams,
+  RealtimeBatchPublishParams,
+  RealtimeChannelsListQuery,
+  RealtimeChannelGetQuery,
+  // credentials: client config + per-call override
+  RealtimeOptions,
+  RealtimeRequestOptions,
+} from "./resources/realtime.js";
 export { WebhookEventType } from "./event-types.gen.js";
 export type { WebhookEventTypeValue } from "./event-types.gen.js";
 export type {

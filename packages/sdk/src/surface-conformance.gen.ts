@@ -20,3 +20,6 @@ export type _Mailbox = Pick<BirdClient["mailbox"], "list" | "create" | "get" | "
 export type _MailboxReceiveRule = Pick<BirdClient["mailboxReceiveRule"], "list" | "create" | "delete">;
 export type _MailboxThread = Pick<BirdClient["mailboxThread"], "list" | "get" | "update" | "delete">;
 export type _MailboxThreadMessage = Pick<BirdClient["mailboxThreadMessage"], "list" | "get" | "body" | "reply" | "attachments">;
+export type _Realtime = Pick<BirdClient["realtime"], "publish" | "publishBatch">;
+export type _RealtimeChannels = Pick<BirdClient["realtime"]["channels"], "list" | "get" | "members">;
+export type _RealtimeMembers = Pick<BirdClient["realtime"]["members"], "disconnect">;

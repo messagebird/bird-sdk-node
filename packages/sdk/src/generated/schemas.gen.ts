@@ -387,13 +387,6 @@ export const EventWhatsAppSentSchema = {
   type: "object",
   additionalProperties: false,
   description: "Bird handed the message to Meta for delivery.",
-  "x-event-type-id": "whatsapp.sent",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.sent",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -492,13 +485,6 @@ export const EventWhatsAppRejectedSchema = {
   additionalProperties: false,
   description:
     "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).",
-  "x-event-type-id": "whatsapp.rejected",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.rejected",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -535,13 +521,6 @@ export const EventWhatsAppReadSchema = {
   type: "object",
   additionalProperties: false,
   description: "The recipient read the message.",
-  "x-event-type-id": "whatsapp.read",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.read",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -588,13 +567,6 @@ export const EventWhatsAppFailedSchema = {
   type: "object",
   additionalProperties: false,
   description: "The message terminally failed and will not be delivered.",
-  "x-event-type-id": "whatsapp.failed",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.failed",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -631,13 +603,6 @@ export const EventWhatsAppDeliveredSchema = {
   type: "object",
   additionalProperties: false,
   description: "The message was delivered to the recipient's device.",
-  "x-event-type-id": "whatsapp.delivered",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.delivered",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -674,13 +639,6 @@ export const EventWhatsAppAcceptedSchema = {
   type: "object",
   additionalProperties: false,
   description: "Bird accepted and charged the send request.",
-  "x-event-type-id": "whatsapp.accepted",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.accepted",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -802,13 +760,6 @@ export const EventVoiceCallInitiatedSchema = {
   additionalProperties: false,
   description:
     "A call was initiated — Bird received the INVITE and began routing it.",
-  "x-event-type-id": "voice_call.initiated",
-  "x-dedupe": {
-    scope: "message",
-    stage: "voice_call.initiated",
-    id: "call_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -895,13 +846,6 @@ export const EventVoiceCallEndedSchema = {
   additionalProperties: false,
   description:
     "The call ended — a BYE or final non-2xx response was received and the call record was written.",
-  "x-event-type-id": "voice_call.ended",
-  "x-dedupe": {
-    scope: "message",
-    stage: "voice_call.ended",
-    id: "call_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -939,13 +883,6 @@ export const EventVoiceCallAnsweredSchema = {
   additionalProperties: false,
   description:
     "The called party answered — the carrier returned a 200 OK and media is flowing.",
-  "x-event-type-id": "voice_call.answered",
-  "x-dedupe": {
-    scope: "message",
-    stage: "voice_call.answered",
-    id: "call_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1099,12 +1036,6 @@ export const EventVerifyVerificationVerifiedSchema = {
   additionalProperties: false,
   description:
     "The verification was successfully resolved: the recipient confirmed the correct code.",
-  "x-event-type-id": "verify.verification.verified",
-  "x-dedupe": {
-    scope: "verification",
-    stage: "verify.verification.verified",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1169,12 +1100,6 @@ export const EventVerifyVerificationCreatedSchema = {
   additionalProperties: false,
   description:
     "A verification session was created and its first one-time passcode is being sent.",
-  "x-event-type-id": "verify.verification.created",
-  "x-dedupe": {
-    scope: "verification",
-    stage: "verify.verification.created",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1260,11 +1185,6 @@ export const EventVerifyAttemptUndeliveredSchema = {
   type: "object",
   additionalProperties: false,
   description: "A one-time passcode failed to deliver to the recipient.",
-  "x-event-type-id": "verify.attempt.undelivered",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1333,11 +1253,6 @@ export const EventVerifyAttemptSentSchema = {
   additionalProperties: false,
   description:
     "A one-time passcode was dispatched to the recipient on a channel.",
-  "x-event-type-id": "verify.attempt.sent",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1412,11 +1327,6 @@ export const EventVerifyAttemptDeliveredSchema = {
   additionalProperties: false,
   description:
     "The channel confirmed delivery of a one-time passcode to the recipient.",
-  "x-event-type-id": "verify.attempt.delivered",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1580,13 +1490,6 @@ export const EventSMSUndeliveredSchema = {
   additionalProperties: false,
   description:
     "The carrier reported a non-permanent failure to deliver the message.",
-  "x-event-type-id": "sms.undelivered",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.undelivered",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1682,11 +1585,6 @@ export const EventSMSTfnVerificationSubmittedSchema = {
   additionalProperties: false,
   description:
     "A toll-free number verification was submitted to the carrier for review.",
-  "x-event-type-id": "sms.tfn_verification.submitted",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1746,11 +1644,6 @@ export const EventSMSTfnVerificationRejectedSchema = {
   additionalProperties: false,
   description:
     "The carrier rejected a toll-free number verification; the number cannot send until an accepted verification is approved.",
-  "x-event-type-id": "sms.tfn_verification.rejected",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1788,11 +1681,6 @@ export const EventSMSTfnVerificationInfoRequestedSchema = {
   additionalProperties: false,
   description:
     "The carrier requested more information before deciding a toll-free number verification.",
-  "x-event-type-id": "sms.tfn_verification.info_requested",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1830,11 +1718,6 @@ export const EventSMSTfnVerificationApprovedSchema = {
   additionalProperties: false,
   description:
     "The carrier approved a toll-free number verification; the number can now send in its licensed countries.",
-  "x-event-type-id": "sms.tfn_verification.approved",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1889,13 +1772,6 @@ export const EventSMSSentSchema = {
   type: "object",
   additionalProperties: false,
   description: "Bird handed the message to the carrier for delivery.",
-  "x-event-type-id": "sms.sent",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.sent",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1944,13 +1820,6 @@ export const EventSMSRejectedSchema = {
   additionalProperties: false,
   description:
     "Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).",
-  "x-event-type-id": "sms.rejected",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.rejected",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -1997,13 +1866,6 @@ export const EventSMSFailedSchema = {
   type: "object",
   additionalProperties: false,
   description: "The message terminally failed and will not be delivered.",
-  "x-event-type-id": "sms.failed",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.failed",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2041,13 +1903,6 @@ export const EventSMSExpiredSchema = {
   additionalProperties: false,
   description:
     "The message's validity period elapsed before it could be delivered.",
-  "x-event-type-id": "sms.expired",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.expired",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2103,13 +1958,6 @@ export const EventSMSDeliveredSchema = {
   additionalProperties: false,
   description:
     "The carrier confirmed delivery of the message to the recipient handset.",
-  "x-event-type-id": "sms.delivered",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.delivered",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2147,13 +1995,6 @@ export const EventSMSAcceptedSchema = {
   additionalProperties: false,
   description:
     "Bird accepted the SMS send request and queued it for processing.",
-  "x-event-type-id": "sms.accepted",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.accepted",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2230,11 +2071,6 @@ export const EventEmailSuppressionCreatedSchema = {
   additionalProperties: false,
   description:
     "An email address was added to the workspace's suppression list (manually, via complaint, or via hard bounce).",
-  "x-event-type-id": "email_suppression.created",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2315,11 +2151,6 @@ export const EventEmailMailboxThreadCreatedSchema = {
   type: "object",
   additionalProperties: false,
   description: "A new thread was created in a mailbox, from either direction.",
-  "x-event-type-id": "email_mailbox.thread_created",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2371,11 +2202,6 @@ export const EventEmailMailboxSuspendedSchema = {
   additionalProperties: false,
   description:
     "Platform abuse controls suspended a mailbox. Sends are rejected and inbound is quarantined until it is reinstated.",
-  "x-event-type-id": "email_mailbox.suspended",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2447,11 +2273,6 @@ export const EventEmailMailboxMessageSentSchema = {
   additionalProperties: false,
   description:
     "A mailbox send reached provider handoff — the per-message status folded to sent. Status events are per-message folds, not per-recipient telemetry; the same send also fires the shipped per-recipient email.* lifecycle events. Pick one family per automation and dedupe by message_id.",
-  "x-event-type-id": "email_mailbox.message_sent",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2600,11 +2421,6 @@ export const EventEmailMailboxMessageReceivedSchema = {
   additionalProperties: false,
   description:
     "An email arrived in a mailbox and was filed to its inbox, threaded and stored. The payload carries identifiers, threading, authentication results, and the extracted text — enough for an agent to act without a fetch. Dual-fire rule: the same message ALSO fires the unchanged email.received event; the streams are unordered relative to each other, so pick one family per automation and dedupe by message_id.",
-  "x-event-type-id": "email_mailbox.message_received",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2675,11 +2491,6 @@ export const EventEmailMailboxMessageFailedSchema = {
   additionalProperties: false,
   description:
     "A mailbox send folded to a terminal failure. Status events are per-message folds, not per-recipient telemetry: one event per message, distinct in cardinality from the shipped per-recipient email.* lifecycle events, which the same send also fires. Pick one family per automation and dedupe by message_id.",
-  "x-event-type-id": "email_mailbox.message_failed",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2744,11 +2555,6 @@ export const EventEmailMailboxMessageDeliveredSchema = {
   additionalProperties: false,
   description:
     "A mailbox send folded to delivered — every recipient reached a terminal delivered outcome. Status events are per-message folds, not per-recipient telemetry: one event per message, distinct in cardinality from the shipped per-recipient email.delivered (one event per recipient), which the same send also fires. Pick one family per automation and dedupe by message_id.",
-  "x-event-type-id": "email_mailbox.message_delivered",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2873,11 +2679,6 @@ export const EventEmailUnsubscribedSchema = {
   additionalProperties: false,
   description:
     "Recipient unsubscribed by clicking a tracked unsubscribe link in the email. Fires once per recipient.",
-  "x-event-type-id": "email.unsubscribed",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -2973,13 +2774,6 @@ export const EventEmailScheduledSchema = {
   additionalProperties: false,
   description:
     "Bird accepted a send scheduled for a future time. Fires once per message when the schedule is created, not per recipient.",
-  "x-event-type-id": "email.scheduled",
-  "x-dedupe": {
-    scope: "message",
-    stage: "scheduled",
-    id: "email_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3052,12 +2846,6 @@ export const EventEmailRejectedSchema = {
   additionalProperties: false,
   description:
     "Bird rejected the email before sending it (suppression list hit, transmission failure, or a content/policy guard). Fires once per recipient.",
-  "x-event-type-id": "email.rejected",
-  "x-dedupe": {
-    scope: "recipient",
-    stage: "rejected",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3180,11 +2968,6 @@ export const EventEmailReceivedSchema = {
   additionalProperties: false,
   description:
     "Bird received and parsed an inbound email. The payload carries the message's identifiers, sender and recipients, subject, threading reference, and authentication results — enough to route and triage without a fetch. Fetch the body, full headers, and attachments with GET /v1/email/inbound-messages/{id}.",
-  "x-event-type-id": "email.received",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3222,12 +3005,6 @@ export const EventEmailProcessedSchema = {
   additionalProperties: false,
   description:
     "Bird processed the message and queued it for delivery to the recipient's mail server. Fires once per recipient when the message enters the SMTP delivery queue.",
-  "x-event-type-id": "email.processed",
-  "x-dedupe": {
-    scope: "recipient",
-    stage: "provider_accepted",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3316,11 +3093,6 @@ export const EventEmailOutOfBandBounceSchema = {
   additionalProperties: false,
   description:
     "A bounce notification arrived after the message had already been accepted for delivery. Fires once per recipient.",
-  "x-event-type-id": "email.out_of_band_bounce",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3376,11 +3148,6 @@ export const EventEmailOpenedSchema = {
   additionalProperties: false,
   description:
     "The recipient opened the email (the tracking pixel was loaded). May fire more than once per recipient.",
-  "x-event-type-id": "email.opened",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3418,11 +3185,6 @@ export const EventEmailListUnsubscribedSchema = {
   additionalProperties: false,
   description:
     "Recipient unsubscribed via the RFC 8058 one-click List-Unsubscribe mechanism. Fires once per recipient.",
-  "x-event-type-id": "email.list_unsubscribed",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3460,11 +3222,6 @@ export const EventEmailDeliveredSchema = {
   additionalProperties: false,
   description:
     "An outbound email reached the recipient's mail server and was accepted.",
-  "x-event-type-id": "email.delivered",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3531,11 +3288,6 @@ export const EventEmailDeferredSchema = {
   additionalProperties: false,
   description:
     "The recipient's mail server temporarily refused the email; delivery will be retried. May fire more than once per recipient.",
-  "x-event-type-id": "email.deferred",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3585,11 +3337,6 @@ export const EventEmailComplainedSchema = {
   additionalProperties: false,
   description:
     "The recipient marked the email as spam through their mailbox provider's feedback loop. Fires once per recipient.",
-  "x-event-type-id": "email.complained",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3651,11 +3398,6 @@ export const EventEmailClickedSchema = {
   additionalProperties: false,
   description:
     "The recipient clicked a tracked link in the email. May fire more than once per recipient.",
-  "x-event-type-id": "email.clicked",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3693,13 +3435,6 @@ export const EventEmailCanceledSchema = {
   additionalProperties: false,
   description:
     "A scheduled send was canceled before it fired. Fires once per message, not per recipient.",
-  "x-event-type-id": "email.canceled",
-  "x-dedupe": {
-    scope: "message",
-    stage: "canceled",
-    id: "email_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3778,11 +3513,6 @@ export const EventEmailBouncedSchema = {
   additionalProperties: false,
   description:
     "An outbound email permanently failed at the recipient's mail server. Fires once per recipient.",
-  "x-event-type-id": "email.bounced",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3820,12 +3550,6 @@ export const EventEmailAcceptedSchema = {
   additionalProperties: false,
   description:
     "Bird accepted the email send and is preparing to deliver. Fires once per requested recipient at acceptance time.",
-  "x-event-type-id": "email.accepted",
-  "x-dedupe": {
-    scope: "recipient",
-    stage: "accepted",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3886,11 +3610,6 @@ export const EventDomainVerifiedSchema = {
   type: "object",
   additionalProperties: false,
   description: "A sending domain completed DNS verification successfully.",
-  "x-event-type-id": "domain.verified",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -3950,11 +3669,6 @@ export const EventDomainFailedSchema = {
   type: "object",
   additionalProperties: false,
   description: "A sending domain failed DNS verification.",
-  "x-event-type-id": "domain.failed",
-  "x-dedupe": {
-    scope: "provider",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -7362,15 +7076,9 @@ export const DomainUpdateSchema = {
       $ref: "#/components/schemas/DomainSettings",
     },
     return_path: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainReturnPathConfig",
-        },
-        {
-          description:
-            "Change the return-path name part. Cannot be removed — the return-path is required for sending.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainReturnPathConfig",
+      description:
+        "Change the return-path name part. Cannot be removed — the return-path is required for sending.\n",
     },
     tracking: {
       oneOf: [
@@ -7385,26 +7093,14 @@ export const DomainUpdateSchema = {
         "Set or change the tracking name part, or remove tracking by passing null. Removal requires `click_tracking` and `open_tracking` to be disabled first, and returns `409` otherwise. After removal, links in previously sent email keep resolving while the tracking records are reported as `deprecated`.\n",
     },
     dkim: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainDKIMConfig",
-        },
-        {
-          description:
-            "Change how the DKIM key is published. The current key keeps signing until the new configuration verifies, so mail is never sent unsigned during the transition.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainDKIMConfig",
+      description:
+        "Change how the DKIM key is published. The current key keeps signing until the new configuration verifies, so mail is never sent unsigned during the transition.\n",
     },
     inbound: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainInboundConfig",
-        },
-        {
-          description:
-            "Enable or disable receiving on this domain. Enabling claims the domain for inbound and moves `capabilities.inbound.status` from `not_configured` to `pending`, then `verified` once the MX records resolve to Bird. The MX records to publish are always present under `dns_records` (`purpose: inbound_mx`) as a regional reference, so their presence does not mean receiving is on — a domain still needs enabling whenever `capabilities.inbound.status` is `not_configured`. Enabling requires the domain's DKIM to be verified first (ownership proof): a fresh enable on a domain whose DKIM is not verified returns `422` `E05019` and claims nothing. A domain already receiving inbound for another organization returns `422` `E05018`.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainInboundConfig",
+      description:
+        "Enable or disable receiving on this domain. Enabling claims the domain for inbound and moves `capabilities.inbound.status` from `not_configured` to `pending`, then `verified` once the MX records resolve to Bird. The MX records to publish are always present under `dns_records` (`purpose: inbound_mx`) as a regional reference, so their presence does not mean receiving is on — a domain still needs enabling whenever `capabilities.inbound.status` is `not_configured`. Enabling requires the domain's DKIM to be verified first (ownership proof): a fresh enable on a domain whose DKIM is not verified returns `422` `E05019` and claims nothing. A domain already receiving inbound for another organization returns `422` `E05018`.\n",
     },
   },
   example: {
@@ -7713,59 +7409,29 @@ export const DomainCapabilitiesSchema = {
   required: ["sending", "return_path", "dmarc", "tracking"],
   properties: {
     sending: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapability",
-        },
-        {
-          description:
-            "Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapability",
+      description:
+        "Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.\n",
     },
     return_path: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapability",
-        },
-        {
-          description:
-            "Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapability",
+      description:
+        "Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.\n",
     },
     dmarc: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapability",
-        },
-        {
-          description:
-            "DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapability",
+      description:
+        "DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.\n",
     },
     tracking: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapability",
-        },
-        {
-          description:
-            "Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapability",
+      description:
+        "Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.\n",
     },
     inbound: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapability",
-        },
-        {
-          description:
-            "Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapability",
+      description:
+        "Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.\n",
     },
   },
 } as const;
@@ -7915,15 +7581,9 @@ export const EmailStatsByBroadcastResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8116,15 +7776,9 @@ export const EmailStatsByComplaintTypeResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8180,15 +7834,9 @@ export const EmailStatsByBounceCodeResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8303,15 +7951,9 @@ export const EmailStatsByClientResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8445,15 +8087,9 @@ export const EmailStatsByLocationResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8538,15 +8174,9 @@ export const EmailStatsByTemplateResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8636,15 +8266,9 @@ export const EmailStatsByRecipientDomainResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8725,15 +8349,9 @@ export const EmailStatsByMailboxProviderRegionResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -8931,15 +8549,9 @@ export const EmailStatsByMailboxProviderResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -9056,15 +8668,9 @@ export const EmailStatsByCategoryResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -9145,15 +8751,9 @@ export const EmailStatsBySendingDomainResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -9234,15 +8834,9 @@ export const EmailStatsBySendingIpResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -9458,15 +9052,9 @@ export const EmailStatsSummarySchema = {
   required: ["period", "sends_accepted", "delivery", "engagement", "latency"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsSummaryPeriod",
-        },
-        {
-          description:
-            "The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsSummaryPeriod",
+      description:
+        "The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     sends_accepted: {
       type: "integer",
@@ -9631,15 +9219,9 @@ export const EmailStatsComparisonSchema = {
   ],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsSummaryPeriod",
-        },
-        {
-          description:
-            "The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsSummaryPeriod",
+      description:
+        "The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.",
     },
     sends_accepted: {
       type: "integer",
@@ -9730,15 +9312,9 @@ export const EmailStatsTagsResponseSchema = {
   required: ["period", "data", "total"],
   properties: {
     period: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/EmailStatsPeriod",
-        },
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
+      $ref: "#/components/schemas/EmailStatsPeriod",
+      description:
+        "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
     },
     data: {
       type: "array",
@@ -13312,6 +12888,310 @@ export const EmailMessageSchema = {
   },
 } as const;
 
+export const RealtimeChannelMembersSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "The members present on a presence channel.",
+  required: ["members"],
+  properties: {
+    members: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/RealtimeChannelMember",
+      },
+    },
+  },
+} as const;
+
+export const RealtimeMemberIDSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 128,
+  pattern: "^[A-Za-z0-9._~!$&'()*+,;=:@-]+$",
+  description:
+    'An app-defined member id — the identity of your application\'s end user ("member"), assigned when your auth server authorizes them. Never a Bird user. Max 128 characters, restricted to URL-safe characters because member ids appear directly in API request paths. Broader than a channel name — allows `+ : @ . _ -` etc. for real identifiers (phone numbers, emails, `member:42`), but excludes `/ ? # %` and whitespace.',
+} as const;
+
+export const RealtimeChannelMemberSchema = {
+  type: "object",
+  additionalProperties: false,
+  description: "A member present on a presence channel.",
+  required: ["member_id"],
+  properties: {
+    member_id: {
+      $ref: "#/components/schemas/RealtimeMemberID",
+    },
+  },
+} as const;
+
+export const RealtimeChannelInfoSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/RealtimeChannelCounts",
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "State of a single channel. Counts appear only when requested and applicable.",
+      required: ["occupied"],
+      properties: {
+        occupied: {
+          type: "boolean",
+          description: "Whether at least one client is subscribed.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RealtimeChannelCountsSchema = {
+  type: "object",
+  "x-mixin": true,
+  description:
+    "Per-channel counts, present only when requested via `include` and applicable.",
+  properties: {
+    member_count: {
+      type: "integer",
+      format: "int64",
+      description:
+        "Distinct members (presence channels only; requires include=member_count).",
+    },
+    connection_count: {
+      type: "integer",
+      format: "int64",
+      description:
+        "Connections currently subscribed to this channel (requires include=connection_count and the app's connection-counting flag). Channel-scoped — distinct from the app-wide peak connections metric.",
+    },
+  },
+} as const;
+
+export const RealtimeChannelsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The app's occupied channels. The Realtime service does not paginate this listing, so all occupied channels are returned in one response.",
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description: "The occupied channels, sorted by name.",
+      items: {
+        $ref: "#/components/schemas/RealtimeChannelListItem",
+      },
+    },
+  },
+} as const;
+
+export const RealtimeChannelNameSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 164,
+  pattern: "^[A-Za-z0-9_=@,.;-]+$",
+  description:
+    "A Realtime channel name. Only letters, digits, and _ - = @ , . ; Prefix with `private-` or `presence-` for authenticated channels.",
+  example: "orders-42",
+} as const;
+
+export const RealtimeChannelListItemSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/RealtimeChannelCounts",
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "One occupied channel. A listed channel is occupied by definition; counts appear only when requested via `include` and applicable.",
+      required: ["name"],
+      properties: {
+        name: {
+          $ref: "#/components/schemas/RealtimeChannelName",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RealtimeBatchPublishResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The result of a Realtime batch publish. The events were accepted for delivery; delivery to connected clients is asynchronous.\n",
+  properties: {
+    data: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/RealtimeBatchPublishResultItem",
+      },
+      description:
+        "Per-event channel attributes at publish time, present only when at least one event asked for them via `include`. Positional: one item per event, in request order.",
+    },
+  },
+} as const;
+
+export const RealtimeBatchPublishResultItemSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/RealtimeChannelCounts",
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "Attributes of one batch item's channel at publish time. Items are positional — the n-th item corresponds to the n-th event in the request.",
+      required: ["channel"],
+      properties: {
+        channel: {
+          $ref: "#/components/schemas/RealtimeChannelName",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RealtimeBatchPublishSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A batch of events, each delivered to a single channel, in one request.",
+  required: ["events"],
+  properties: {
+    events: {
+      type: "array",
+      minItems: 1,
+      maxItems: 10,
+      description: "Up to 10 events per batch.",
+      items: {
+        $ref: "#/components/schemas/RealtimeBatchEvent",
+      },
+    },
+  },
+} as const;
+
+export const RealtimeChannelIncludeSchema = {
+  type: "string",
+  enum: ["member_count", "connection_count"],
+  description:
+    "A per-channel attribute to include in the response. `member_count` is presence-channels only; `connection_count` requires the app's connection-counting flag.",
+} as const;
+
+export const RealtimeExcludeConnectionIdSchema = {
+  type: "string",
+  minLength: 1,
+  example: "123.4567",
+  description:
+    "Exclude this connection from delivery, to avoid echoing a change back to the client that triggered it. The value is the client's connection id, assigned when its connection is established.",
+} as const;
+
+export const RealtimeEventDataSchema = {
+  description:
+    "Arbitrary JSON payload delivered as the event data — an object, array, or scalar. Cap: 10 KB serialized.",
+} as const;
+
+export const RealtimeEventNameSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 200,
+  description:
+    "The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.",
+  example: "order-updated",
+} as const;
+
+export const RealtimeBatchEventSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "One item of a batch publish — a single event to a single channel.",
+  required: ["event", "channel"],
+  properties: {
+    event: {
+      $ref: "#/components/schemas/RealtimeEventName",
+    },
+    channel: {
+      $ref: "#/components/schemas/RealtimeChannelName",
+    },
+    data: {
+      $ref: "#/components/schemas/RealtimeEventData",
+    },
+    exclude_connection_id: {
+      $ref: "#/components/schemas/RealtimeExcludeConnectionId",
+    },
+    include: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/RealtimeChannelInclude",
+      },
+      description:
+        "Attributes of this event's channel to return alongside the publish (same semantics and validation errors as on the channel endpoints). Requesting attributes counts as one additional message toward usage.",
+    },
+  },
+} as const;
+
+export const RealtimePublishResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The result of a Realtime publish. The event was accepted and fanned out to the requested channels; delivery to connected clients is asynchronous.\n",
+  properties: {
+    data: {
+      type: "array",
+      readOnly: true,
+      items: {
+        $ref: "#/components/schemas/RealtimeChannelListItem",
+      },
+      description:
+        "Per-channel attributes at publish time, present only when the request asked for them via `include`; one item per distinct target channel, sorted by name.",
+    },
+  },
+} as const;
+
+export const RealtimePublishSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "A Realtime publish: delivers one event to one or more channels of the app. Listing several channels fans the event out to all of them (broadcast) in a single call.\n",
+  required: ["event", "channels"],
+  properties: {
+    event: {
+      $ref: "#/components/schemas/RealtimeEventName",
+    },
+    channels: {
+      type: "array",
+      minItems: 1,
+      maxItems: 100,
+      items: {
+        $ref: "#/components/schemas/RealtimeChannelName",
+      },
+      description:
+        "The channels to deliver the event to (up to 100 per call). Prefix with `private-` or `presence-` for authenticated channels.\n",
+      example: ["orders", "orders-42"],
+    },
+    data: {
+      $ref: "#/components/schemas/RealtimeEventData",
+    },
+    exclude_connection_id: {
+      $ref: "#/components/schemas/RealtimeExcludeConnectionId",
+    },
+    include: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/RealtimeChannelInclude",
+      },
+      description:
+        "Per-channel attributes to return alongside the publish, reflecting each channel's state at publish time (same semantics and validation errors as on the channel endpoints: `member_count` is presence-channels only, `connection_count` requires the app's connection-counting flag). Requesting attributes counts as one additional message toward usage.",
+    },
+  },
+} as const;
+
+export const RealtimeAppIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^rap_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "rap_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const DocsPageSchema = {
   type: "object",
   additionalProperties: false,
@@ -13811,13 +13691,6 @@ export const EventWhatsAppRejectedWritableSchema = {
   additionalProperties: false,
   description:
     "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).",
-  "x-event-type-id": "whatsapp.rejected",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.rejected",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -13864,13 +13737,6 @@ export const EventWhatsAppFailedWritableSchema = {
   type: "object",
   additionalProperties: false,
   description: "The message terminally failed and will not be delivered.",
-  "x-event-type-id": "whatsapp.failed",
-  "x-dedupe": {
-    scope: "message",
-    stage: "whatsapp.failed",
-    id: "whatsapp_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -13950,13 +13816,6 @@ export const EventSMSUndeliveredWritableSchema = {
   additionalProperties: false,
   description:
     "The carrier reported a non-permanent failure to deliver the message.",
-  "x-event-type-id": "sms.undelivered",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.undelivered",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -14005,13 +13864,6 @@ export const EventSMSRejectedWritableSchema = {
   additionalProperties: false,
   description:
     "Bird rejected the message before sending it to the carrier (invalid destination, suppression, or a content/policy guard).",
-  "x-event-type-id": "sms.rejected",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.rejected",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -14058,13 +13910,6 @@ export const EventSMSFailedWritableSchema = {
   type: "object",
   additionalProperties: false,
   description: "The message terminally failed and will not be delivered.",
-  "x-event-type-id": "sms.failed",
-  "x-dedupe": {
-    scope: "message",
-    stage: "sms.failed",
-    id: "sms_id",
-  },
-  "x-event-type-source": "platform",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -15234,59 +15079,29 @@ export const DomainCapabilitiesWritableSchema = {
   required: ["sending", "return_path", "dmarc", "tracking"],
   properties: {
     sending: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapabilityWritable",
-        },
-        {
-          description:
-            "Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapabilityWritable",
+      description:
+        "Overall authorization to send from this domain. Verified when the DKIM record, the return-path CNAME, and a DMARC policy are all in place. Required for live sends.\n",
     },
     return_path: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapabilityWritable",
-        },
-        {
-          description:
-            "Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapabilityWritable",
+      description:
+        "Return-path (bounce) CNAME verification. The return-path domain receives bounce and complaint notifications and is what mailbox providers check for SPF — no separate SPF record is needed.\n",
     },
     dmarc: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapabilityWritable",
-        },
-        {
-          description:
-            "DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapabilityWritable",
+      description:
+        "DMARC policy check. Satisfied by any valid DMARC record covering the sending domain — on the domain itself or on its registered (organizational) domain; `domain` reports where the policy was found. A minimal policy of `p=none` is sufficient.\n",
     },
     tracking: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapabilityWritable",
-        },
-        {
-          description:
-            "Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapabilityWritable",
+      description:
+        "Branded open/click tracking domain. `not_configured` until a tracking domain is set. Tracked links are served over HTTPS once the CNAME verifies.\n",
     },
     inbound: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/DomainCapabilityWritable",
-        },
-        {
-          description:
-            "Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.\n",
-        },
-      ],
+      $ref: "#/components/schemas/DomainCapabilityWritable",
+      description:
+        "Inbound mail receiving. `not_configured` until receiving is enabled on this domain (see `DomainUpdate.inbound`), then `pending` while the published MX records are checked, and `verified` once they resolve to Bird. The MX records to publish are always listed under `dns_records` (`purpose: inbound_mx`) as a regional reference, even while this is `not_configured` — enabling is what actually starts delivery.\n",
     },
   },
 } as const;
@@ -15310,17 +15125,6 @@ export const EmailStatsByBroadcastResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-broadcast breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailBroadcastStatsPointWritableSchema = {
@@ -15335,17 +15139,6 @@ export const EmailStatsByComplaintTypeResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-complaint-type breakdown for the requested period, ranked by `complained` descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailStatsByBounceCodeResponseWritableSchema = {
@@ -15353,17 +15146,6 @@ export const EmailStatsByBounceCodeResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-SMTP-code bounce breakdown for the requested period, ranked by the `sort` metric (default `bounced`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailStatsByClientResponseWritableSchema = {
@@ -15371,17 +15153,6 @@ export const EmailStatsByClientResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-client engagement breakdown for the requested period, grouped by the requested `group_by` facet, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailStatsByLocationResponseWritableSchema = {
@@ -15389,17 +15160,6 @@ export const EmailStatsByLocationResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-location engagement breakdown for the requested period, grouped at the requested `group_by` granularity, ranked by the `sort` metric (default `unique_opens`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailStatsByTemplateResponseWritableSchema = {
@@ -15407,17 +15167,6 @@ export const EmailStatsByTemplateResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-template breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailTemplateStatsPointWritableSchema = {
@@ -15432,17 +15181,6 @@ export const EmailStatsByRecipientDomainResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-recipient-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailRecipientDomainStatsPointWritableSchema = {
@@ -15457,17 +15195,6 @@ export const EmailStatsByMailboxProviderRegionResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-(mailbox provider, provider region) breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailDeliveryLatencyStatsWritableSchema = {
@@ -15490,17 +15217,6 @@ export const EmailStatsByMailboxProviderResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-mailbox-provider breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailMailboxProviderStatsPointWritableSchema = {
@@ -15515,17 +15231,6 @@ export const EmailStatsByCategoryResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-category breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailCategoryStatsPointWritableSchema = {
@@ -15540,17 +15245,6 @@ export const EmailStatsBySendingDomainResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-sending-domain breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailSendingDomainStatsPointWritableSchema = {
@@ -15565,17 +15259,6 @@ export const EmailStatsBySendingIpResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-sending-IP breakdown for the requested period, ranked by the `sort` metric (default `delivered`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailSendingIpStatsPointWritableSchema = {
@@ -15590,17 +15273,6 @@ export const EmailStatsSummaryWritableSchema = {
   additionalProperties: false,
   description:
     "Single-row aggregate across the full requested period, including delivery and engagement counts plus derived rates. Use this endpoint for KPI tiles, campaign reporting, and any metric that needs a meaningful denominator; the daily and hourly endpoints carry the same rates per bucket, dividing each bucket's own counts.\n\nEvery count is a sum of per-bucket counts across the window (per day for day windows, per hour for hour windows), so a recipient (or message) active in two buckets contributes one to each bucket and two to the period total. This matches common provider reporting and is not double-counting; it does not yield a period-distinct count. Latency percentiles, by contrast, are computed across the whole period rather than summed per bucket. Rates are null when their denominator is zero.\n",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The window the response covers (echoed back from the request, day or hour grain), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailStatsComparisonWritableSchema = {
@@ -15609,17 +15281,6 @@ export const EmailStatsComparisonWritableSchema = {
   readOnly: true,
   description:
     'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.\n',
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The preceding window these comparison figures cover, the equal-length window ending immediately before the requested start (the prior day for day windows, the prior hour for hour windows). For a request covering 2026-05-01 to 2026-05-31, this is 2026-03-31 to 2026-04-30, both inclusive.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailStatsTagsResponseWritableSchema = {
@@ -15627,17 +15288,6 @@ export const EmailStatsTagsResponseWritableSchema = {
   additionalProperties: false,
   description:
     "Per-tag breakdown for the requested period, ranked by the `sort` metric (default `processed`) descending and capped at the requested `limit` (default 50, max 200).",
-  required: ["period"],
-  properties: {
-    period: {
-      allOf: [
-        {
-          description:
-            "The date range the response covers (echoed back from the request), plus `data_as_of`, the freshness boundary the data is current to.",
-        },
-      ],
-    },
-  },
 } as const;
 
 export const EmailTagStatsPointWritableSchema = {
@@ -16490,6 +16140,20 @@ export const EmailMessageWritableSchema = {
       description: "Whether click tracking is enabled for this send.",
     },
   },
+} as const;
+
+export const RealtimeBatchPublishResultWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The result of a Realtime batch publish. The events were accepted for delivery; delivery to connected clients is asynchronous.\n",
+} as const;
+
+export const RealtimePublishResultWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "The result of a Realtime publish. The event was accepted and fanned out to the requested channels; delivery to connected clients is asynchronous.\n",
 } as const;
 
 export const ErrorWritableSchema = {

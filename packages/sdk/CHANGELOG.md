@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0
+
+- Add Realtime data-plane methods: publish, batch publish, channel list/get/members, and member disconnect.
+- Add the audiences resource. `AudienceContactsQuery` is now `AudienceListContactsQuery` (matches `listContacts`).
+- Add the domains resource: create, read, update, delete, and verify.
+- Add `verify.*` webhook event types and payloads.
+- Internal improvements.
+
 ## 0.12.2
 
 - Extract the verification terminal-reason enum into a shared `VerificationTerminalReason` type (no behavior change).

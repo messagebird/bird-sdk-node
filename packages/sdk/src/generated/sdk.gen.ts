@@ -72,6 +72,9 @@ import type {
   DeleteMailboxReceiveRuleErrors,
   DeleteMailboxReceiveRuleResponses,
   DeleteMailboxResponses,
+  DisconnectRealtimeAppMemberData,
+  DisconnectRealtimeAppMemberErrors,
+  DisconnectRealtimeAppMemberResponses,
   GetAudienceData,
   GetAudienceErrors,
   GetAudienceResponses,
@@ -150,6 +153,9 @@ import type {
   GetMailboxStatsData,
   GetMailboxStatsErrors,
   GetMailboxStatsResponses,
+  GetRealtimeAppChannelData,
+  GetRealtimeAppChannelErrors,
+  GetRealtimeAppChannelResponses,
   GetSmsMessageData,
   GetSmsMessageErrors,
   GetSmsMessageResponses,
@@ -195,6 +201,12 @@ import type {
   ListMailboxReceiveRulesData,
   ListMailboxReceiveRulesErrors,
   ListMailboxReceiveRulesResponses,
+  ListRealtimeAppChannelMembersData,
+  ListRealtimeAppChannelMembersErrors,
+  ListRealtimeAppChannelMembersResponses,
+  ListRealtimeAppChannelsData,
+  ListRealtimeAppChannelsErrors,
+  ListRealtimeAppChannelsResponses,
   ListSmsMessagesData,
   ListSmsMessagesErrors,
   ListSmsMessagesResponses,
@@ -210,6 +222,12 @@ import type {
   ListWhatsAppTemplatesData,
   ListWhatsAppTemplatesErrors,
   ListWhatsAppTemplatesResponses,
+  PublishRealtimeAppBatchData,
+  PublishRealtimeAppBatchErrors,
+  PublishRealtimeAppBatchResponses,
+  PublishRealtimeAppEventData,
+  PublishRealtimeAppEventErrors,
+  PublishRealtimeAppEventResponses,
   ReplyEmailThreadMessageData,
   ReplyEmailThreadMessageErrors,
   ReplyEmailThreadMessageResponses,
@@ -271,6 +289,168 @@ export type Options<
    */
   meta?: Record<string, unknown>;
 };
+
+/**
+ * Publish a Realtime event
+ *
+ * Publishes an event to one or more channels of a Realtime app. Listing several channels broadcasts the event to all of them in one call. Connected clients subscribed to those channels receive it in real time.
+ */
+export const publishRealtimeAppEvent = <ThrowOnError extends boolean = false>(
+  options: Options<PublishRealtimeAppEventData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PublishRealtimeAppEventResponses,
+    PublishRealtimeAppEventErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/events",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Publish a batch of Realtime events
+ *
+ * Publishes up to 10 events (each to one channel) in a single request.
+ */
+export const publishRealtimeAppBatch = <ThrowOnError extends boolean = false>(
+  options: Options<PublishRealtimeAppBatchData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    PublishRealtimeAppBatchResponses,
+    PublishRealtimeAppBatchErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/batch-events",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * List Realtime channels
+ *
+ * Lists the app's currently occupied channels, optionally filtered by name prefix.
+ */
+export const listRealtimeAppChannels = <ThrowOnError extends boolean = false>(
+  options: Options<ListRealtimeAppChannelsData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListRealtimeAppChannelsResponses,
+    ListRealtimeAppChannelsErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/channels",
+    ...options,
+  });
+
+/**
+ * Get a Realtime channel
+ *
+ * Returns a single channel's occupancy and (on request) counts. Channels exist implicitly — a channel appears when the first connection subscribes and vanishes when the last one leaves — so this endpoint reports state, not existence: an unknown or never-used name returns 200 with `occupied: false`, never 404.
+ */
+export const getRealtimeAppChannel = <ThrowOnError extends boolean = false>(
+  options: Options<GetRealtimeAppChannelData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetRealtimeAppChannelResponses,
+    GetRealtimeAppChannelErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/channels/{channel_name}",
+    ...options,
+  });
+
+/**
+ * List members on a presence channel
+ *
+ * Lists the member ids currently subscribed to a presence channel. Ids only: `member_info` (the profile data attached by your authorization endpoint) is delivered to subscribed clients over the realtime connection and is not available over REST.
+ */
+export const listRealtimeAppChannelMembers = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ListRealtimeAppChannelMembersData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    ListRealtimeAppChannelMembersResponses,
+    ListRealtimeAppChannelMembersErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/channels/{channel_name}/members",
+    ...options,
+  });
+
+/**
+ * Disconnect a member
+ *
+ * Disconnects all of a member's active connections (e.g. on sign-out or ban).
+ */
+export const disconnectRealtimeAppMember = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<DisconnectRealtimeAppMemberData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    DisconnectRealtimeAppMemberResponses,
+    DisconnectRealtimeAppMemberErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/members/{member_id}/disconnect",
+    ...options,
+  });
 
 /**
  * List messages

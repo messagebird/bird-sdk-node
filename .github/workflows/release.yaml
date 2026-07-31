@@ -42,7 +42,10 @@ jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Smoke runs per workspace package, each retrying npm for up to ~5 minutes, so
+    # the budget scales with packages/* — keep headroom or a timeout kill preempts
+    # the smoke diagnostics.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6

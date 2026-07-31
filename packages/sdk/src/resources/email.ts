@@ -17,6 +17,8 @@ import type {
 import { Resource } from "./base.js";
 import { EmailResourceBase } from "./email.gen.js";
 import { EmailStatsResource } from "./emailStats.gen.js";
+import { EmailMailboxesResource } from "./emailMailboxes.js";
+import { EmailThreadsResource } from "./emailThreads.js";
 import type {
   APIPromise,
   PaginatedPromise,
@@ -69,6 +71,12 @@ export class EmailResource<
   /** Email statistics — `bird.email.stats.summary(...)`, `.daily(...)`, `.byTag(...)`, … */
   readonly stats: EmailStatsResource;
 
+  /** Durable agent mailboxes — `bird.email.mailboxes.list(...)`, `.create(...)`, … */
+  readonly mailboxes: EmailMailboxesResource;
+
+  /** Conversations across every mailbox — `bird.email.threads.list(...)`, `.get(...)`, … */
+  readonly threads: EmailThreadsResource;
+
   constructor(
     core: ConstructorParameters<typeof Resource>[0],
     client: ConstructorParameters<typeof Resource>[1],
@@ -77,6 +85,8 @@ export class EmailResource<
     super(core, client);
     this.#defaults = defaults;
     this.stats = new EmailStatsResource(core, client);
+    this.mailboxes = new EmailMailboxesResource(core, client);
+    this.threads = new EmailThreadsResource(core, client);
   }
 
   /**

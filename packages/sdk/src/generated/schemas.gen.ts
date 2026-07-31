@@ -11516,17 +11516,20 @@ export const ContactListSchema = {
 export const EmailMessageContentSchema = {
   type: "object",
   additionalProperties: false,
-  description: "The stored body content of a sent email message.",
+  description:
+    "The body content of a sent email message, as delivered. A send that used a template stores the template's body, so these report it with the send's `parameters` substituted in.\n",
   properties: {
     html: {
       type: "string",
       minLength: 1,
-      description: "The HTML body of the message, if it was stored.",
+      description:
+        "The HTML body of the message as delivered, if it was stored.",
     },
     text: {
       type: "string",
       minLength: 1,
-      description: "The plain-text body of the message, if it was stored.",
+      description:
+        "The plain-text body of the message as delivered, if it was stored.",
     },
   },
 } as const;
@@ -11984,7 +11987,7 @@ export const EmailTemplateSendSchema = {
     language: {
       $ref: "#/components/schemas/LanguageTag",
       description:
-        "Which of the template's languages to send. Omit it to send the template's default language. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.\n",
+        "Which of the template's languages to send. Omit it to send the template's default language, unless the template sets `language_source_required`, in which case a send naming no language is rejected. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.\n",
     },
     parameters: {
       type: "object",
@@ -12123,6 +12126,8 @@ export const EmailMessageSendRequestSchema = {
     category: {
       $ref: "#/components/schemas/EmailMessageCategory",
       default: "marketing",
+      description:
+        "Content classification. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail. When you send with `template` and omit this field, the message takes the template's own classification, so a template created as `transactional` sends as transactional. Set this field to classify a single send differently from its template; it always takes precedence. Sends that carry no template and no category are `marketing`.\n",
     },
     in_reply_to_message_id: {
       $ref: "#/components/schemas/EmailID",
@@ -12340,7 +12345,8 @@ export const EmailMessageSchema = {
     subject: {
       type: "string",
       minLength: 1,
-      description: "Message subject line.",
+      description:
+        "The subject line as delivered. For a send that used a template, the stored subject is the template's, so this reports it with the send's `parameters` substituted in, which is what the recipient saw.\n",
     },
     category: {
       $ref: "#/components/schemas/EmailMessageCategory",
@@ -12458,6 +12464,13 @@ export const EmailMessageSchema = {
       description:
         "Arbitrary JSON metadata stored on the message object and echoed in webhook payloads. See EmailMessageSendRequest for the tags vs metadata distinction.",
       additionalProperties: true,
+    },
+    parameters: {
+      type: ["object", "null"],
+      additionalProperties: true,
+      readOnly: true,
+      description:
+        "The substitution values this send supplied, or null for a send that carried its content inline. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.\n",
     },
     attachments: {
       type: "array",
@@ -15691,7 +15704,8 @@ export const EmailMessageWritableSchema = {
     subject: {
       type: "string",
       minLength: 1,
-      description: "Message subject line.",
+      description:
+        "The subject line as delivered. For a send that used a template, the stored subject is the template's, so this reports it with the send's `parameters` substituted in, which is what the recipient saw.\n",
     },
     category: {
       $ref: "#/components/schemas/EmailMessageCategory",

@@ -25,10 +25,6 @@ import { SmsTemplatesResource } from "./resources/smsTemplates.gen.js";
 import { WhatsappResource } from "./resources/whatsapp.js";
 import { VerifyResource } from "./resources/verify.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
-import { MailboxResource } from "./resources/mailbox.js";
-import { MailboxReceiveRuleResource } from "./resources/mailboxReceiveRule.gen.js";
-import { MailboxThreadResource } from "./resources/mailboxThread.gen.js";
-import { MailboxThreadMessageResource } from "./resources/mailboxThreadMessage.gen.js";
 import { RealtimeResource, type RealtimeOptions } from "./resources/realtime.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
@@ -194,17 +190,9 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** Webhooks — `bird.webhooks.unwrap(payload, headers)` verifies an inbound delivery. */
   readonly webhooks: WebhooksResource;
 
-  /** Agent mailboxes — `bird.mailbox.create(...)`, `.compose(...)`, `.list(...)`, … */
-  readonly mailbox: MailboxResource;
 
-  /** Mailbox receive rules — `bird.mailboxReceiveRule.create(...)`, `.delete(...)`, `.list(...)`. */
-  readonly mailboxReceiveRule: MailboxReceiveRuleResource;
 
-  /** Mailbox threads — `bird.mailboxThread.list(...)`, `.get(...)`, `.update(...)`, `.delete(...)`. */
-  readonly mailboxThread: MailboxThreadResource;
 
-  /** Thread messages — `bird.mailboxThreadMessage.list(...)`, `.get(...)`, `.reply(...)`, `.body(...)`, … */
-  readonly mailboxThreadMessage: MailboxThreadMessageResource;
   /** Realtime — `bird.realtime.publish(...)`, `.channels.list(...)`, `.members.disconnect(...)`, … */
   readonly realtime: RealtimeResource;
 
@@ -256,10 +244,6 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     );
     this.domains = new DomainsResource(this.core, this.#client);
     this.webhooks = new WebhooksResource(opts.webhooks);
-    this.mailbox = new MailboxResource(this.core, this.#client);
-    this.mailboxReceiveRule = new MailboxReceiveRuleResource(this.core, this.#client);
-    this.mailboxThread = new MailboxThreadResource(this.core, this.#client);
-    this.mailboxThreadMessage = new MailboxThreadMessageResource(this.core, this.#client);
     this.realtime = new RealtimeResource(this.core, this.#client, opts.realtime);
   }
 

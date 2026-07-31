@@ -20,16 +20,20 @@ cd "$tmp"
 
 npm init -y >/dev/null 2>&1
 npm pkg set type=module >/dev/null
-# A just-published version can lag npm's registry read-replicas/CDN for a few
-# minutes, so retry over a ~5-minute budget before giving up — the publish has
-# already succeeded; this step only guards packaging (the "files" allowlist and
-# ESM entrypoint), so a short window would fail spuriously on propagation alone.
-for attempt in $(seq 1 10); do
-	if npm install --silent --registry "$registry" "@messagebird/sdk@${ver}"; then
+# A just-published version can lag npm's registry read-replicas/CDN, so retry for
+# ~5 minutes. Never pass --silent, and print npm's error on the last attempt: a
+# swallowed error makes a propagation lag look identical to a packaging break.
+attempts=10
+for attempt in $(seq 1 "$attempts"); do
+	if out=$(npm install --no-fund --no-audit --registry "$registry" "@messagebird/sdk@${ver}" 2>&1); then
 		break
 	fi
-	[ "$attempt" -eq 10 ] && { echo "smoke: @messagebird/sdk@${ver} not installable after 10 attempts (~5m of registry lag)" >&2; exit 1; }
-	echo "smoke: @messagebird/sdk@${ver} not available yet — retrying in 30s (attempt ${attempt}/10)"
+	if [ "$attempt" -eq "$attempts" ]; then
+		echo "smoke: @messagebird/sdk@${ver} not installable after ${attempts} attempts (~5m); last error:" >&2
+		printf '%s\n' "$out" | sed 's/^/  /' >&2
+		exit 1
+	fi
+	echo "smoke: @messagebird/sdk@${ver} not available yet — retrying in 30s (attempt ${attempt}/${attempts})"
 	sleep 30
 done
 

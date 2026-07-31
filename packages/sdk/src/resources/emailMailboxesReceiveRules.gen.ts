@@ -5,19 +5,19 @@ import { Resource } from "./base.js";
 import type { APIPromise, PaginatedPromise, RequestOptions } from "../core/result.js";
 
 export type { ReceiveRule };
-export type MailboxReceiveRuleListQuery = NonNullable<ListMailboxReceiveRulesData["query"]>;
-export type MailboxReceiveRuleCreateParams = NonNullable<CreateMailboxReceiveRuleData["body"]>;
+export type EmailMailboxesReceiveRulesListQuery = NonNullable<ListMailboxReceiveRulesData["query"]>;
+export type EmailMailboxesReceiveRulesCreateParams = NonNullable<CreateMailboxReceiveRuleData["body"]>;
 
-export class MailboxReceiveRuleResource extends Resource {
+export class EmailMailboxesReceiveRulesResource extends Resource {
   /**
    * List a mailbox's allow/block receive rules as a cursor page, oldest first. Filter by action.
    *
    * @example List a mailbox's receive rules
-   * for await (const rule of bird.mailboxReceiveRule.list("mbx_01abc")) {
+   * for await (const rule of bird.email.mailboxes.receiveRules.list("mbx_01abc")) {
    *   console.log(rule.action, rule.entry);
    * }
    */
-  list(mailboxId: string, query?: MailboxReceiveRuleListQuery, options?: RequestOptions): PaginatedPromise<ReceiveRule> {
+  list(mailboxId: string, query?: EmailMailboxesReceiveRulesListQuery, options?: RequestOptions): PaginatedPromise<ReceiveRule> {
     return this.paginated<ReceiveRule>("GET", options, ({ signal, headers }, cursor) =>
       listMailboxReceiveRules({ client: this.client, path: { mailbox_id: mailboxId }, query: { ...query, starting_after: cursor ?? query?.starting_after }, headers, signal }));
   }
@@ -26,13 +26,13 @@ export class MailboxReceiveRuleResource extends Resource {
    * Add an allow or block rule for a sender address or domain to a mailbox. Block always wins; up to 200 rules per mailbox.
    *
    * @example Block a domain
-   * const rule = await bird.mailboxReceiveRule.create("mbx_01abc", {
+   * const rule = await bird.email.mailboxes.receiveRules.create("mbx_01abc", {
    *   action: "block",
    *   entry: "spam.example.com",
    * });
    * console.log(rule.id);
    */
-  create(mailboxId: string, params: MailboxReceiveRuleCreateParams, options?: RequestOptions): APIPromise<ReceiveRule> {
+  create(mailboxId: string, params: EmailMailboxesReceiveRulesCreateParams, options?: RequestOptions): APIPromise<ReceiveRule> {
     return this.call<ReceiveRule>("POST", options, ({ signal, headers }) =>
       createMailboxReceiveRule({ client: this.client, path: { mailbox_id: mailboxId }, body: params, headers, signal }));
   }
@@ -41,7 +41,7 @@ export class MailboxReceiveRuleResource extends Resource {
    * Remove a receive rule from a mailbox. Delete-and-recreate is how an entry's action is flipped.
    *
    * @example Delete a rule
-   * await bird.mailboxReceiveRule.delete("mbx_01abc", "erl_01xyz");
+   * await bird.email.mailboxes.receiveRules.delete("mbx_01abc", "erl_01xyz");
    */
   delete(mailboxId: string, ruleId: string, options?: RequestOptions): APIPromise<void> {
     return this.call<void>("DELETE", options, ({ signal, headers }) =>

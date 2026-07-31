@@ -7,19 +7,19 @@ import type { APIPromise, PaginatedPromise, RequestOptions } from "../core/resul
 export type { EmailThreadMessage };
 export type { EmailThreadMessageBody };
 export type { EmailThreadMessageAttachmentList };
-export type MailboxThreadMessageListQuery = NonNullable<ListEmailThreadMessagesData["query"]>;
-export type MailboxThreadMessageReplyParams = NonNullable<ReplyEmailThreadMessageData["body"]>;
+export type EmailThreadsMessagesListQuery = NonNullable<ListEmailThreadMessagesData["query"]>;
+export type EmailThreadsMessagesReplyParams = NonNullable<ReplyEmailThreadMessageData["body"]>;
 
-export class MailboxThreadMessageResource extends Resource {
+export class EmailThreadsMessagesResource extends Resource {
   /**
    * List the messages in a conversation newest first, both directions. Page older messages with starting_after, and pass include=extracted_text to inline each message's durable plain text.
    *
    * @example List a thread's messages
-   * for await (const msg of bird.mailboxThreadMessage.list("thr_01abc")) {
+   * for await (const msg of bird.email.threads.messages.list("thr_01abc")) {
    *   console.log(msg.id, msg.direction);
    * }
    */
-  list(threadId: string, query?: MailboxThreadMessageListQuery, options?: RequestOptions): PaginatedPromise<EmailThreadMessage> {
+  list(threadId: string, query?: EmailThreadsMessagesListQuery, options?: RequestOptions): PaginatedPromise<EmailThreadMessage> {
     return this.paginated<EmailThreadMessage>("GET", options, ({ signal, headers }, cursor) =>
       listEmailThreadMessages({ client: this.client, path: { thread_id: threadId }, query: { ...query, starting_after: cursor ?? query?.starting_after }, headers, signal }));
   }
@@ -28,7 +28,7 @@ export class MailboxThreadMessageResource extends Resource {
    * Get one conversation message with its extracted plain text — readable for the mailbox's full retention period, no MIME parsing needed.
    *
    * @example Get a message
-   * const msg = await bird.mailboxThreadMessage.get("thr_01abc", "rem_01xyz");
+   * const msg = await bird.email.threads.messages.get("thr_01abc", "rem_01xyz");
    * console.log(msg.direction); // "inbound"
    */
   get(threadId: string, messageId: string, options?: RequestOptions): APIPromise<EmailThreadMessage> {
@@ -40,7 +40,7 @@ export class MailboxThreadMessageResource extends Resource {
    * Get the original rendered HTML and plain-text body of a conversation message. Available 30 days; after that use the message's extracted_text.
    *
    * @example Get a message body
-   * const body = await bird.mailboxThreadMessage.body("thr_01abc", "rem_01xyz");
+   * const body = await bird.email.threads.messages.body("thr_01abc", "rem_01xyz");
    * console.log(body.text);
    */
   body(threadId: string, messageId: string, options?: RequestOptions): APIPromise<EmailThreadMessageBody> {
@@ -52,12 +52,12 @@ export class MailboxThreadMessageResource extends Resource {
    * Reply to a specific conversation message from the mailbox's own address. To reply to a conversation, target its newest received message. Recipients, subject, and threading headers are derived automatically.
    *
    * @example Reply to a message
-   * const reply = await bird.mailboxThreadMessage.reply("thr_01abc", "rem_01xyz", {
+   * const reply = await bird.email.threads.messages.reply("thr_01abc", "rem_01xyz", {
    *   text: "Thanks for reaching out!",
    * });
    * console.log(reply.id);
    */
-  reply(threadId: string, messageId: string, params: MailboxThreadMessageReplyParams = {}, options?: RequestOptions): APIPromise<EmailThreadMessage> {
+  reply(threadId: string, messageId: string, params: EmailThreadsMessagesReplyParams = {}, options?: RequestOptions): APIPromise<EmailThreadMessage> {
     return this.call<EmailThreadMessage>("POST", options, ({ signal, headers }) =>
       replyEmailThreadMessage({ client: this.client, path: { thread_id: threadId, message_id: messageId }, body: params, headers, signal }));
   }
@@ -66,7 +66,7 @@ export class MailboxThreadMessageResource extends Resource {
    * List the attachments on a conversation message. Bytes are downloadable for 30 days; the metadata also rides the message's attachment_manifest durably.
    *
    * @example List a message's attachments
-   * const atts = await bird.mailboxThreadMessage.attachments("thr_01abc", "rem_01xyz");
+   * const atts = await bird.email.threads.messages.attachments("thr_01abc", "rem_01xyz");
    * console.log(atts.data.map((a) => a.filename));
    */
   attachments(threadId: string, messageId: string, options?: RequestOptions): APIPromise<EmailThreadMessageAttachmentList> {

@@ -168,28 +168,32 @@ export { WebhookEventType } from "./event-types.gen.js";
 export type { WebhookEventTypeValue } from "./event-types.gen.js";
 export type {
   Mailbox,
-  MailboxCreateParams,
-  MailboxUpdateParams,
-  MailboxListQuery,
+  EmailMailboxesCreateParams,
+  EmailMailboxesUpdateParams,
+  EmailMailboxesUpdateQuery,
+  EmailMailboxesListQuery,
+  EmailMailboxesStatsQuery,
   MailboxStatsResponse,
   EmailMailboxLabelList,
-  MailboxComposeParams,
+} from "./resources/emailMailboxes.gen.js";
+export type {
+  EmailMailboxesMessagesCreateParams,
   EmailThreadMessage,
-} from "./resources/mailbox.js";
+} from "./resources/emailMailboxesMessages.js";
 export type {
   ReceiveRule,
-  MailboxReceiveRuleCreateParams,
-  MailboxReceiveRuleListQuery,
-} from "./resources/mailboxReceiveRule.gen.js";
+  EmailMailboxesReceiveRulesCreateParams,
+  EmailMailboxesReceiveRulesListQuery,
+} from "./resources/emailMailboxesReceiveRules.gen.js";
 export type {
   EmailThread,
-  MailboxThreadListQuery,
-  MailboxThreadDeleteQuery,
-  MailboxThreadUpdateParams,
-} from "./resources/mailboxThread.gen.js";
+  EmailThreadsListQuery,
+  EmailThreadsDeleteQuery,
+  EmailThreadsUpdateParams,
+} from "./resources/emailThreads.gen.js";
 export type {
   EmailThreadMessageBody,
   EmailThreadMessageAttachmentList,
-  MailboxThreadMessageListQuery,
-  MailboxThreadMessageReplyParams,
-} from "./resources/mailboxThreadMessage.gen.js";
+  EmailThreadsMessagesListQuery,
+  EmailThreadsMessagesReplyParams,
+} from "./resources/emailThreadsMessages.gen.js";

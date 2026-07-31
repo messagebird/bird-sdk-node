@@ -6092,15 +6092,16 @@ export type ContactList = {
 } & ListEnvelope;
 
 /**
- * The stored body content of a sent email message.
+ * The body content of a sent email message, as delivered. A send that used a template stores the template's body, so these report it with the send's `parameters` substituted in.
+ *
  */
 export type EmailMessageContent = {
   /**
-   * The HTML body of the message, if it was stored.
+   * The HTML body of the message as delivered, if it was stored.
    */
   html?: string;
   /**
-   * The plain-text body of the message, if it was stored.
+   * The plain-text body of the message as delivered, if it was stored.
    */
   text?: string;
 };
@@ -6359,7 +6360,7 @@ export type EmailTemplateSend = unknown & {
    */
   slug?: TemplateSlug;
   /**
-   * Which of the template's languages to send. Omit it to send the template's default language. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.
+   * Which of the template's languages to send. Omit it to send the template's default language, unless the template sets `language_source_required`, in which case a send naming no language is rejected. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.
    *
    */
   language?: LanguageTag;
@@ -6450,6 +6451,10 @@ export type EmailMessageSendRequest = {
    *
    */
   ip_pool_id?: string;
+  /**
+   * Content classification. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail. When you send with `template` and omit this field, the message takes the template's own classification, so a template created as `transactional` sends as transactional. Set this field to classify a single send differently from its template; it always takes precedence. Sends that carry no template and no category are `marketing`.
+   *
+   */
   category?: EmailMessageCategory;
   /**
    * Preview feature — threaded replies. Currently unavailable; supplying this field returns `422 UnsupportedEmailFeature`. When generally available, sets In-Reply-To and References headers automatically.
@@ -6572,7 +6577,8 @@ export type EmailMessage = {
    */
   bcc?: Array<EmailAddress>;
   /**
-   * Message subject line.
+   * The subject line as delivered. For a send that used a template, the stored subject is the template's, so this reports it with the send's `parameters` substituted in, which is what the recipient saw.
+   *
    */
   subject: string;
   category: EmailMessageCategory;
@@ -6647,6 +6653,13 @@ export type EmailMessage = {
   metadata?: {
     [key: string]: unknown;
   };
+  /**
+   * The substitution values this send supplied, or null for a send that carried its content inline. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.
+   *
+   */
+  readonly parameters?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Attachment metadata for the send. Empty when no attachments were included. Raw content is not echoed; when content storage is enabled, download an attachment by its `id` via the message's attachment endpoint.
    */
@@ -8494,7 +8507,8 @@ export type EmailMessageWritable = {
    */
   bcc?: Array<EmailAddress>;
   /**
-   * Message subject line.
+   * The subject line as delivered. For a send that used a template, the stored subject is the template's, so this reports it with the send's `parameters` substituted in, which is what the recipient saw.
+   *
    */
   subject: string;
   category: EmailMessageCategory;

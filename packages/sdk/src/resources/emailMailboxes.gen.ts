@@ -7,22 +7,22 @@ import type { APIPromise, PaginatedPromise, RequestOptions } from "../core/resul
 export type { Mailbox };
 export type { MailboxStatsResponse };
 export type { EmailMailboxLabelList };
-export type MailboxListQuery = NonNullable<ListMailboxesData["query"]>;
-export type MailboxCreateParams = NonNullable<CreateMailboxData["body"]>;
-export type MailboxUpdateParams = NonNullable<UpdateMailboxData["body"]>;
-export type MailboxUpdateQuery = NonNullable<UpdateMailboxData["query"]>;
-export type MailboxStatsQuery = NonNullable<GetMailboxStatsData["query"]>;
+export type EmailMailboxesListQuery = NonNullable<ListMailboxesData["query"]>;
+export type EmailMailboxesCreateParams = NonNullable<CreateMailboxData["body"]>;
+export type EmailMailboxesUpdateParams = NonNullable<UpdateMailboxData["body"]>;
+export type EmailMailboxesUpdateQuery = NonNullable<UpdateMailboxData["query"]>;
+export type EmailMailboxesStatsQuery = NonNullable<GetMailboxStatsData["query"]>;
 
-export class MailboxResourceBase extends Resource {
+export class EmailMailboxesResource extends Resource {
   /**
    * List the workspace's mailboxes as a cursor page, newest first. Search addresses and display names with q, or filter by exact address, state, or domain.
    *
    * @example List mailboxes
-   * for await (const mailbox of bird.mailbox.list()) {
+   * for await (const mailbox of bird.email.mailboxes.list()) {
    *   console.log(mailbox.address);
    * }
    */
-  list(query?: MailboxListQuery, options?: RequestOptions): PaginatedPromise<Mailbox> {
+  list(query?: EmailMailboxesListQuery, options?: RequestOptions): PaginatedPromise<Mailbox> {
     return this.paginated<Mailbox>("GET", options, ({ signal, headers }, cursor) =>
       listMailboxes({ client: this.client, query: { ...query, starting_after: cursor ?? query?.starting_after }, headers, signal }));
   }
@@ -31,17 +31,17 @@ export class MailboxResourceBase extends Resource {
    * Create a mailbox — a durable agent identity that owns an email address, groups mail into threads, and remembers conversations for its retention tier.
    *
    * @example Create a mailbox
-   * const mailbox = await bird.mailbox.create({ display_name: "Support" });
+   * const mailbox = await bird.email.mailboxes.create({ display_name: "Support" });
    * console.log(mailbox.address); // "abc123@inbox.ai"
    */
-  create(params: MailboxCreateParams = {}, options?: RequestOptions): APIPromise<Mailbox> {
+  create(params: EmailMailboxesCreateParams = {}, options?: RequestOptions): APIPromise<Mailbox> {
     return this.call<Mailbox>("POST", options, ({ signal, headers }) =>
       createMailbox({ client: this.client, body: params, headers, signal }));
   }
 
   /**
    * @example Get a mailbox
-   * const mailbox = await bird.mailbox.get("mbx_01abc");
+   * const mailbox = await bird.email.mailboxes.get("mbx_01abc");
    * console.log(mailbox.state); // "active"
    */
   get(mailboxId: string, options?: RequestOptions): APIPromise<Mailbox> {
@@ -53,12 +53,12 @@ export class MailboxResourceBase extends Resource {
    * Update a mailbox's display name, reply-to, receive policy, retention tier, contact, or metadata. Lowering the retention tier onto remembered messages older than the new horizon requires confirm=true.
    *
    * @example Change a mailbox's receive policy
-   * const mailbox = await bird.mailbox.update("mbx_01abc", {
+   * const mailbox = await bird.email.mailboxes.update("mbx_01abc", {
    *   receive_policy: "open",
    * });
    * console.log(mailbox.id, mailbox.receive_policy);
    */
-  update(mailboxId: string, params: MailboxUpdateParams = {}, query?: MailboxUpdateQuery, options?: RequestOptions): APIPromise<Mailbox> {
+  update(mailboxId: string, params: EmailMailboxesUpdateParams = {}, query?: EmailMailboxesUpdateQuery, options?: RequestOptions): APIPromise<Mailbox> {
     return this.call<Mailbox>("PATCH", options, ({ signal, headers }) =>
       updateMailbox({ client: this.client, path: { mailbox_id: mailboxId }, body: params, query, headers, signal }));
   }
@@ -67,7 +67,7 @@ export class MailboxResourceBase extends Resource {
    * Delete a mailbox. The address stops receiving immediately and is quarantined; the mailbox and its remembered messages stay restorable for 30 days via the restore endpoint, then are permanently deleted.
    *
    * @example Delete a mailbox
-   * await bird.mailbox.delete("mbx_01abc");
+   * await bird.email.mailboxes.delete("mbx_01abc");
    */
   delete(mailboxId: string, options?: RequestOptions): APIPromise<void> {
     return this.call<void>("DELETE", options, ({ signal, headers }) =>
@@ -78,7 +78,7 @@ export class MailboxResourceBase extends Resource {
    * Restore a mailbox deleted less than 30 days ago: the address starts receiving again and the remembered messages are back. Past the window the mailbox is permanently deleted and returns 404; a mailbox that is not deleted returns 409.
    *
    * @example Restore a deleted mailbox
-   * const mailbox = await bird.mailbox.restore("mbx_01abc");
+   * const mailbox = await bird.email.mailboxes.restore("mbx_01abc");
    * console.log(mailbox.deleted_at); // null
    */
   restore(mailboxId: string, options?: RequestOptions): APIPromise<Mailbox> {
@@ -90,7 +90,7 @@ export class MailboxResourceBase extends Resource {
    * Reactivate a suspended mailbox so it can send and receive again and its threads become visible. Fails if your plan does not have room for another active mailbox (or another custom inbox.ai handle); delete an active mailbox or upgrade first. A mailbox that is not suspended returns 409.
    *
    * @example Resume a suspended mailbox
-   * const mailbox = await bird.mailbox.resume("mbx_01abc");
+   * const mailbox = await bird.email.mailboxes.resume("mbx_01abc");
    * console.log(mailbox.state); // "active"
    */
   resume(mailboxId: string, options?: RequestOptions): APIPromise<Mailbox> {
@@ -100,10 +100,10 @@ export class MailboxResourceBase extends Resource {
 
   /**
    * @example Get mailbox stats
-   * const stats = await bird.mailbox.stats("mbx_01abc");
+   * const stats = await bird.email.mailboxes.stats("mbx_01abc");
    * console.log(stats.summary?.sends_accepted);
    */
-  stats(mailboxId: string, query?: MailboxStatsQuery, options?: RequestOptions): APIPromise<MailboxStatsResponse> {
+  stats(mailboxId: string, query?: EmailMailboxesStatsQuery, options?: RequestOptions): APIPromise<MailboxStatsResponse> {
     return this.call<MailboxStatsResponse>("GET", options, ({ signal, headers }) =>
       getMailboxStats({ client: this.client, path: { mailbox_id: mailboxId }, query, headers, signal }));
   }
@@ -112,7 +112,7 @@ export class MailboxResourceBase extends Resource {
    * List the labels available in a mailbox: the built-in system labels (inbox, archive, spam, blocked, sent, trash, unread) plus every custom label in use.
    *
    * @example List a mailbox's labels
-   * const labels = await bird.mailbox.labels("mbx_01abc");
+   * const labels = await bird.email.mailboxes.labels("mbx_01abc");
    * console.log(labels.data.map((label) => label.name));
    */
   labels(mailboxId: string, options?: RequestOptions): APIPromise<EmailMailboxLabelList> {

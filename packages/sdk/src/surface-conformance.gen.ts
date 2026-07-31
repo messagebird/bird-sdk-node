@@ -9,7 +9,6 @@ export type _EmailStats = Pick<BirdClient["email"]["stats"], "summary" | "daily"
 export type _Sms = Pick<BirdClient["sms"], "send" | "sendBatch" | "get" | "list">;
 export type _SmsTemplates = Pick<BirdClient["smsTemplates"], "list" | "get">;
 export type _Whatsapp = Pick<BirdClient["whatsapp"], "send" | "get" | "list" | "listEvents">;
-export type _WhatsappTemplates = Pick<BirdClient["whatsappTemplates"], "list">;
 export type _VerifyVerifications = Pick<BirdClient["verify"]["verifications"], "create" | "check">;
 export type _Domains = Pick<BirdClient["domains"], "list" | "get" | "create" | "verify" | "update" | "delete">;
 export type _Webhooks = Pick<BirdClient["webhooks"], "unwrap">;

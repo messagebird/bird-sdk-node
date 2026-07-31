@@ -11,6 +11,15 @@ import { BirdClient } from "@messagebird/sdk";
 
 const bird = new BirdClient({ apiKey: process.env.BIRD_API_KEY! });
 
+export async function contactPropertiesCreate() {
+  const prop = await bird.contactProperties.create({ key: "plan", type: "string" });
+  console.log(prop.id); // "cp_…"
+}
+
+export async function contactPropertiesUpdate() {
+  await bird.contactProperties.update("cp_01krdgeqcxet5s7t44vh8rt9mg", { fallback_value: "free" });
+}
+
 export async function contactPropertiesGet() {
   const prop = await bird.contactProperties.get("cp_01krdgeqcxet5s7t44vh8rt9mg");
   console.log(prop.key, prop.type);

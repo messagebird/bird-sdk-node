@@ -1,5 +1,5 @@
 // API keys encode their region as bk_{region}_{token}, so the client can route
-// to {region}.platform.bird.com automatically (ADR-0036).
+// to {region}.platform.bird.com automatically.
 
 const REGION_PATTERN = /^[a-z]{2}[0-9]+$/;
 

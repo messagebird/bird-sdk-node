@@ -68,7 +68,7 @@ export class DomainsResource extends Resource {
    *   tracking: { name: "links" },
    * });
    */
-  update(domainId: string, params: DomainUpdateParams, options?: RequestOptions): APIPromise<Domain> {
+  update(domainId: string, params: DomainUpdateParams = {}, options?: RequestOptions): APIPromise<Domain> {
     return this.call<Domain>("PATCH", options, ({ signal, headers }) =>
       updateDomain({ client: this.client, path: { domain_id: domainId }, body: params, headers, signal }));
   }

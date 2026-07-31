@@ -394,7 +394,11 @@ export type EventVoiceCallInitiated = {
 };
 
 /**
- * Call status. v1 records are always terminal and carry one of answered, no_answer, failed, rejected, or unknown. The remaining values are declared ahead of planned features so their arrival is not a breaking contract change: busy and canceled arrive with inbound (DID) termination — today both outcomes are folded into failed — and ringing and in_progress with a live-calls surface.
+ * Call status.
+ *
+ * A call that has ended carries answered, no_answer, failed, rejected, or unknown. A call that is still up carries ringing before it is picked up and in_progress once it is; both are what the `status` filter on the call list selects on to show calls happening right now.
+ *
+ * busy and canceled are declared ahead of the feature that produces them, so their arrival is not a breaking contract change: they come with inbound termination, and today both outcomes are folded into failed.
  *
  */
 export type VoiceCallStatus =
@@ -576,7 +580,7 @@ export type EventVerifyVerificationCreated = {
 };
 
 /**
- * Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. v1 emits `carrier_rejected` (SMS), `hard_bounce` (email), `undelivered` (a generic terminal delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).
+ * Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. Emitted reasons are `carrier_rejected` (SMS), `hard_bounce` (email, permanent bounce), `soft_bounce` (email, transient bounce such as a full mailbox), `undelivered` (a generic delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).
  */
 export type VerificationAttemptFailureReason = string;
 
@@ -2147,7 +2151,7 @@ export type WebhookEndpointUpdate = {
    */
   description?: string;
   /**
-   * Replacement set of event type subscriptions: the endpoint's subscriptions become exactly this list (there is no partial add or remove). Omit to keep the current set. Types outside the event catalog return a `422`, and a `realtime.*` type can only be added to an endpoint that already has a Realtime app scope.
+   * Replacement set of event type subscriptions: the endpoint's subscriptions become exactly this list (there is no partial add or remove). Omit to keep the current set. Types outside the event catalog return a `422`.
    *
    */
   events?: Array<WebhookEventType>;
@@ -2217,7 +2221,7 @@ export type WebhookEndpointCreate = {
    */
   url: string;
   /**
-   * Event types to subscribe to; the endpoint receives only matching events. Types outside the event catalog return a `422`, and an endpoint holds at most 100 entries. Platform types may be combined with `realtime.*` types on one endpoint, all signed with the endpoint's single secret. Server-enforced (returns `422` otherwise): a `realtime.*` type requires the `realtime` object, and `realtime` requires at least one `realtime.*` type.
+   * Event types to subscribe to; the endpoint receives only matching events. Types outside the event catalog return a `422`, and an endpoint holds at most 100 entries.
    */
   events: Array<WebhookEventType>;
   /**
@@ -2394,12 +2398,14 @@ export type EmailMailboxComposeRequest = {
   metadata?: {
     [key: string]: unknown;
   };
-  /**
-   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
-   *
-   */
-  category?: "marketing" | "transactional";
+  category?: EmailMessageCategory;
 };
+
+/**
+ * Content classification. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail.
+ *
+ */
+export type EmailMessageCategory = "marketing" | "transactional";
 
 /**
  * File attached to an email send. The attachment bytes are passed as base64-encoded `content` directly in the request body (required). The `path` field (provide a URL and Bird fetches the attachment for you) is a preview feature and currently unavailable. Requests are rejected with 422 if `content` is missing — `path` alone does not satisfy the schema. When `path` becomes generally available, the schema will be relaxed so that exactly one of `content` or `path` is required.
@@ -2485,11 +2491,12 @@ export type EmailThreadMessageReplyRequest = {
   metadata?: {
     [key: string]: unknown;
   };
+  category?: EmailMessageCategory;
   /**
-   * Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.
+   * File attachments to include with the reply. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Keep total raw attachment content at or below 15 MB for reliable headroom. Attachment metadata endures on the message's `attachment_manifest`; the bytes are downloadable for 30 days.
    *
    */
-  category?: "marketing" | "transactional";
+  attachments?: Array<EmailAttachment>;
 };
 
 /**
@@ -5022,135 +5029,6 @@ export type EmailStatsPoint = {
   readonly latency: EmailLatencyStats;
 };
 
-export type WhatsAppTemplateList = {
-  /**
-   * The templates available to your workspace.
-   */
-  data: Array<WhatsAppTemplate>;
-};
-
-export type WhatsAppTemplateButton = {
-  /**
-   * The button's behavior type.
-   */
-  readonly type: string;
-  /**
-   * How the recipient receives the one-time passcode. Present on authentication-template OTP buttons.
-   */
-  readonly otp_type?: string;
-  /**
-   * The button's label text.
-   */
-  readonly text: string;
-  /**
-   * The URL the button opens, with any variable placeholder shown inline. Present on link buttons.
-   */
-  readonly url?: string;
-  /**
-   * Example values for this button's variables, in placeholder order. Present when the button URL has variables.
-   */
-  readonly example_parameters?: Array<WhatsAppTemplateExampleParameter>;
-};
-
-/**
- * The kind of value a template parameter accepts. `text` (the only kind today) is a plain string substituted into the placeholder. Open enum: more kinds may be added over time.
- *
- */
-export type WhatsAppTemplateParameterType = string;
-
-export type WhatsAppTemplateExampleParameter = {
-  /**
-   * The kind of value this parameter accepts.
-   */
-  readonly type: WhatsAppTemplateParameterType;
-  /**
-   * An example value for a text parameter. Present when `type` is `text`.
-   */
-  readonly text?: string;
-  /**
-   * The named placeholder this example fills, for templates that use named parameters. Absent for system templates, which use positional parameters.
-   */
-  readonly name?: string;
-};
-
-export type WhatsAppTemplateComponent = {
-  /**
-   * The content block's type within the template.
-   */
-  readonly type: string;
-  /**
-   * The block's text content, with any variable placeholders shown inline. Present when the block carries text.
-   */
-  readonly text?: string;
-  /**
-   * Example values for this block's variables, in placeholder order (one per `{{n}}`). Use them to see what a filled message looks like. Present when the block has variables.
-   */
-  readonly example_parameters?: Array<WhatsAppTemplateExampleParameter>;
-  /**
-   * The buttons attached to this block. Present when the block carries buttons.
-   */
-  readonly buttons?: Array<WhatsAppTemplateButton>;
-};
-
-/**
- * A message template's review and health status. `approved` (passed review and sendable), `pending` (review in progress), and `rejected` (failed review) are review outcomes. The rest reflect a template's ongoing health after approval: `paused` and `disabled` mean sending from it is suspended, `in_appeal` means a review decision is under appeal, `pending_deletion` means the template is queued for removal, and `limit_exceeded` means it has exceeded a usage limit. Every template in Bird's catalogue is currently `approved`. Open enum: new statuses may be added over time, so treat any unrecognized value as a future status rather than an error.
- *
- */
-export type WhatsAppTemplateStatus = string;
-
-/**
- * Meta's content classification for a template. `authentication` templates deliver one-time passcodes, `utility` templates deliver transaction-triggered updates (receipts, order status), and `marketing` templates carry promotional content. The category drives which sender number Bird selects and how the send is priced. Open enum: Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error.
- *
- */
-export type WhatsAppTemplateCategory = string;
-
-/**
- * Language code of the template variant (for example `en` or `pt_BR`).
- */
-export type WhatsAppLanguage = string;
-
-/**
- * Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).
- */
-export type TemplateScope = "system" | "workspace";
-
-/**
- * A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.
- *
- */
-export type WhatsAppTemplateName = string;
-
-export type WhatsAppTemplateId = string;
-
-export type WhatsAppTemplate = {
-  /**
-   * Stable Bird identifier for the template.
-   */
-  readonly id: WhatsAppTemplateId;
-  /**
-   * The template's stable handle. Pass it as the template reference when sending.
-   */
-  readonly name: WhatsAppTemplateName;
-  /**
-   * Optional description of the template's purpose. Null when unset.
-   */
-  readonly description?: string | null;
-  scope: TemplateScope;
-  readonly language: WhatsAppLanguage;
-  /**
-   * Content classification applied to messages sent from this template.
-   */
-  readonly category: WhatsAppTemplateCategory;
-  /**
-   * The template's review and health status.
-   */
-  readonly status: WhatsAppTemplateStatus;
-  /**
-   * The content blocks that make up the template, in display order.
-   */
-  readonly components: Array<WhatsAppTemplateComponent>;
-};
-
 export type WhatsAppEventList = {
   /**
    * Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full; this list is not paginated.
@@ -5205,6 +5083,12 @@ export type WhatsAppMessageSendRequest = {
   };
 };
 
+/**
+ * The kind of value a template parameter accepts. `text` (the only kind today) is a plain string substituted into the placeholder. Open enum: more kinds may be added over time.
+ *
+ */
+export type WhatsAppTemplateParameterType = string;
+
 export type WhatsAppMessageTemplateComponentParameter = {
   /**
    * The kind of value this parameter carries. `text` is the only kind today.
@@ -5233,6 +5117,17 @@ export type WhatsAppMessageTemplateComponent = {
   parameters?: Array<WhatsAppMessageTemplateComponentParameter>;
 };
 
+/**
+ * Language code of the template variant (for example `en` or `pt_BR`).
+ */
+export type WhatsAppLanguage = string;
+
+/**
+ * A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.
+ *
+ */
+export type WhatsAppTemplateName = string;
+
 export type WhatsAppTemplateSend = {
   /**
    * The template to send, by its name (for example `bird_otp`).
@@ -5258,6 +5153,22 @@ export type WhatsAppMessageList = {
 } & ListEnvelope;
 
 /**
+ * ISO 4217 three-letter currency code.
+ */
+export type CurrencyCode = string;
+
+export type Money = {
+  /**
+   * Decimal amount as a string, in major currency units.
+   */
+  amount: string;
+  /**
+   * ISO 4217 currency code.
+   */
+  currency_code: CurrencyCode;
+};
+
+/**
  * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means the recipient is on the workspace's suppression list; the message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).
  *
  */
@@ -5270,6 +5181,12 @@ export type WhatsAppMessageStatus =
   | "rejected"
   | "canceled"
   | "received";
+
+/**
+ * Meta's content classification for a template. `authentication` templates deliver one-time passcodes, `utility` templates deliver transaction-triggered updates (receipts, order status), and `marketing` templates carry promotional content. The category drives which sender number Bird selects and how the send is priced. Open enum: Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error.
+ *
+ */
+export type WhatsAppTemplateCategory = string;
 
 /**
  * The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).
@@ -5338,6 +5255,7 @@ export type WhatsAppMessage = {
    * When the message was read by the recipient. Null until then.
    */
   readonly read_at?: string | null;
+  cost?: Money | null;
   /**
    * Structured `{name, value}` filter labels applied to this message.
    */
@@ -5444,6 +5362,11 @@ export type VerificationOptions = {
   channels?: Array<VerificationChannel>;
 };
 
+/**
+ * Bucket grain for a stats trend series.
+ */
+export type StatsTrendGrain = "daily" | "hourly";
+
 export type SmsTemplateList = {
   /**
    * The templates available to your workspace. The catalogue is small and returned in full; this list is not paginated.
@@ -5483,6 +5406,11 @@ export type TemplateVariable = {
  */
 export type SmsMessageCategory =
   "transactional" | "marketing" | "authentication" | "service";
+
+/**
+ * Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).
+ */
+export type TemplateScope = "system" | "workspace";
 
 /**
  * A template's send-by handle — the stable reference used in place of the template id when sending. Lowercase letters, numbers, hyphens, and underscores; starts and ends with a letter or number.
@@ -5593,11 +5521,6 @@ export type SmsCostBreakdown = {
    */
   carrier_surcharge: string;
 };
-
-/**
- * ISO 4217 three-letter currency code.
- */
-export type CurrencyCode = string;
 
 /**
  * Cost of the message. Null until the message has been priced; the cost is populated as the message is processed, not at the moment it is accepted.
@@ -5763,7 +5686,7 @@ export type SmsMessageSendRequest = unknown & {
    */
   to: string;
   /**
-   * Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (1-11 letters, digits, or spaces, for example `MyBrand`), or a short code (5-6 digits). A numeric sender must be a number your workspace owns; an alphanumeric sender is accepted where the destination country permits one. Required on a free-text send: omitting it returns a `422` `SMSNoEligibleSender`. Not accepted alongside `template`, which selects its sender automatically.
+   * Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (1-11 letters, digits, spaces, dashes, or underscores, at least one of them a letter, for example `MyBrand`), or a short code (5-6 digits). A numeric sender must be a number your workspace owns; an alphanumeric sender is accepted where the destination country permits one. Required on a free-text send: omitting it returns a `422` `SMSNoEligibleSender`. Not accepted alongside `template`, which selects its sender automatically.
    *
    */
   from?: string;
@@ -5853,6 +5776,11 @@ export type SmsMessageList = {
    */
   data: Array<SmsMessage>;
 } & ListEnvelope;
+
+/**
+ * Whether a message was sent from the workspace (`outbound`) or received by it (`inbound`).
+ */
+export type MessageDirection = "outbound" | "inbound";
 
 export type AudienceContactsRemoveRequest = {
   /**
@@ -5983,15 +5911,17 @@ export type ContactPropertyCreateRequest = {
    * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
    */
   key: string;
-  /**
-   * The value type every contact must use for this property. Cannot be changed after creation.
-   */
-  type: "string" | "number" | "boolean";
+  type: ContactPropertyType;
   /**
    * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback; a value of another type returns a validation error.
    */
   fallback_value?: unknown;
 };
+
+/**
+ * The value type every contact must use for a property. Cannot be changed after creation.
+ */
+export type ContactPropertyType = "string" | "number" | "boolean";
 
 export type ContactPropertyList = {
   /**
@@ -6011,10 +5941,7 @@ export type ContactProperty = {
    * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
    */
   key: string;
-  /**
-   * The value type every contact must use for this property. Cannot be changed after creation.
-   */
-  type: "string" | "number" | "boolean";
+  type: ContactPropertyType;
   /**
    * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
    */
@@ -6411,17 +6338,33 @@ export type EmailMessageBatchItem = {
  */
 export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
 
+/**
+ * A language tag in BCP-47 form, for example `en` or `pt-BR`.
+ */
+export type LanguageTag = string;
+
+/**
+ * A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.
+ *
+ */
+export type TemplateSlug = string;
+
 export type EmailTemplateSend = unknown & {
   /**
    * The template to send, by its id.
    */
   id?: EmailTemplateId;
   /**
-   * The template to send, by its name handle — a workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).
+   * The template to send, by its slug handle. A workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).
    */
-  name?: TemplateName;
+  slug?: TemplateSlug;
   /**
-   * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Cap: 16 KB serialized.
+   * Which of the template's languages to send. Omit it to send the template's default language. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.
+   *
+   */
+  language?: LanguageTag;
+  /**
+   * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Send everything the template's `variables` lists rather than only what you expect the chosen language to use: languages need not reference the same variables, and a value no language uses is ignored. Cap: 16 KB serialized.
    *
    */
   parameters?: {
@@ -6507,11 +6450,7 @@ export type EmailMessageSendRequest = {
    *
    */
   ip_pool_id?: string;
-  /**
-   * Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: marketing.
-   *
-   */
-  category?: "marketing" | "transactional";
+  category?: EmailMessageCategory;
   /**
    * Preview feature — threaded replies. Currently unavailable; supplying this field returns `422 UnsupportedEmailFeature`. When generally available, sets In-Reply-To and References headers automatically.
    */
@@ -6636,11 +6575,7 @@ export type EmailMessage = {
    * Message subject line.
    */
   subject: string;
-  /**
-   * Content classification. Controls suppression policy — `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.
-   *
-   */
-  category: "marketing" | "transactional";
+  category: EmailMessageCategory;
   /**
    * Reply-To addresses, if set on the send. Empty/null when no Reply-To was provided.
    */
@@ -8160,17 +8095,6 @@ export type EmailStatsPointWritable = {
   [key: string]: never;
 };
 
-export type WhatsAppTemplateListWritable = {
-  /**
-   * The templates available to your workspace.
-   */
-  data: Array<WhatsAppTemplateWritable>;
-};
-
-export type WhatsAppTemplateWritable = {
-  [key: string]: never;
-};
-
 export type WhatsAppEventListWritable = {
   /**
    * Timeline events for this WhatsApp message, in chronological order. The timeline is bounded and returned in full; this list is not paginated.
@@ -8359,10 +8283,7 @@ export type ContactPropertyWritable = {
    * The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.
    */
   key: string;
-  /**
-   * The value type every contact must use for this property. Cannot be changed after creation.
-   */
-  type: "string" | "number" | "boolean";
+  type: ContactPropertyType;
   /**
    * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
    */
@@ -8576,11 +8497,7 @@ export type EmailMessageWritable = {
    * Message subject line.
    */
   subject: string;
-  /**
-   * Content classification. Controls suppression policy — `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.
-   *
-   */
-  category: "marketing" | "transactional";
+  category: EmailMessageCategory;
   /**
    * Reply-To addresses, if set on the send. Empty/null when no Reply-To was provided.
    */
@@ -9292,17 +9209,7 @@ export type ListEmailMessagesData = {
     /**
      * Filter by aggregate delivery status.
      */
-    status?:
-      | "scheduled"
-      | "accepted"
-      | "processed"
-      | "deferred"
-      | "delivered"
-      | "partial_failure"
-      | "bounced"
-      | "complained"
-      | "rejected"
-      | "canceled";
+    status?: EmailMessageStatus;
     /**
      * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
      *
@@ -9311,7 +9218,7 @@ export type ListEmailMessagesData = {
     /**
      * Filter by category.
      */
-    category?: "marketing" | "transactional";
+    category?: EmailMessageCategory;
     /**
      * Filter by recipient address. Exact match against any `to`/`cc`/`bcc` recipient on the message; normalised to lowercase before comparison.
      *
@@ -10975,7 +10882,7 @@ export type ListSmsMessagesData = {
     /**
      * Filter by direction. Omit for both.
      */
-    direction?: "outbound" | "inbound";
+    direction?: MessageDirection;
     /**
      * Keep only messages whose current `status` matches; repeat the parameter to match any of several. One of `scheduled`, `accepted`, `sent`, `delivered`, `undelivered`, `failed`, `rejected`, `canceled`, `expired`, or `received`.
      *
@@ -10989,7 +10896,7 @@ export type ListSmsMessagesData = {
     /**
      * Filter by category.
      */
-    category?: "transactional" | "marketing" | "authentication" | "service";
+    category?: SmsMessageCategory;
     /**
      * Filter by recipient phone number (E.164 exact match).
      */
@@ -11238,11 +11145,11 @@ export type ListSmsTemplatesData = {
      * Keep only templates of this scope: `system` for Bird's built-in templates, `workspace` for templates authored in your workspace. Omit for all. Workspace-authored SMS templates are not available yet, so `workspace` currently matches nothing.
      *
      */
-    scope?: "system" | "workspace";
+    scope?: TemplateScope;
     /**
      * Keep only templates whose `category` matches. Omit for all categories.
      */
-    category?: "transactional" | "marketing" | "authentication" | "service";
+    category?: SmsMessageCategory;
     /**
      * Keep only templates available in this language, as a BCP-47 tag. Matches the template's `available_languages` entries exactly, with no fallback.
      *
@@ -11738,45 +11645,6 @@ export type ListWhatsAppMessageEventsResponses = {
 export type ListWhatsAppMessageEventsResponse =
   ListWhatsAppMessageEventsResponses[keyof ListWhatsAppMessageEventsResponses];
 
-export type ListWhatsAppTemplatesData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/v1/whatsapp/templates";
-};
-
-export type ListWhatsAppTemplatesErrors = {
-  /**
-   * Authentication required
-   */
-  401: Error;
-  /**
-   * Insufficient permissions
-   */
-  403: Error;
-  /**
-   * Rate limit exceeded
-   */
-  429: Error;
-  /**
-   * Internal server error
-   */
-  500: Error;
-};
-
-export type ListWhatsAppTemplatesError =
-  ListWhatsAppTemplatesErrors[keyof ListWhatsAppTemplatesErrors];
-
-export type ListWhatsAppTemplatesResponses = {
-  /**
-   * The message templates available to your workspace.
-   */
-  200: WhatsAppTemplateList;
-};
-
-export type ListWhatsAppTemplatesResponse =
-  ListWhatsAppTemplatesResponses[keyof ListWhatsAppTemplatesResponses];
-
 export type GetEmailStatsDailyData = {
   body?: never;
   path?: never;
@@ -12007,7 +11875,7 @@ export type GetEmailStatsByTagData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/tags";
 };
@@ -12216,7 +12084,7 @@ export type GetEmailStatsBySendingIpData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/sending-ips";
 };
@@ -12305,7 +12173,7 @@ export type GetEmailStatsBySendingDomainData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/sending-domains";
 };
@@ -12390,7 +12258,7 @@ export type GetEmailStatsByCategoryData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/categories";
 };
@@ -12479,7 +12347,7 @@ export type GetEmailStatsByMailboxProviderData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/mailbox-providers";
 };
@@ -12568,7 +12436,7 @@ export type GetEmailStatsByMailboxProviderRegionData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/mailbox-provider-regions";
 };
@@ -12657,7 +12525,7 @@ export type GetEmailStatsByRecipientDomainData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/recipient-domains";
 };
@@ -12746,7 +12614,7 @@ export type GetEmailStatsByTemplateData = {
     /**
      * Bucket grain for the `trend` series. Has no effect unless `include_trend=true`.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/templates";
 };
@@ -13166,7 +13034,7 @@ export type GetEmailStatsByBroadcastData = {
     /**
      * Bucket grain for the `trend` series. Has no effect on this breakdown, where `include_trend` is not available.
      */
-    trend_grain?: "daily" | "hourly";
+    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/broadcasts";
 };
@@ -14667,7 +14535,7 @@ export type ListEmailThreadMessagesData = {
     /**
      * Filter to received (`inbound`) or sent (`outbound`) messages.
      */
-    direction?: "inbound" | "outbound";
+    direction?: MessageDirection;
     /**
      * Filter to messages carrying this label. `trash` lists trashed messages; any other label — `archive`, `spam`, `blocked`, `unread`, or a custom label — lists its non-trashed carriers. When omitted, received messages in the inbox and all sent messages are returned.
      *

@@ -1,6 +1,6 @@
 // What resource methods return: a Promise you can await for the value, plus
 // `.withResponse()` for transport metadata and `.safe()` for a non-throwing
-// `{ data, error, response }` result (ADR-0042 §1 — errors throw by default,
+// `{ data, error, response }` result (errors throw by default,
 // `.safe()` is the opt-in result form). Pagination follows R1: awaiting a list yields the
 // first page; `for await` walks every item across pages, fetching lazily.
 
@@ -27,7 +27,7 @@ export interface RequestOptions {
  * failure `error` is a `BirdError` you can `instanceof`-narrow, and `data`/
  * `response` are `null` — the metadata you need (status, request id) is on the
  * error itself. A caller-initiated abort is not a Bird failure and still throws
- * (the native `AbortError`, ADR-0042 §1).
+ * (the native `AbortError`).
  */
 export type SafeResult<T> =
   | { data: T; error: null; response: BirdResponse }

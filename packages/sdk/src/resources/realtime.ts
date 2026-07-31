@@ -1,13 +1,10 @@
-// `bird.realtime` — the Realtime channel (ADR-0042 §8: a capability namespace,
-// singular, that acts with `publish`), plus the `channels` and `members`
-// collections nested under it. Calls the generated hey-api SDK functions through
-// the lifecycle core.
+// `bird.realtime` — publish to Realtime channels, plus the `channels` and
+// `members` collections nested under it.
 //
 // Every Realtime operation authenticates to the Realtime edge with the app's own
-// key/secret pair on top of the workspace API key. Those are credentials, so
-// they are client config (`realtime: { key, secret }`), not positional args —
-// the same shape the webhooks signing secret uses — and each method may override
-// them per call through its trailing options.
+// key/secret pair on top of the workspace API key. Those are credentials, so pass
+// them as client config (`realtime: { key, secret }`), not positional args, and
+// override them per call through the trailing options.
 
 import {
   disconnectRealtimeAppMember,

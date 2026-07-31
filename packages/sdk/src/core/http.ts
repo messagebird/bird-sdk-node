@@ -1,4 +1,4 @@
-// The request lifecycle (ADR-0042 §2 + the lifecycle spec).
+// The request lifecycle: retries, timeouts, and idempotency.
 //
 // BirdHTTPClient owns the attempt loop and wraps a generated hey-api SDK call
 // (passed as a thunk) so resources keep the generated call-site typing while

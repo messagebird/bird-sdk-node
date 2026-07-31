@@ -1,6 +1,6 @@
-// Error hierarchy for the Bird SDK (ADR-0042 §1).
+// Error hierarchy for the Bird SDK.
 //
-// One class per error `type` (ADR-0016 — clients branch on the coarse `type`,
+// One class per error `type` (clients branch on the coarse `type`,
 // never on individual codes). Two transport classes cover failures with no HTTP
 // response. Scalar fields on the error objects are camelCase — these are
 // SDK-constructed objects, not wire data (the Stripe/OpenAI-node convention:
@@ -56,7 +56,7 @@ export interface ErrorDetail {
   message: string;
 }
 
-/** One recovery step: an operation to call to resolve the error (ADR-0073). */
+/** One recovery step: an operation to call to resolve the error. */
 export interface ErrorNextAction {
   /** operationId of the follow-up operation that resolves this error. */
   operation: string;
@@ -96,9 +96,9 @@ export interface BirdAPIErrorFields {
   param?: string;
   /** Verbatim code from a downstream system (SMTP reply, payment decline). */
   vendorCode?: string;
-  /** Human recovery line for this error, when a recovery is known (ADR-0073). */
+  /** Human recovery line for this error, when a recovery is known. */
   remediation?: string;
-  /** Operations that resolve this error, in the order to try them (ADR-0073). */
+  /** Operations that resolve this error, in the order to try them. */
   next?: ErrorNextAction[];
   /** Verification requirements blocking this action, when it is blocked pending verification. */
   unmetGates?: UnmetGate[];
@@ -230,7 +230,7 @@ export class BirdNotImplementedError extends BirdAPIError {
   }
 }
 
-/** 421 — request reached the wrong region (ADR-0036). */
+/** 421 — request reached the wrong region. */
 export class BirdMisdirectedError extends BirdAPIError {
   constructor(fields: BirdAPIErrorFields) {
     super(fields);

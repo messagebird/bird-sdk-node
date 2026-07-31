@@ -57,7 +57,7 @@ export class AudiencesResource extends Resource {
    * @example Rename an audience
    * await bird.audiences.update("adn_01krdgeqcxet5s7t44vh8rt9mg", { name: "Renamed" });
    */
-  update(audienceId: string, params: AudienceUpdateParams, options?: RequestOptions): APIPromise<Audience> {
+  update(audienceId: string, params: AudienceUpdateParams = {}, options?: RequestOptions): APIPromise<Audience> {
     return this.call<Audience>("PATCH", options, ({ signal, headers }) =>
       updateAudience({ client: this.client, path: { audience_id: audienceId }, body: params, headers, signal }));
   }

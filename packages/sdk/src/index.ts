@@ -82,34 +82,29 @@ export type {
   EmailStatsByBroadcastQuery,
 } from "./resources/emailStats.gen.js";
 export type {
-  SmsMessage,
   SmsSendParams,
   SmsSendBatchParams,
   SmsSendBatchResult,
-  SmsListQuery,
 } from "./resources/sms.js";
+export type { SmsMessage, SmsListQuery } from "./resources/sms.gen.js";
 export type {
   SmsTemplate,
   SmsTemplateList,
   SmsTemplateListQuery,
-} from "./resources/smsTemplates.js";
+} from "./resources/smsTemplates.gen.js";
+export type { WhatsappSendParams } from "./resources/whatsapp.js";
 export type {
   WhatsAppMessage,
-  WhatsappSendParams,
   WhatsappListQuery,
   WhatsappListEventsQuery,
   WhatsAppEventList,
-} from "./resources/whatsapp.js";
-export type {
-  WhatsAppTemplate,
-  WhatsAppTemplateList,
-} from "./resources/whatsappTemplates.js";
+} from "./resources/whatsapp.gen.js";
 export type {
   Verification,
   VerificationCheckResult,
-  VerificationCreateParams,
-  VerificationCheckParams,
-} from "./resources/verify.js";
+  VerifyVerificationsCreateParams,
+  VerifyVerificationsCheckParams,
+} from "./resources/verifyVerifications.gen.js";
 export type {
   Contact,
   ContactCreateParams,
@@ -117,7 +112,7 @@ export type {
   ContactBatchParams,
   ContactUpsertResult,
   ContactListQuery,
-} from "./resources/contacts.js";
+} from "./resources/contacts.gen.js";
 export type {
   Audience,
   AudienceMember,
@@ -133,7 +128,7 @@ export type {
   ContactPropertyCreateParams,
   ContactPropertyUpdateParams,
   ContactPropertyListQuery,
-} from "./resources/contactProperties.js";
+} from "./resources/contactProperties.gen.js";
 export type {
   Domain,
   DomainCreateParams,
@@ -173,7 +168,6 @@ export { WebhookEventType } from "./event-types.gen.js";
 export type { WebhookEventTypeValue } from "./event-types.gen.js";
 export type {
   Mailbox,
-  MailboxList,
   MailboxCreateParams,
   MailboxUpdateParams,
   MailboxListQuery,
@@ -181,19 +175,21 @@ export type {
   EmailMailboxLabelList,
   MailboxComposeParams,
   EmailThreadMessage,
-  ReceiveRule,
-  ReceiveRuleList,
-  MailboxReceiveRuleCreateParams,
-  MailboxReceiveRuleListQuery,
 } from "./resources/mailbox.js";
 export type {
+  ReceiveRule,
+  MailboxReceiveRuleCreateParams,
+  MailboxReceiveRuleListQuery,
+} from "./resources/mailboxReceiveRule.gen.js";
+export type {
   EmailThread,
-  EmailThreadList,
-  MailboxThreadUpdateParams,
   MailboxThreadListQuery,
-  EmailThreadMessageList,
+  MailboxThreadDeleteQuery,
+  MailboxThreadUpdateParams,
+} from "./resources/mailboxThread.gen.js";
+export type {
   EmailThreadMessageBody,
   EmailThreadMessageAttachmentList,
-  MailboxThreadMessageReplyParams,
   MailboxThreadMessageListQuery,
-} from "./resources/mailboxThread.js";
+  MailboxThreadMessageReplyParams,
+} from "./resources/mailboxThreadMessage.gen.js";

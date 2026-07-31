@@ -45,11 +45,6 @@ export const WebhookEventTypeSchema = {
     "email_mailbox.suspended",
     "email_mailbox.thread_created",
     "email_suppression.created",
-    "realtime.cache_channels",
-    "realtime.channel_existence",
-    "realtime.client_events",
-    "realtime.presence",
-    "realtime.connection_count",
     "sms.accepted",
     "sms.delivered",
     "sms.expired",
@@ -310,7 +305,6 @@ export const WhatsAppMessageIDSchema = {
 
 export const EventWhatsAppBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description:
     "Identity fields shared by every WhatsApp lifecycle event payload.",
   required: [
@@ -326,20 +320,10 @@ export const EventWhatsAppBaseSchema = {
     whatsapp_id: {
       $ref: "#/components/schemas/WhatsAppMessageID",
       description: "ID of the WhatsApp message.",
-      "x-go-type": "domain.WhatsAppMessageID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     direction: {
       type: "string",
@@ -347,11 +331,6 @@ export const EventWhatsAppBaseSchema = {
       enum: ["outbound", "inbound"],
       description:
         "Whether the message was sent by the business (`outbound`) or received from the contact (`inbound`).",
-      "x-go-type": "domain.WhatsAppDirection",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     from: {
       $ref: "#/components/schemas/WhatsAppAddress",
@@ -696,7 +675,6 @@ export const VoiceCallIDSchema = {
 
 export const EventVoiceBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description:
     "Identity fields shared by every voice call lifecycle event payload.",
   required: [
@@ -710,11 +688,6 @@ export const EventVoiceBaseSchema = {
     call_id: {
       $ref: "#/components/schemas/VoiceCallID",
       description: "ID of the call record.",
-      "x-go-type": "domain.VoiceCallID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     session_id: {
       oneOf: [
@@ -731,11 +704,6 @@ export const EventVoiceBaseSchema = {
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     direction: {
       $ref: "#/components/schemas/VoiceCallDirection",
@@ -797,7 +765,7 @@ export const VoiceCallStatusSchema = {
     "in_progress",
   ],
   description:
-    "Call status. v1 records are always terminal and carry one of answered, no_answer, failed, rejected, or unknown. The remaining values are declared ahead of planned features so their arrival is not a breaking contract change: busy and canceled arrive with inbound (DID) termination — today both outcomes are folded into failed — and ringing and in_progress with a live-calls surface.\n",
+    "Call status.\n\nA call that has ended carries answered, no_answer, failed, rejected, or unknown. A call that is still up carries ringing before it is picked up and in_progress once it is; both are what the `status` filter on the call list selects on to show calls happening right now.\n\nbusy and canceled are declared ahead of the feature that produces them, so their arrival is not a breaking contract change: they come with inbound termination, and today both outcomes are folded into failed.\n",
   example: "answered",
 } as const;
 
@@ -991,7 +959,6 @@ export const VerificationIDSchema = {
 
 export const EventVerifyBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description:
     "Identity fields shared by every Verify lifecycle event payload.",
   required: ["verification_id", "workspace_id", "to", "metadata"],
@@ -999,20 +966,10 @@ export const EventVerifyBaseSchema = {
     verification_id: {
       $ref: "#/components/schemas/VerificationID",
       description: "ID of the verification session.",
-      "x-go-type": "domain.VerificationID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     to: {
       $ref: "#/components/schemas/VerificationTo",
@@ -1128,11 +1085,12 @@ export const VerificationAttemptFailureReasonSchema = {
   "x-extensible-enum": [
     "carrier_rejected",
     "hard_bounce",
+    "soft_bounce",
     "undelivered",
     "channel_unavailable",
   ],
   description:
-    "Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. v1 emits `carrier_rejected` (SMS), `hard_bounce` (email), `undelivered` (a generic terminal delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).",
+    "Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. Emitted reasons are `carrier_rejected` (SMS), `hard_bounce` (email, permanent bounce), `soft_bounce` (email, transient bounce such as a full mailbox), `undelivered` (a generic delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).",
 } as const;
 
 export const EventVerifyAttemptUndeliveredDataSchema = {
@@ -1430,27 +1388,16 @@ export const SMSMessageIDSchema = {
 
 export const EventSMSBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description: "Identity fields shared by every SMS lifecycle event payload.",
   required: ["sms_id", "workspace_id", "to", "from", "tags", "metadata"],
   properties: {
     sms_id: {
       $ref: "#/components/schemas/SMSMessageID",
       description: "ID of the SMS message.",
-      "x-go-type": "domain.SMSMessageID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     to: {
       type: "string",
@@ -1538,7 +1485,6 @@ export const TFNVerificationIDSchema = {
 
 export const EventSMSTfnVerificationBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description:
     "Identity fields shared by every toll-free verification event payload.",
   required: ["verification_id", "workspace_id", "status", "sender_id"],
@@ -1546,20 +1492,10 @@ export const EventSMSTfnVerificationBaseSchema = {
     verification_id: {
       $ref: "#/components/schemas/TFNVerificationID",
       description: "ID of the toll-free verification.",
-      "x-go-type": "domain.TFNVerificationID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace that owns the verification.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     status: {
       type: "string",
@@ -1571,11 +1507,6 @@ export const EventSMSTfnVerificationBaseSchema = {
     sender_id: {
       $ref: "#/components/schemas/SMSSenderID",
       description: "ID of the toll-free number the verification licenses.",
-      "x-go-type": "domain.SMSSenderID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
   },
 } as const;
@@ -2032,7 +1963,6 @@ export const EventEmailSuppressionCreatedDataSchema = {
   properties: {
     suppression_id: {
       $ref: "#/components/schemas/SuppressionID",
-      "x-go-type": "domain.SuppressionID",
       description: "The suppression entry that was created.",
       example: "sup_01krdgeqcxet5s7t44vh8rt9mg",
     },
@@ -2059,7 +1989,6 @@ export const EventEmailSuppressionCreatedDataSchema = {
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
-      "x-go-type": "domain.WorkspaceID",
       description: "The workspace the suppression belongs to.",
       example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
     },
@@ -2102,20 +2031,10 @@ export const EventEmailMailboxThreadCreatedDataSchema = {
     thread_id: {
       $ref: "#/components/schemas/ThreadID",
       description: "ID of the thread.",
-      "x-go-type": "domain.ThreadID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
       description: "ID of the mailbox.",
-      "x-go-type": "domain.MailboxID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     subject: {
       type: ["string", "null"],
@@ -2182,11 +2101,6 @@ export const EventEmailMailboxSuspendedDataSchema = {
     mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
       description: "ID of the suspended mailbox.",
-      "x-go-type": "domain.MailboxID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     reason: {
       type: "string",
@@ -2234,29 +2148,14 @@ export const EventEmailMailboxMessageSentDataSchema = {
       $ref: "#/components/schemas/EmailID",
       description:
         "ID of the sent message. The same send fires the per-recipient email.* lifecycle events with this ID as email_id — when you subscribe to both families, dedupe by this ID.",
-      "x-go-type": "domain.EmailID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
       description: "ID of the mailbox the message was sent from.",
-      "x-go-type": "domain.MailboxID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     thread_id: {
       $ref: "#/components/schemas/ThreadID",
       description: "ID of the thread the message belongs to.",
-      "x-go-type": "domain.ThreadID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
   },
 } as const;
@@ -2314,29 +2213,14 @@ export const EventEmailMailboxMessageReceivedDataSchema = {
       $ref: "#/components/schemas/InboundEmailMessageID",
       description:
         "ID of the received message. The same message fires email.received with this ID as inbound_message_id — when you subscribe to both families, dedupe by this ID.",
-      "x-go-type": "domain.InboundEmailMessageID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
       description: "ID of the mailbox that received the message.",
-      "x-go-type": "domain.MailboxID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     thread_id: {
       $ref: "#/components/schemas/ThreadID",
       description: "ID of the thread the message was filed into.",
-      "x-go-type": "domain.ThreadID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     route_id: {
       type: ["string", "null"],
@@ -2453,29 +2337,14 @@ export const EventEmailMailboxMessageFailedDataSchema = {
       $ref: "#/components/schemas/EmailID",
       description:
         "ID of the failed message. The same send fires the per-recipient email.* lifecycle events with this ID as email_id — when you subscribe to both families, dedupe by this ID.",
-      "x-go-type": "domain.EmailID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
       description: "ID of the mailbox the message was sent from.",
-      "x-go-type": "domain.MailboxID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     thread_id: {
       $ref: "#/components/schemas/ThreadID",
       description: "ID of the thread the message belongs to.",
-      "x-go-type": "domain.ThreadID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     reason: {
       type: "string",
@@ -2523,29 +2392,14 @@ export const EventEmailMailboxMessageDeliveredDataSchema = {
       $ref: "#/components/schemas/EmailID",
       description:
         "ID of the delivered message. The same send fires the per-recipient email.* lifecycle events with this ID as email_id — when you subscribe to both families, dedupe by this ID.",
-      "x-go-type": "domain.EmailID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     mailbox_id: {
       $ref: "#/components/schemas/MailboxID",
       description: "ID of the mailbox the message was sent from.",
-      "x-go-type": "domain.MailboxID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     thread_id: {
       $ref: "#/components/schemas/ThreadID",
       description: "ID of the thread the message belongs to.",
-      "x-go-type": "domain.ThreadID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
   },
 } as const;
@@ -2604,7 +2458,6 @@ export const RecipientIDSchema = {
 
 export const EventEmailBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description: "Identity fields shared by every email lifecycle event payload.",
   required: [
     "email_id",
@@ -2619,29 +2472,14 @@ export const EventEmailBaseSchema = {
     email_id: {
       $ref: "#/components/schemas/EmailID",
       description: "ID of the email send.",
-      "x-go-type": "domain.EmailID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     recipient_id: {
       $ref: "#/components/schemas/RecipientID",
       description: "ID of the recipient.",
-      "x-go-type": "domain.RecipientID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     recipient: {
       type: "string",
@@ -2726,7 +2564,6 @@ export const EventEmailScheduledDataSchema = {
 
 export const EventEmailMessageBaseSchema = {
   type: "object",
-  "x-mixin": true,
   description:
     "Identity fields shared by the message-level email lifecycle events (scheduled, canceled), which are not tied to a single recipient.",
   required: ["email_id", "workspace_id", "tags", "metadata"],
@@ -2734,20 +2571,10 @@ export const EventEmailMessageBaseSchema = {
     email_id: {
       $ref: "#/components/schemas/EmailID",
       description: "ID of the email send.",
-      "x-go-type": "domain.EmailID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     tags: {
       type: ["array", "null"],
@@ -2885,20 +2712,10 @@ export const EventEmailReceivedDataSchema = {
       $ref: "#/components/schemas/InboundEmailMessageID",
       description:
         "ID of the received email. Use it with GET /v1/email/inbound-messages/{id} to fetch the body, raw content, and attachments.",
-      "x-go-type": "domain.InboundEmailMessageID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
       description: "ID of the workspace.",
-      "x-go-type": "domain.WorkspaceID",
-      "x-go-type-import": {
-        name: "domain",
-        path: "bird/internal/domain",
-      },
     },
     message_id: {
       type: ["string", "null"],
@@ -3580,7 +3397,6 @@ export const EventDomainVerifiedDataSchema = {
   properties: {
     domain_id: {
       $ref: "#/components/schemas/DomainID",
-      "x-go-type": "domain.DomainID",
       description: "The sending domain resource that verified.",
       example: "dom_01krdgeqcxet5s7t44vh8rt9mg",
     },
@@ -3592,7 +3408,6 @@ export const EventDomainVerifiedDataSchema = {
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
-      "x-go-type": "domain.WorkspaceID",
       description: "The workspace the domain is assigned to.",
       example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
     },
@@ -3640,7 +3455,6 @@ export const EventDomainFailedDataSchema = {
   properties: {
     domain_id: {
       $ref: "#/components/schemas/DomainID",
-      "x-go-type": "domain.DomainID",
       description: "The sending domain resource whose verification failed.",
       example: "dom_01krdgeqcxet5s7t44vh8rt9mg",
     },
@@ -3652,7 +3466,6 @@ export const EventDomainFailedDataSchema = {
     },
     workspace_id: {
       $ref: "#/components/schemas/WorkspaceID",
-      "x-go-type": "domain.WorkspaceID",
       description: "The workspace the domain is assigned to.",
       example: "ws_01krdgeqcxet5s7t44vh8rt9mg",
     },
@@ -3972,7 +3785,7 @@ export const WebhookEndpointUpdateSchema = {
       },
       minItems: 1,
       description:
-        "Replacement set of event type subscriptions: the endpoint's subscriptions become exactly this list (there is no partial add or remove). Omit to keep the current set. Types outside the event catalog return a `422`, and a `realtime.*` type can only be added to an endpoint that already has a Realtime app scope.\n",
+        "Replacement set of event type subscriptions: the endpoint's subscriptions become exactly this list (there is no partial add or remove). Omit to keep the current set. Types outside the event catalog return a `422`.\n",
       example: ["email.delivered", "email.bounced", "email.complained"],
     },
     status: {
@@ -4008,7 +3821,6 @@ export const WebhookEndpointCreatedSchema = {
 
 export const TimestampsSchema = {
   type: "object",
-  "x-mixin": true,
   required: ["created_at", "updated_at"],
   properties: {
     created_at: {
@@ -4103,7 +3915,7 @@ export const WebhookEndpointCreateSchema = {
       },
       minItems: 1,
       description:
-        "Event types to subscribe to; the endpoint receives only matching events. Types outside the event catalog return a `422`, and an endpoint holds at most 100 entries. Platform types may be combined with `realtime.*` types on one endpoint, all signed with the endpoint's single secret. Server-enforced (returns `422` otherwise): a `realtime.*` type requires the `realtime` object, and `realtime` requires at least one `realtime.*` type.",
+        "Event types to subscribe to; the endpoint receives only matching events. Types outside the event catalog return a `422`, and an endpoint holds at most 100 entries.",
       example: ["email.delivered", "email.bounced"],
     },
     description: {
@@ -4141,7 +3953,6 @@ export const WebhookEndpointListSchema = {
 } as const;
 
 export const _ListEnvelopeSchema = {
-  "x-mixin": true,
   type: "object",
   required: ["next_cursor", "prev_cursor", "refresh_cursor"],
   properties: {
@@ -4164,7 +3975,6 @@ export const _ListEnvelopeSchema = {
 } as const;
 
 export const _ListEnvelopeWithTotalSchema = {
-  "x-mixin": true,
   allOf: [
     {
       $ref: "#/components/schemas/_ListEnvelope",
@@ -4438,11 +4248,8 @@ export const EmailMailboxComposeRequestSchema = {
         "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
     },
     category: {
-      type: "string",
-      enum: ["marketing", "transactional"],
+      $ref: "#/components/schemas/EmailMessageCategory",
       default: "transactional",
-      description:
-        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
     },
   },
   example: {
@@ -4450,6 +4257,14 @@ export const EmailMailboxComposeRequestSchema = {
     subject: "Your quote",
     text: "Hi — here is the quote you asked for.",
   },
+} as const;
+
+export const EmailMessageCategorySchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["marketing", "transactional"],
+  description:
+    "Content classification. Controls suppression policy: `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions, for receipts, password resets, and similar operational mail.\n",
 } as const;
 
 export const EmailAttachmentSchema = {
@@ -4581,11 +4396,17 @@ export const EmailThreadMessageReplyRequestSchema = {
         "Arbitrary JSON object stored on the send and echoed in webhook payloads. Cap: 2 KB serialized.\n",
     },
     category: {
-      type: "string",
-      enum: ["marketing", "transactional"],
+      $ref: "#/components/schemas/EmailMessageCategory",
       default: "transactional",
+    },
+    attachments: {
+      type: "array",
+      items: {
+        $ref: "#/components/schemas/EmailAttachment",
+      },
+      maxItems: 20,
       description:
-        "Content classification — controls suppression policy. `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions. Default: transactional.\n",
+        "File attachments to include with the reply. The send is rejected when the estimated generated message size exceeds 20 MB (bodies plus all attachments after base64 encoding). Keep total raw attachment content at or below 15 MB for reliable headroom. Attachment metadata endures on the message's `attachment_manifest`; the bytes are downloadable for 30 days.\n",
     },
   },
   example: {
@@ -9499,295 +9320,6 @@ export const EmailStatsPointSchema = {
   },
 } as const;
 
-export const WhatsAppTemplateListSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["data"],
-  properties: {
-    data: {
-      type: "array",
-      description: "The templates available to your workspace.",
-      items: {
-        $ref: "#/components/schemas/WhatsAppTemplate",
-      },
-    },
-  },
-} as const;
-
-export const WhatsAppTemplateButtonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["type", "text"],
-  properties: {
-    type: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      "x-extensible-enum": ["url", "otp"],
-      description: "The button's behavior type.",
-      example: "url",
-    },
-    otp_type: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      "x-extensible-enum": ["copy_code"],
-      description:
-        "How the recipient receives the one-time passcode. Present on authentication-template OTP buttons.",
-      example: "copy_code",
-    },
-    text: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description: "The button's label text.",
-      example: "Copy code",
-    },
-    url: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "The URL the button opens, with any variable placeholder shown inline. Present on link buttons.",
-      example:
-        "https://www.whatsapp.com/otp/code/?otp_type=COPY_CODE&code=otp{{1}}",
-    },
-    example_parameters: {
-      type: "array",
-      readOnly: true,
-      description:
-        "Example values for this button's variables, in placeholder order. Present when the button URL has variables.",
-      items: {
-        $ref: "#/components/schemas/WhatsAppTemplateExampleParameter",
-      },
-    },
-  },
-} as const;
-
-export const WhatsAppTemplateParameterTypeSchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": ["text"],
-  description:
-    "The kind of value a template parameter accepts. `text` (the only kind today) is a plain string substituted into the placeholder. Open enum: more kinds may be added over time.\n",
-} as const;
-
-export const WhatsAppTemplateExampleParameterSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["type"],
-  properties: {
-    type: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/WhatsAppTemplateParameterType",
-        },
-      ],
-      readOnly: true,
-      description: "The kind of value this parameter accepts.",
-    },
-    text: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "An example value for a text parameter. Present when `type` is `text`.",
-      example: "123456",
-    },
-    name: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "The named placeholder this example fills, for templates that use named parameters. Absent for system templates, which use positional parameters.",
-      example: "first_name",
-    },
-  },
-} as const;
-
-export const WhatsAppTemplateComponentSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["type"],
-  properties: {
-    type: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      "x-extensible-enum": ["header", "body", "footer", "buttons"],
-      description: "The content block's type within the template.",
-      example: "body",
-    },
-    text: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "The block's text content, with any variable placeholders shown inline. Present when the block carries text.",
-      example: "Your verification code is {{1}}.",
-    },
-    example_parameters: {
-      type: "array",
-      readOnly: true,
-      description:
-        "Example values for this block's variables, in placeholder order (one per `{{n}}`). Use them to see what a filled message looks like. Present when the block has variables.",
-      items: {
-        $ref: "#/components/schemas/WhatsAppTemplateExampleParameter",
-      },
-    },
-    buttons: {
-      type: "array",
-      readOnly: true,
-      description:
-        "The buttons attached to this block. Present when the block carries buttons.",
-      items: {
-        $ref: "#/components/schemas/WhatsAppTemplateButton",
-      },
-    },
-  },
-} as const;
-
-export const WhatsAppTemplateStatusSchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": [
-    "approved",
-    "pending",
-    "rejected",
-    "paused",
-    "disabled",
-    "in_appeal",
-    "pending_deletion",
-    "limit_exceeded",
-  ],
-  description:
-    "A message template's review and health status. `approved` (passed review and sendable), `pending` (review in progress), and `rejected` (failed review) are review outcomes. The rest reflect a template's ongoing health after approval: `paused` and `disabled` mean sending from it is suspended, `in_appeal` means a review decision is under appeal, `pending_deletion` means the template is queued for removal, and `limit_exceeded` means it has exceeded a usage limit. Every template in Bird's catalogue is currently `approved`. Open enum: new statuses may be added over time, so treat any unrecognized value as a future status rather than an error.\n",
-} as const;
-
-export const WhatsAppTemplateCategorySchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": ["authentication", "utility", "marketing"],
-  description:
-    "Meta's content classification for a template. `authentication` templates deliver one-time passcodes, `utility` templates deliver transaction-triggered updates (receipts, order status), and `marketing` templates carry promotional content. The category drives which sender number Bird selects and how the send is priced. Open enum: Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error.\n",
-} as const;
-
-export const WhatsAppLanguageSchema = {
-  type: "string",
-  minLength: 1,
-  description:
-    "Language code of the template variant (for example `en` or `pt_BR`).",
-  example: "en",
-} as const;
-
-export const TemplateScopeSchema = {
-  type: "string",
-  minLength: 1,
-  readOnly: true,
-  enum: ["system", "workspace"],
-  description:
-    "Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).",
-} as const;
-
-export const WhatsAppTemplateNameSchema = {
-  type: "string",
-  minLength: 1,
-  maxLength: 512,
-  pattern: "^[a-z0-9_]+$",
-  description:
-    "A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.\n",
-  example: "bird_otp",
-} as const;
-
-export const WhatsAppTemplateIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^wat_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "wat_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const WhatsAppTemplateSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "id",
-    "name",
-    "scope",
-    "language",
-    "category",
-    "status",
-    "components",
-  ],
-  properties: {
-    id: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/WhatsAppTemplateID",
-        },
-      ],
-      readOnly: true,
-      description: "Stable Bird identifier for the template.",
-    },
-    name: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/WhatsAppTemplateName",
-        },
-      ],
-      readOnly: true,
-      description:
-        "The template's stable handle. Pass it as the template reference when sending.",
-      example: "bird_otp",
-    },
-    description: {
-      type: ["string", "null"],
-      readOnly: true,
-      description:
-        "Optional description of the template's purpose. Null when unset.",
-      example: "One-time passcode verification.",
-    },
-    scope: {
-      $ref: "#/components/schemas/TemplateScope",
-    },
-    language: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/WhatsAppLanguage",
-        },
-      ],
-      readOnly: true,
-    },
-    category: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/WhatsAppTemplateCategory",
-        },
-      ],
-      readOnly: true,
-      description:
-        "Content classification applied to messages sent from this template.",
-    },
-    status: {
-      allOf: [
-        {
-          $ref: "#/components/schemas/WhatsAppTemplateStatus",
-        },
-      ],
-      readOnly: true,
-      description: "The template's review and health status.",
-    },
-    components: {
-      type: "array",
-      readOnly: true,
-      description:
-        "The content blocks that make up the template, in display order.",
-      items: {
-        $ref: "#/components/schemas/WhatsAppTemplateComponent",
-      },
-    },
-  },
-} as const;
-
 export const WhatsAppEventListSchema = {
   type: "object",
   additionalProperties: false,
@@ -9917,6 +9449,14 @@ export const WhatsAppMessageSendRequestSchema = {
   },
 } as const;
 
+export const WhatsAppTemplateParameterTypeSchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["text"],
+  description:
+    "The kind of value a template parameter accepts. `text` (the only kind today) is a plain string substituted into the placeholder. Open enum: more kinds may be added over time.\n",
+} as const;
+
 export const WhatsAppMessageTemplateComponentParameterSchema = {
   type: "object",
   additionalProperties: false,
@@ -9967,6 +9507,24 @@ export const WhatsAppMessageTemplateComponentSchema = {
       },
     },
   },
+} as const;
+
+export const WhatsAppLanguageSchema = {
+  type: "string",
+  minLength: 1,
+  description:
+    "Language code of the template variant (for example `en` or `pt_BR`).",
+  example: "en",
+} as const;
+
+export const WhatsAppTemplateNameSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 512,
+  pattern: "^[a-z0-9_]+$",
+  description:
+    "A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.\n",
+  example: "bird_otp",
 } as const;
 
 export const WhatsAppTemplateSendSchema = {
@@ -10071,6 +9629,34 @@ export const WhatsAppMessageListSchema = {
   ],
 } as const;
 
+export const CurrencyCodeSchema = {
+  type: "string",
+  minLength: 3,
+  maxLength: 3,
+  pattern: "^[A-Z]{3}$",
+  description: "ISO 4217 three-letter currency code.",
+  example: "EUR",
+} as const;
+
+export const MoneySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["amount", "currency_code"],
+  properties: {
+    amount: {
+      type: "string",
+      minLength: 1,
+      description: "Decimal amount as a string, in major currency units.",
+      example: "0.00995",
+    },
+    currency_code: {
+      $ref: "#/components/schemas/CurrencyCode",
+      description: "ISO 4217 currency code.",
+      example: "USD",
+    },
+  },
+} as const;
+
 export const WhatsAppMessageStatusSchema = {
   type: "string",
   minLength: 1,
@@ -10086,6 +9672,14 @@ export const WhatsAppMessageStatusSchema = {
   ],
   description:
     "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means the recipient is on the workspace's suppression list; the message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
+} as const;
+
+export const WhatsAppTemplateCategorySchema = {
+  type: "string",
+  minLength: 1,
+  "x-extensible-enum": ["authentication", "utility", "marketing"],
+  description:
+    "Meta's content classification for a template. `authentication` templates deliver one-time passcodes, `utility` templates deliver transaction-triggered updates (receipts, order status), and `marketing` templates carry promotional content. The category drives which sender number Bird selects and how the send is priced. Open enum: Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error.\n",
 } as const;
 
 export const WhatsAppMessageTemplateSchema = {
@@ -10224,6 +9818,17 @@ export const WhatsAppMessageSchema = {
       readOnly: true,
       description:
         "When the message was read by the recipient. Null until then.",
+    },
+    cost: {
+      readOnly: true,
+      type: ["object", "null"],
+      allOf: [
+        {
+          $ref: "#/components/schemas/Money",
+        },
+      ],
+      description:
+        "Amount charged for this message, at full precision. Null until the message has been priced, and on messages that were rejected before pricing. The rate depends on the template category and the recipient's country.",
     },
     tags: {
       type: "array",
@@ -10463,6 +10068,13 @@ export const VerificationOptionsSchema = {
   },
 } as const;
 
+export const StatsTrendGrainSchema = {
+  type: "string",
+  enum: ["daily", "hourly"],
+  default: "daily",
+  description: "Bucket grain for a stats trend series.",
+} as const;
+
 export const SMSTemplateListSchema = {
   type: "object",
   additionalProperties: false,
@@ -10538,6 +10150,15 @@ export const SMSMessageCategorySchema = {
   enum: ["transactional", "marketing", "authentication", "service"],
   description:
     "Content classification. Tells Bird and carriers why you're sending; per-country compliance rules (opt-out policy, quiet hours) key on it as they roll out.",
+} as const;
+
+export const TemplateScopeSchema = {
+  type: "string",
+  minLength: 1,
+  readOnly: true,
+  enum: ["system", "workspace"],
+  description:
+    "Whether the template is a built-in Bird template (`system`) or one your workspace authored (`workspace`).",
 } as const;
 
 export const TemplateNameSchema = {
@@ -10767,15 +10388,6 @@ export const SMSCostBreakdownSchema = {
       example: "0.0000",
     },
   },
-} as const;
-
-export const CurrencyCodeSchema = {
-  type: "string",
-  minLength: 3,
-  maxLength: 3,
-  pattern: "^[A-Z]{3}$",
-  description: "ISO 4217 three-letter currency code.",
-  example: "EUR",
 } as const;
 
 export const SMSCostSchema = {
@@ -11086,7 +10698,7 @@ export const SMSMessageSendRequestSchema = {
       type: "string",
       minLength: 1,
       description:
-        "Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (1-11 letters, digits, or spaces, for example `MyBrand`), or a short code (5-6 digits). A numeric sender must be a number your workspace owns; an alphanumeric sender is accepted where the destination country permits one. Required on a free-text send: omitting it returns a `422` `SMSNoEligibleSender`. Not accepted alongside `template`, which selects its sender automatically.\n",
+        "Sender to send from: an E.164 number (`+15557654321`), an alphanumeric sender ID (1-11 letters, digits, spaces, dashes, or underscores, at least one of them a letter, for example `MyBrand`), or a short code (5-6 digits). A numeric sender must be a number your workspace owns; an alphanumeric sender is accepted where the destination country permits one. Required on a free-text send: omitting it returns a `422` `SMSNoEligibleSender`. Not accepted alongside `template`, which selects its sender automatically.\n",
       example: "+15557654321",
     },
     text: {
@@ -11233,6 +10845,13 @@ export const SMSMessageListSchema = {
       $ref: "#/components/schemas/_ListEnvelope",
     },
   ],
+} as const;
+
+export const MessageDirectionSchema = {
+  type: "string",
+  enum: ["outbound", "inbound"],
+  description:
+    "Whether a message was sent from the workspace (`outbound`) or received by it (`inbound`).",
 } as const;
 
 export const AudienceContactsRemoveRequestSchema = {
@@ -11511,16 +11130,7 @@ export const ContactPropertyCreateRequestSchema = {
         "The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.",
     },
     type: {
-      type: "string",
-      minLength: 1,
-      enum: ["string", "number", "boolean"],
-      "x-enum-varnames": [
-        "ContactPropertyTypeString",
-        "ContactPropertyTypeNumber",
-        "ContactPropertyTypeBoolean",
-      ],
-      description:
-        "The value type every contact must use for this property. Cannot be changed after creation.",
+      $ref: "#/components/schemas/ContactPropertyType",
     },
     fallback_value: {
       maxLength: 500,
@@ -11533,6 +11143,19 @@ export const ContactPropertyCreateRequestSchema = {
     type: "string",
     fallback_value: "free",
   },
+} as const;
+
+export const ContactPropertyTypeSchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["string", "number", "boolean"],
+  "x-enum-varnames": [
+    "ContactPropertyTypeString",
+    "ContactPropertyTypeNumber",
+    "ContactPropertyTypeBoolean",
+  ],
+  description:
+    "The value type every contact must use for a property. Cannot be changed after creation.",
 } as const;
 
 export const ContactPropertyListSchema = {
@@ -11584,16 +11207,7 @@ export const ContactPropertySchema = {
             "The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.",
         },
         type: {
-          type: "string",
-          minLength: 1,
-          enum: ["string", "number", "boolean"],
-          "x-enum-varnames": [
-            "ContactPropertyTypeString",
-            "ContactPropertyTypeNumber",
-            "ContactPropertyTypeBoolean",
-          ],
-          description:
-            "The value type every contact must use for this property. Cannot be changed after creation.",
+          $ref: "#/components/schemas/ContactPropertyType",
         },
         fallback_value: {
           maxLength: 500,
@@ -12321,17 +11935,35 @@ export const EmailMessageBatchRequestSchema = {
   ],
 } as const;
 
+export const LanguageTagSchema = {
+  type: "string",
+  minLength: 2,
+  maxLength: 35,
+  description: "A language tag in BCP-47 form, for example `en` or `pt-BR`.",
+  example: "pt-BR",
+} as const;
+
+export const TemplateSlugSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 63,
+  pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
+  description:
+    "A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.\n",
+  example: "welcome-email",
+} as const;
+
 export const EmailTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "A send-by-template reference. Identify the template by its `id` or its `name` (supply exactly one), and pass its variable values in `parameters`.\n",
+    "A send-by-template reference. Identify the template by its `id` or its `slug` (supply exactly one), and pass its variable values in `parameters`.\n",
   oneOf: [
     {
       required: ["id"],
     },
     {
-      required: ["name"],
+      required: ["slug"],
     },
   ],
   properties: {
@@ -12339,21 +11971,26 @@ export const EmailTemplateSendSchema = {
       description: "The template to send, by its id.",
       $ref: "#/components/schemas/EmailTemplateID",
     },
-    name: {
+    slug: {
       allOf: [
         {
-          $ref: "#/components/schemas/TemplateName",
+          $ref: "#/components/schemas/TemplateSlug",
         },
       ],
       description:
-        "The template to send, by its name handle — a workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).",
+        "The template to send, by its slug handle. A workspace template (for example `welcome-email`) or a built-in `system` template (for example `bird_welcome`).",
       example: "welcome-email",
+    },
+    language: {
+      $ref: "#/components/schemas/LanguageTag",
+      description:
+        "Which of the template's languages to send. Omit it to send the template's default language. When the template does not carry the language you ask for, its own `on_missing_language` setting decides whether the closest available language is sent instead or the send is rejected.\n",
     },
     parameters: {
       type: "object",
       additionalProperties: true,
       description:
-        "Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Cap: 16 KB serialized.\n",
+        "Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Send everything the template's `variables` lists rather than only what you expect the chosen language to use: languages need not reference the same variables, and a value no language uses is ignored. Cap: 16 KB serialized.\n",
       example: {
         first_name: "Ada",
       },
@@ -12484,11 +12121,8 @@ export const EmailMessageSendRequestSchema = {
         "ID of the IP pool to send from (`ipp_` prefix), or `ipp_shared` to route through the shared pool explicitly. Omit to use your organization's default pool. An unknown pool, or a pool with no dedicated IPs available to send from, is rejected with a `422`.\n",
     },
     category: {
-      type: "string",
-      enum: ["marketing", "transactional"],
+      $ref: "#/components/schemas/EmailMessageCategory",
       default: "marketing",
-      description:
-        "Content classification — independent of which endpoint you use. Controls suppression policy: `marketing` blocks on all suppression reasons (use for marketing content); `transactional` allows delivery through complaint and unsubscribe suppressions (use for receipts, password resets, and similar operational messages). Default: marketing.\n",
     },
     in_reply_to_message_id: {
       $ref: "#/components/schemas/EmailID",
@@ -12709,11 +12343,7 @@ export const EmailMessageSchema = {
       description: "Message subject line.",
     },
     category: {
-      type: "string",
-      minLength: 1,
-      enum: ["marketing", "transactional"],
-      description:
-        "Content classification. Controls suppression policy — `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.\n",
+      $ref: "#/components/schemas/EmailMessageCategory",
     },
     reply_to: {
       type: ["array", "null"],
@@ -12947,7 +12577,6 @@ export const RealtimeChannelInfoSchema = {
 
 export const RealtimeChannelCountsSchema = {
   type: "object",
-  "x-mixin": true,
   description:
     "Per-channel counts, present only when requested via `include` and applicable.",
   properties: {
@@ -15312,26 +14941,6 @@ export const EmailStatsPointWritableSchema = {
     "Aggregate stats for one time bucket (a calendar day or hour, per the requested grain, in the requested `timezone` or UTC by default), bucketed by event time. Buckets with no activity are included with zero counts and null latency percentiles, so the series charts continuously without client-side gap handling.\n",
 } as const;
 
-export const WhatsAppTemplateListWritableSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["data"],
-  properties: {
-    data: {
-      type: "array",
-      description: "The templates available to your workspace.",
-      items: {
-        $ref: "#/components/schemas/WhatsAppTemplateWritable",
-      },
-    },
-  },
-} as const;
-
-export const WhatsAppTemplateWritableSchema = {
-  type: "object",
-  additionalProperties: false,
-} as const;
-
 export const WhatsAppEventListWritableSchema = {
   type: "object",
   additionalProperties: false,
@@ -15693,16 +15302,7 @@ export const ContactPropertyWritableSchema = {
             "The property key, used as the key in contact data and as the template variable name in broadcasts. Lowercase letters, digits, and underscores, starting with a letter. Cannot be changed after creation.",
         },
         type: {
-          type: "string",
-          minLength: 1,
-          enum: ["string", "number", "boolean"],
-          "x-enum-varnames": [
-            "ContactPropertyTypeString",
-            "ContactPropertyTypeNumber",
-            "ContactPropertyTypeBoolean",
-          ],
-          description:
-            "The value type every contact must use for this property. Cannot be changed after creation.",
+          $ref: "#/components/schemas/ContactPropertyType",
         },
         fallback_value: {
           maxLength: 500,
@@ -16094,11 +15694,7 @@ export const EmailMessageWritableSchema = {
       description: "Message subject line.",
     },
     category: {
-      type: "string",
-      minLength: 1,
-      enum: ["marketing", "transactional"],
-      description:
-        "Content classification. Controls suppression policy — `marketing` blocks on all suppression reasons; `transactional` allows delivery through complaint and unsubscribe suppressions.\n",
+      $ref: "#/components/schemas/EmailMessageCategory",
     },
     reply_to: {
       type: ["array", "null"],

@@ -1,6 +1,4 @@
-// `bird.email` — the email channel (ADR-0042 §8: channel, singular, `send`).
-// The first concrete resource; the template every other channel/collection copies.
-// Calls the generated hey-api SDK functions through the lifecycle core.
+// `bird.email` — the email channel: send email messages and read their delivery status.
 
 import {
   cancelEmailMessage,
@@ -17,6 +15,7 @@ import type {
   ListEmailMessagesData,
 } from "../generated/types.gen.js";
 import { Resource } from "./base.js";
+import { EmailResourceBase } from "./email.gen.js";
 import { EmailStatsResource } from "./emailStats.gen.js";
 import type {
   APIPromise,
@@ -64,7 +63,7 @@ export type EmailSend<D> = PartialBy<EmailSendParams, DefaultedKeys<D>>;
 
 export class EmailResource<
   D extends EmailChannelDefaults | undefined = undefined,
-> extends Resource {
+> extends EmailResourceBase {
   #defaults?: D;
 
   /** Email statistics — `bird.email.stats.summary(...)`, `.daily(...)`, `.byTag(...)`, … */
@@ -194,73 +193,4 @@ export class EmailResource<
     );
   }
 
-  /**
-   * Fetch a message with aggregate delivery status.
-   *
-   * @example
-   * const msg = await bird.email.get("em_abc123");
-   * msg.status; // "accepted" | "processed" | "delivered" | "bounced" | …
-   * msg.delivered_count;
-   * msg.bounced_count;
-   */
-  get(messageId: string, options?: RequestOptions): APIPromise<EmailMessage> {
-    return this.call<EmailMessage>("GET", options, ({ signal, headers }) =>
-      getEmailMessage({
-        client: this.client,
-        path: { message_id: messageId },
-        headers,
-        signal,
-      }),
-    );
-  }
-
-  /**
-   * Cancel a message scheduled with `scheduled_at` before it sends. Only a
-   * message that is still scheduled can be canceled; one that already started
-   * sending — or was previously canceled — rejects with a conflict error.
-   * Canceling does not return consumed scheduled-send quota.
-   *
-   * @example
-   * await bird.email.cancel("em_abc123");
-   */
-  cancel(messageId: string, options?: RequestOptions): APIPromise<void> {
-    return this.call<void>(
-      "POST",
-      options,
-      ({ signal, headers }) =>
-        cancelEmailMessage({
-          client: this.client,
-          path: { message_id: messageId },
-          headers,
-          signal,
-        }),
-    );
-  }
-
-  /**
-   * List messages, newest first. `await` resolves the first page; `for await`
-   * walks every message across all pages.
-   *
-   * @example Iterate every message, or take one page
-   * for await (const message of bird.email.list({ status: "bounced" })) {
-   *   console.log(message.id);
-   * }
-   * const page = await bird.email.list({ limit: 50 }); // page.data, page.next_cursor
-   */
-  list(
-    query?: EmailListQuery,
-    options?: RequestOptions,
-  ): PaginatedPromise<EmailMessage> {
-    return this.paginated<EmailMessage>(
-      "GET",
-      options,
-      ({ signal, headers }, cursor) =>
-        listEmailMessages({
-          client: this.client,
-          query: { ...query, starting_after: cursor ?? query?.starting_after },
-          headers,
-          signal,
-        }),
-    );
-  }
 }

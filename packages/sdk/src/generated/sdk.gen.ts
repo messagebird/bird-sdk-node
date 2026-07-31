@@ -219,9 +219,6 @@ import type {
   ListWhatsAppMessagesData,
   ListWhatsAppMessagesErrors,
   ListWhatsAppMessagesResponses,
-  ListWhatsAppTemplatesData,
-  ListWhatsAppTemplatesErrors,
-  ListWhatsAppTemplatesResponses,
   PublishRealtimeAppBatchData,
   PublishRealtimeAppBatchErrors,
   PublishRealtimeAppBatchResponses,
@@ -1487,8 +1484,7 @@ export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
  * placeholders in `components`; Bird selects the sender number from the
  * template's category, so the request carries no sender field. Templates are
  * the only supported content type: a request without `template` is rejected
- * with a `422`. Browse what you can send with
- * [List available message templates](/docs/api/reference/list-whats-app-templates).
+ * with a `422`. Browse your workspace's templates in the Bird dashboard.
  *
  * The `202` response is the accepted message, echoing the resolved template
  * and language; it is not a delivery confirmation. Follow delivery with
@@ -1575,32 +1571,6 @@ export const listWhatsAppMessageEvents = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/v1/whatsapp/messages/{message_id}/events",
-    ...options,
-  });
-
-/**
- * List available message templates
- *
- * Returns the WhatsApp message templates you can send from. Each entry carries the template's `name` (the reference you pass when sending), its language, category, review status, and its content blocks with example values for every placeholder. The catalogue is returned in full, so this list is not paginated, and it can differ by region: you see the templates stocked for the region you call. Pick a template here, then fill its placeholders in the `components` of [Send a WhatsApp message](/docs/api/reference/send-whats-app-message).
- *
- */
-export const listWhatsAppTemplates = <ThrowOnError extends boolean = false>(
-  options?: Options<ListWhatsAppTemplatesData, ThrowOnError>,
-) =>
-  (options?.client ?? client).get<
-    ListWhatsAppTemplatesResponses,
-    ListWhatsAppTemplatesErrors,
-    ThrowOnError
-  >({
-    security: [
-      { scheme: "bearer", type: "http" },
-      {
-        in: "cookie",
-        name: "bird_session",
-        type: "apiKey",
-      },
-    ],
-    url: "/v1/whatsapp/templates",
     ...options,
   });
 

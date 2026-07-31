@@ -18,27 +18,22 @@ import {
 import { EmailResource, type EmailChannelDefaults } from "./resources/email.js";
 import { AudiencesResource } from "./resources/audiences.gen.js";
 import { DomainsResource } from "./resources/domains.gen.js";
-import { ContactPropertiesResource } from "./resources/contactProperties.js";
-import { ContactsResource } from "./resources/contacts.js";
+import { ContactPropertiesResource } from "./resources/contactProperties.gen.js";
+import { ContactsResource } from "./resources/contacts.gen.js";
 import { SmsResource } from "./resources/sms.js";
-import { SmsTemplatesResource } from "./resources/smsTemplates.js";
+import { SmsTemplatesResource } from "./resources/smsTemplates.gen.js";
 import { WhatsappResource } from "./resources/whatsapp.js";
-import { WhatsappTemplatesResource } from "./resources/whatsappTemplates.js";
 import { VerifyResource } from "./resources/verify.js";
 import { WebhooksResource, type WebhookOptions } from "./resources/webhooks.js";
-import {
-  MailboxResource,
-  MailboxReceiveRuleResource,
-} from "./resources/mailbox.js";
-import {
-  MailboxThreadResource,
-  MailboxThreadMessageResource,
-} from "./resources/mailboxThread.js";
+import { MailboxResource } from "./resources/mailbox.js";
+import { MailboxReceiveRuleResource } from "./resources/mailboxReceiveRule.gen.js";
+import { MailboxThreadResource } from "./resources/mailboxThread.gen.js";
+import { MailboxThreadMessageResource } from "./resources/mailboxThreadMessage.gen.js";
 import { RealtimeResource, type RealtimeOptions } from "./resources/realtime.js";
 
 // The SDK's own version, sent as User-Agent. Injected at build time from
 // package.json (tsdown/vitest `define`) so it never drifts from the published
-// version. Distinct from the Bird API version (X-Bird-API-Version, ADR-0042 §5)
+// version. Distinct from the Bird API version (X-Bird-API-Version)
 // which is deferred — see sdk-build-ledger #3.
 declare const __SDK_VERSION__: string;
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -181,9 +176,6 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
   /** The WhatsApp channel — `bird.whatsapp.send(...)`, `.get(...)`, `.list(...)`, `.listEvents(...)`. */
   readonly whatsapp: WhatsappResource;
 
-  /** WhatsApp templates — `bird.whatsappTemplates.list(...)`. */
-  readonly whatsappTemplates: WhatsappTemplatesResource;
-
   /** The Verify product — `bird.verify.verifications.create(...)`, `.check(...)`. */
   readonly verify: VerifyResource;
 
@@ -224,7 +216,7 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
       ...opts.defaultHeaders,
       Authorization: `Bearer ${opts.apiKey}`,
       "User-Agent": `bird-sdk-js/${__SDK_VERSION__}`,
-      // Bird-* client-identity headers (ADR-0074): the API attributes the SDK
+      // Bird-* client-identity headers: the API attributes the SDK
       // surface from these, not the User-Agent. Edge-safe, so no os/arch/runtime
       // (those need Node globals this SDK must not touch); surface + version only.
       "Bird-Surface": "sdk-js",
@@ -255,10 +247,6 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     this.sms = new SmsResource(this.core, this.#client);
     this.smsTemplates = new SmsTemplatesResource(this.core, this.#client);
     this.whatsapp = new WhatsappResource(this.core, this.#client);
-    this.whatsappTemplates = new WhatsappTemplatesResource(
-      this.core,
-      this.#client,
-    );
     this.verify = new VerifyResource(this.core, this.#client);
     this.contacts = new ContactsResource(this.core, this.#client);
     this.audiences = new AudiencesResource(this.core, this.#client);

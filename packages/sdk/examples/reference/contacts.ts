@@ -3,9 +3,7 @@
 // @messagebird/sdk -> ../src). Each `bird:snippet` region is the single source
 // of truth for that key: the surfacegen TS writer injects it (unmarked) as the
 // @example on the generated method, and docsnippet-gen extracts it here for the
-// docs site + README. (Override methods — contacts.update/batch — keep their
-// examples inline in src/resources/contacts.ts, since nothing regenerates over a
-// hand-written method.)
+// docs site + README.
 
 import { BirdClient } from "@messagebird/sdk";
 
@@ -19,6 +17,13 @@ export async function contactsCreate() {
   console.log(contact.id); // "con_…"
 }
 
+export async function contactsUpdate() {
+  const contact = await bird.contacts.update("con_01krdgeqcxet5s7t44vh8rt9mg", {
+    first_name: "Jane",
+  });
+  console.log(contact.first_name);
+}
+
 export async function contactsGet() {
   const contact = await bird.contacts.get("con_01krdgeqcxet5s7t44vh8rt9mg");
   console.log(contact.email, contact.first_name);
@@ -26,6 +31,15 @@ export async function contactsGet() {
 
 export async function contactsDelete() {
   await bird.contacts.delete("con_01krdgeqcxet5s7t44vh8rt9mg");
+}
+
+export async function contactsBatch() {
+  const result = await bird.contacts.batch({
+    contacts: [{ email: "jane@acme.com", first_name: "Jane" }],
+  });
+  for (const item of result.data) {
+    console.log(item.email, item.status);
+  }
 }
 
 export async function contactsList() {

@@ -76,7 +76,6 @@ for await (const message of bird.whatsapp.list()) {
 }
 
 const { data } = await bird.whatsapp.listEvents(messageId); // full lifecycle timeline, not paginated
-const { data: templates } = await bird.whatsappTemplates.list(); // the workspace's Meta-approved templates
 ```
 
 ## Webhooks

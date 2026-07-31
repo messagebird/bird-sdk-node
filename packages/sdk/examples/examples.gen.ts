@@ -100,6 +100,9 @@ export async function _ex_16() {
 const result = await bird.contacts.batch({
   contacts: [{ email: "jane@acme.com", first_name: "Jane" }],
 });
+for (const item of result.data) {
+  console.log(item.email, item.status);
+}
 }
 
 export async function _ex_17() {
@@ -130,6 +133,7 @@ export async function _ex_21() {
 const contact = await bird.contacts.update("con_01krdgeqcxet5s7t44vh8rt9mg", {
   first_name: "Jane",
 });
+console.log(contact.first_name);
 }
 
 export async function _ex_22() {
@@ -401,7 +405,7 @@ console.log(mailbox.state); // "active"
 
 export async function _ex_56() {
 const labels = await bird.mailbox.labels("mbx_01abc");
-console.log(labels.data.map(l => l.name));
+console.log(labels.data.map((label) => label.name));
 }
 
 export async function _ex_57() {
@@ -412,10 +416,12 @@ for await (const mailbox of bird.mailbox.list()) {
 
 export async function _ex_58() {
 const mailbox = await bird.mailbox.restore("mbx_01abc");
+console.log(mailbox.deleted_at); // null
 }
 
 export async function _ex_59() {
 const mailbox = await bird.mailbox.resume("mbx_01abc");
+console.log(mailbox.state); // "active"
 }
 
 export async function _ex_60() {
@@ -424,7 +430,10 @@ console.log(stats.summary?.sends_accepted);
 }
 
 export async function _ex_61() {
-const mailbox = await bird.mailbox.update("mbx_01abc", { receive_policy: "open" });
+const mailbox = await bird.mailbox.update("mbx_01abc", {
+  receive_policy: "open",
+});
+console.log(mailbox.id, mailbox.receive_policy);
 }
 
 export async function _ex_62() {
@@ -432,6 +441,7 @@ const rule = await bird.mailboxReceiveRule.create("mbx_01abc", {
   action: "block",
   entry: "spam.example.com",
 });
+console.log(rule.id);
 }
 
 export async function _ex_63() {
@@ -445,17 +455,17 @@ for await (const rule of bird.mailboxReceiveRule.list("mbx_01abc")) {
 }
 
 export async function _ex_65() {
-await bird.mailboxThread.delete("thr_01abc");
+await bird.mailboxThread.delete("thr_01abc", { permanent: true });
 }
 
 export async function _ex_66() {
 const thread = await bird.mailboxThread.get("thr_01abc");
-console.log(thread.message_count);
+console.log(thread.subject);
 }
 
 export async function _ex_67() {
-for await (const thread of bird.mailboxThread.list()) {
-  console.log(thread.id, thread.message_count);
+for await (const thread of bird.mailboxThread.list({ mailbox_id: "mbx_01abc" })) {
+  console.log(thread.id, thread.subject);
 }
 }
 
@@ -463,11 +473,12 @@ export async function _ex_68() {
 const thread = await bird.mailboxThread.update("thr_01abc", {
   labels: { add: ["archive"] },
 });
+console.log(thread.id);
 }
 
 export async function _ex_69() {
 const atts = await bird.mailboxThreadMessage.attachments("thr_01abc", "rem_01xyz");
-console.log(atts.data.map(a => a.filename));
+console.log(atts.data.map((a) => a.filename));
 }
 
 export async function _ex_70() {
@@ -490,6 +501,7 @@ export async function _ex_73() {
 const reply = await bird.mailboxThreadMessage.reply("thr_01abc", "rem_01xyz", {
   text: "Thanks for reaching out!",
 });
+console.log(reply.id);
 }
 
 export async function _ex_74() {
@@ -632,9 +644,4 @@ const msg = await bird.whatsapp.send({
   },
 });
 console.log(msg.id, msg.status);
-}
-
-export async function _ex_94() {
-const { data } = await bird.whatsappTemplates.list();
-for (const tpl of data) console.log(tpl.name, tpl.status);
 }

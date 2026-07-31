@@ -1493,7 +1493,7 @@ export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
  * [List events for a WhatsApp message](/docs/api/reference/list-whats-app-message-events),
  * or `whatsapp.*` webhook events.
  *
- * A template name or language the catalogue does not stock, parameter values
+ * A template slug or language the catalogue does not stock, parameter values
  * that do not match the template's declared placeholders, and a recipient
  * that is not a valid phone number each return a `422`.
  *

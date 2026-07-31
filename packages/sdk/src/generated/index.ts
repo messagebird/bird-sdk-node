@@ -1049,7 +1049,6 @@ export type {
   WhatsAppMessageTemplateWritable,
   WhatsAppMessageWritable,
   WhatsAppTemplateCategory,
-  WhatsAppTemplateName,
   WhatsAppTemplateParameterType,
   WhatsAppTemplateSend,
   WorkspaceId,

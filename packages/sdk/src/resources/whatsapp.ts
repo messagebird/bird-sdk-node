@@ -23,7 +23,7 @@ export class WhatsappResource extends WhatsappResourceBase {
    * const msg = await bird.whatsapp.send({
    *   to: "+15551234567",
    *   template: {
-   *     name: "bird_otp",
+   *     slug: "bird_otp",
    *     components: [
    *       { type: "body", parameters: [{ type: "text", text: "123456" }] },
    *     ],

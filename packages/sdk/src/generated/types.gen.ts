@@ -5123,16 +5123,16 @@ export type WhatsAppMessageTemplateComponent = {
 export type WhatsAppLanguage = string;
 
 /**
- * A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.
+ * A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.
  *
  */
-export type WhatsAppTemplateName = string;
+export type TemplateSlug = string;
 
 export type WhatsAppTemplateSend = {
   /**
-   * The template to send, by its name (for example `bird_otp`).
+   * The template to send, by its slug (for example `bird_otp`).
    */
-  name: WhatsAppTemplateName;
+  slug: TemplateSlug;
   /**
    * Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language; when it is stocked in several, omitting the language returns a `422` that names the available codes. The accepted message echoes the resolved language.
    *
@@ -5189,14 +5189,14 @@ export type WhatsAppMessageStatus =
 export type WhatsAppTemplateCategory = string;
 
 /**
- * The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).
+ * The template a message was sent from. On reads `slug`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).
  *
  */
 export type WhatsAppMessageTemplate = {
   /**
    * The template's stable handle (for example `bird_otp`).
    */
-  readonly name: WhatsAppTemplateName;
+  readonly slug: TemplateSlug;
   /**
    * Content classification applied to messages sent from this template.
    */
@@ -6343,12 +6343,6 @@ export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
  * A language tag in BCP-47 form, for example `en` or `pt-BR`.
  */
 export type LanguageTag = string;
-
-/**
- * A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.
- *
- */
-export type TemplateSlug = string;
 
 export type EmailTemplateSend = unknown & {
   /**
@@ -8130,7 +8124,7 @@ export type WhatsAppMessageListWritable = {
 } & ListEnvelope;
 
 /**
- * The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).
+ * The template a message was sent from. On reads `slug`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).
  *
  */
 export type WhatsAppMessageTemplateWritable = {

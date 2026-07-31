@@ -9423,7 +9423,7 @@ export const WhatsAppMessageSendRequestSchema = {
   example: {
     to: "+31612345678",
     template: {
-      name: "bird_otp",
+      slug: "bird_otp",
       language: "en",
       components: [
         {
@@ -9517,29 +9517,29 @@ export const WhatsAppLanguageSchema = {
   example: "en",
 } as const;
 
-export const WhatsAppTemplateNameSchema = {
+export const TemplateSlugSchema = {
   type: "string",
   minLength: 1,
-  maxLength: 512,
-  pattern: "^[a-z0-9_]+$",
+  maxLength: 63,
+  pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
   description:
-    "A WhatsApp template's name — the stable handle used to reference the template when sending. Lowercase letters, numbers, and underscores.\n",
-  example: "bird_otp",
+    "A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.\n",
+  example: "welcome-email",
 } as const;
 
 export const WhatsAppTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["name"],
+  required: ["slug"],
   properties: {
-    name: {
+    slug: {
       allOf: [
         {
-          $ref: "#/components/schemas/WhatsAppTemplateName",
+          $ref: "#/components/schemas/TemplateSlug",
         },
       ],
       description:
-        "The template to send, by its name (for example `bird_otp`).",
+        "The template to send, by its slug (for example `bird_otp`).",
       example: "bird_otp",
     },
     language: {
@@ -9563,7 +9563,7 @@ export const WhatsAppTemplateSendSchema = {
   },
   examples: [
     {
-      name: "bird_order_confirmation",
+      slug: "bird_order_confirmation",
       language: "en",
       components: [
         {
@@ -9582,7 +9582,7 @@ export const WhatsAppTemplateSendSchema = {
       ],
     },
     {
-      name: "bird_otp",
+      slug: "bird_otp",
       language: "en",
       components: [
         {
@@ -9687,13 +9687,13 @@ export const WhatsAppMessageTemplateSchema = {
   additionalProperties: false,
   readOnly: true,
   description:
-    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).\n",
-  required: ["name", "language", "category", "components"],
+    "The template a message was sent from. On reads `slug`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).\n",
+  required: ["slug", "language", "category", "components"],
   properties: {
-    name: {
+    slug: {
       allOf: [
         {
-          $ref: "#/components/schemas/WhatsAppTemplateName",
+          $ref: "#/components/schemas/TemplateSlug",
         },
       ],
       readOnly: true,
@@ -11944,16 +11944,6 @@ export const LanguageTagSchema = {
   maxLength: 35,
   description: "A language tag in BCP-47 form, for example `en` or `pt-BR`.",
   example: "pt-BR",
-} as const;
-
-export const TemplateSlugSchema = {
-  type: "string",
-  minLength: 1,
-  maxLength: 63,
-  pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
-  description:
-    "A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.\n",
-  example: "welcome-email",
 } as const;
 
 export const EmailTemplateSendSchema = {
@@ -15007,7 +14997,7 @@ export const WhatsAppMessageTemplateWritableSchema = {
   additionalProperties: false,
   readOnly: true,
   description:
-    "The template a message was sent from. On reads `name`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).\n",
+    "The template a message was sent from. On reads `slug`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).\n",
 } as const;
 
 export const WhatsAppMessageWritableSchema = {

@@ -19,10 +19,17 @@ name: Release
 
 on:
   push:
-    # Mirror release tags are v-prefixed (scripts/dev/lib/sdk-release/mirror.sh
-    # pushes v<version>). The publish step then loops packages/* and ships only
-    # versions not yet on npm, so one tag can carry a release of any package.
-    tags: ["v*"]
+    # This mirror carries several independently-versioned packages, so its
+    # release tags are namespaced per package — <surface>/v<version>, e.g.
+    # sdk-node/v0.18.2 or realtime-node/v0.2.1. A bare v<version> cannot work
+    # here: two packages reaching the same number would compete for one tag, and
+    # tags are immutable. `v*` stays matched for the bare tags already on this
+    # mirror from before the split.
+    #
+    # The tag only triggers the run. The publish step loops packages/* and ships
+    # whatever is not yet on npm at the version in its own package.json, so the
+    # tag name never decides what gets published.
+    tags: ["v*", "*/v*"]
   workflow_dispatch:
     inputs:
       dry_run:

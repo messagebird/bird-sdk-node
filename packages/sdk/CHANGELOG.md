@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.1
+
+- Point the package repository and issue URLs at the renamed bird-sdk-typescript mirror.
+
 ## 0.18.0
 
 - Open-enum fields now carry their known values: reading one offers the values the API can send, and a value added by a newer server still decodes.

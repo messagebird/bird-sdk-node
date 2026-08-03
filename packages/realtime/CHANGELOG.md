@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Point the package repository and issue URLs at the renamed bird-sdk-typescript mirror.
+
 ## 0.2.0
 
 - Add `signin()`, which identifies a connection's member so the events API can address it and the disconnect API can terminate it. The default authorizer POSTs `connection_id` to `memberAuthEndpoint` (`/bird/auth/member`), the identity is re-established on every reconnect, a connection terminated through the API surfaces close code 4009 on `connection.bind("error", ...)`, and a re-signin that fails after a reconnect (which has no promise to reject) is reported on `connection.bind("signin_error", ...)`.

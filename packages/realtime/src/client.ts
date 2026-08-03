@@ -1,4 +1,4 @@
-import { defaultAuthorizer } from "./auth.js";
+import { defaultAuthorizer, defaultMemberAuthorizer } from "./auth.js";
 import {
   channelFor,
   PresenceChannel,
@@ -7,8 +7,13 @@ import {
 } from "./channel.js";
 import { Connection } from "./connection.js";
 import { BirdRealtimeError } from "./errors.js";
-import { Outbound, type Frame } from "./protocol.js";
-import type { Authorizer, Options } from "./types.js";
+import { Inbound, Outbound, type Frame } from "./protocol.js";
+import type {
+  Authorizer,
+  MemberAuthorizer,
+  Options,
+  SignedInMember,
+} from "./types.js";
 
 // Injected by tsdown/vitest `define` from package.json, so there is no second
 // version literal to forget on a release bump.
@@ -53,6 +58,15 @@ export class BirdRealtime {
   readonly appKey: string;
   private readonly channels = new Map<string, Channel>();
   private readonly authorizer: Authorizer;
+  private readonly memberAuthorizer: MemberAuthorizer;
+  // Signin is per connection, so `member` is dropped whenever the connection
+  // is, while `signinArmed` survives to re-sign in on the next one.
+  private signinArmed = false;
+  private member: SignedInMember | null = null;
+  private signinWaiters: Array<{
+    resolve: (member: SignedInMember) => void;
+    reject: (error: Error) => void;
+  }> = [];
 
   constructor(options: Options) {
     this.appKey = options.appKey;
@@ -64,19 +78,36 @@ export class BirdRealtime {
         options.allowCrossOriginAuth,
       );
 
+    this.memberAuthorizer =
+      options.memberAuthorizer ??
+      defaultMemberAuthorizer(
+        options.memberAuthEndpoint ?? "/bird/auth/member",
+        options.authHeaders,
+        options.allowCrossOriginAuth,
+      );
+
     this.connection = new Connection(resolveUrl(options), {
       activityTimeout: options.activityTimeout,
       pongTimeout: options.pongTimeout,
       webSocket: options.webSocket,
     });
-    this.connection.bind("connected", () => this.subscribeAll());
+    this.connection.bind("connected", () => {
+      this.subscribeAll();
+      if (this.signinArmed) void this.sendSignin();
+    });
     this.connection.bind("message", (frame) => this.route(frame as Frame));
     // Server subscribe rejections arrive as connection-level bird:error frames
     // with no channel field, so they cannot be attributed to one channel —
     // bind `connection.on("error")` for them. They do invalidate in-flight
     // attempts so subscribe() can retry instead of being wedged.
-    this.connection.bind("error", () => {
+    this.connection.bind("error", (payload) => {
       for (const channel of this.channels.values()) channel.invalidateAttempt();
+      // A rejected signin arrives as a channel-less error too, so a pending
+      // signin() can only be failed on the connection's error, not attributed.
+      const { message } = (payload ?? {}) as { message?: string };
+      this.failSignin(
+        new BirdRealtimeError(message ?? "Realtime connection error"),
+      );
     });
     // A dropped connection drops every subscription with it; channels stay
     // registered and re-subscribe on the next `connected`.
@@ -88,6 +119,10 @@ export class BirdRealtime {
         current === "failed"
       ) {
         for (const channel of this.channels.values()) channel.reset();
+        this.member = null;
+        this.failSignin(
+          new BirdRealtimeError("Connection lost before signin completed"),
+        );
       }
     });
     this.connection.connect();
@@ -112,6 +147,39 @@ export class BirdRealtime {
     }
     if (this.connection.state === "connected") this.sendSubscribe(channel);
     return channel;
+  }
+
+  /**
+   * Identify this connection's member, so the events API can address it and the
+   * disconnect API can terminate it. Resolves with the member the backend
+   * signed for; the identity is re-established automatically on every
+   * reconnect, so call it once.
+   *
+   *   const member = await bird.signin();
+   *
+   * The connection closes with code 4009 when the API terminates this member's
+   * connections; bind `connection.bind("error")` to see it. A re-signin that
+   * fails after a reconnect has no promise to reject, so it is reported on
+   * `connection.bind("signin_error")` instead.
+   *
+   * A pending signin() rejects on any connection-level error, because the wire
+   * does not attribute an error to the signin that caused it. If the signin in
+   * fact succeeded, `signedInMember` holds the identity and calling signin()
+   * again resolves from it immediately.
+   */
+  signin(): Promise<SignedInMember> {
+    this.signinArmed = true;
+    if (this.member) return Promise.resolve(this.member);
+    const pending = new Promise<SignedInMember>((resolve, reject) => {
+      this.signinWaiters.push({ resolve, reject });
+    });
+    if (this.connection.state === "connected") void this.sendSignin();
+    return pending;
+  }
+
+  /** The signed-in member, or null when this connection has no identity. */
+  get signedInMember(): SignedInMember | null {
+    return this.member;
   }
 
   /** Unsubscribe and forget a channel. */
@@ -160,7 +228,82 @@ export class BirdRealtime {
     );
   }
 
+  private async sendSignin(): Promise<void> {
+    const connectionId = this.connection.connectionId;
+    if (!connectionId) return;
+    let payload;
+    try {
+      payload = await this.memberAuthorizer({ connectionId });
+    } catch (error) {
+      // A rejection that lands after a reconnect belongs to a superseded
+      // attempt: its waiters are the new attempt's now, and the connection it
+      // failed on is gone, so neither may be touched.
+      if (this.connection.connectionId !== connectionId) return;
+      this.failSignin(
+        error instanceof Error ? error : new BirdRealtimeError(String(error)),
+        { notify: true },
+      );
+      return;
+    }
+    // The authorization was for the connection that asked for it; a reconnect
+    // in the meantime gets its own signin from the `connected` handler.
+    if (this.connection.connectionId !== connectionId) return;
+    this.connection.send({
+      event: Outbound.Signin,
+      data: { auth: payload.auth, member_data: payload.member_data },
+    });
+  }
+
+  private handleSigninSuccess(frame: Frame): void {
+    const { member_data: memberData } = (frame.data ?? {}) as {
+      member_data?: unknown;
+    };
+    // member_data is echoed as the JSON string the backend signed.
+    let parsed: unknown = memberData;
+    if (typeof memberData === "string") {
+      try {
+        parsed = JSON.parse(memberData);
+      } catch {
+        parsed = undefined;
+      }
+    }
+    const memberId = (parsed as { member_id?: unknown })?.member_id;
+    if (typeof memberId !== "string") {
+      this.failSignin(
+        new BirdRealtimeError("Signin succeeded without a member_id"),
+      );
+      return;
+    }
+    const member: SignedInMember = { member_id: memberId };
+    const memberInfo = (parsed as { member_info?: unknown }).member_info;
+    if (memberInfo !== undefined) member.member_info = memberInfo;
+    this.member = member;
+    const waiters = this.signinWaiters;
+    this.signinWaiters = [];
+    for (const waiter of waiters) waiter.resolve(member);
+  }
+
+  private failSignin(error: Error, options?: { notify: boolean }): void {
+    const waiters = this.signinWaiters;
+    this.signinWaiters = [];
+    for (const waiter of waiters) waiter.reject(error);
+    // The re-signin after a reconnect has no waiter to reject, so a failure
+    // there would otherwise be silent: the socket looks healthy while the
+    // connection has no identity and cannot be addressed or disconnected.
+    if (options?.notify && waiters.length === 0 && this.signinArmed) {
+      // Deliberately not `error`: the client's own `error` handler invalidates
+      // every channel's in-flight authorization, and after a reconnect
+      // subscribeAll() and sendSignin() run together, so reusing it would let a
+      // failing member endpoint cancel unrelated subscribes.
+      this.connection.emit("signin_error", { message: error.message });
+    }
+  }
+
   private route(frame: Frame): void {
+    if (frame.event === Inbound.SigninSuccess) {
+      this.handleSigninSuccess(frame);
+      return;
+    }
     if (!frame.channel) return;
     this.channels.get(frame.channel)?.handleEvent(frame);
   }

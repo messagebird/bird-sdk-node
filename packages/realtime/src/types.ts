@@ -30,6 +30,23 @@ export type Authorizer = (params: {
   channelName: string;
 }) => Promise<ChannelAuthResponse>;
 
+/**
+ * Authorizer for signin. Given the connection id, return the payload that
+ * identifies this connection's member. The default implementation POSTs to
+ * `memberAuthEndpoint`; provide this to fully customize.
+ */
+export type MemberAuthorizer = (params: {
+  connectionId: string;
+}) => Promise<MemberAuthResponse>;
+
+/** The payload returned by the customer's member-auth endpoint. */
+export interface MemberAuthResponse {
+  /** `<key>:<hmac>` signature over `<connection_id>::member::<member_data>`. */
+  auth: string;
+  /** JSON string with `member_id` and optional `member_info`. */
+  member_data: string;
+}
+
 /** The auth payload returned by the customer's auth endpoint. */
 export interface ChannelAuthResponse {
   /** `<key>:<hmac>` signature the server verifies. */
@@ -75,6 +92,15 @@ export interface Options {
   allowCrossOriginAuth?: boolean;
   /** Fully replace the private/presence authorization strategy. */
   authorizer?: Authorizer;
+  /**
+   * Endpoint the default member authorizer POSTs to for `signin()`. Receives
+   * `connection_id`; returns `auth` and `member_data`. Defaults to
+   * `/bird/auth/member` (same-origin). `authHeaders` and
+   * `allowCrossOriginAuth` apply to it exactly as they do to `authEndpoint`.
+   */
+  memberAuthEndpoint?: string;
+  /** Fully replace the signin authorization strategy. */
+  memberAuthorizer?: MemberAuthorizer;
   /** Milliseconds of inactivity before sending a ping. Server may override. */
   activityTimeout?: number;
   /** Milliseconds to wait for a pong before treating the connection as dead. */
@@ -85,6 +111,12 @@ export interface Options {
    * inject their own transport.
    */
   webSocket?: WebSocketFactory;
+}
+
+/** The signed-in member of a connection. Field names match the wire verbatim. */
+export interface SignedInMember {
+  member_id: string;
+  member_info?: unknown;
 }
 
 /** A member of a presence channel. Field names match the wire verbatim. */

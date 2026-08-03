@@ -19,7 +19,57 @@ export type WebhookAttemptList = {
  * Webhook event type. Open enum: new event types may be added over time, so treat any unrecognized value in a delivery as a future event rather than an error. Subscribing to a type that is not in the catalog returns a `422`. The values below are the types known at this version.
  *
  */
-export type WebhookEventType = string;
+export type WebhookEventType =
+  | "domain.failed"
+  | "domain.verified"
+  | "email.accepted"
+  | "email.bounced"
+  | "email.canceled"
+  | "email.clicked"
+  | "email.complained"
+  | "email.deferred"
+  | "email.delivered"
+  | "email.list_unsubscribed"
+  | "email.opened"
+  | "email.out_of_band_bounce"
+  | "email.processed"
+  | "email.received"
+  | "email.rejected"
+  | "email.scheduled"
+  | "email.unsubscribed"
+  | "email_mailbox.message_delivered"
+  | "email_mailbox.message_failed"
+  | "email_mailbox.message_received"
+  | "email_mailbox.message_sent"
+  | "email_mailbox.suspended"
+  | "email_mailbox.thread_created"
+  | "email_suppression.created"
+  | "sms.accepted"
+  | "sms.delivered"
+  | "sms.expired"
+  | "sms.failed"
+  | "sms.rejected"
+  | "sms.sent"
+  | "sms.tfn_verification.approved"
+  | "sms.tfn_verification.info_requested"
+  | "sms.tfn_verification.rejected"
+  | "sms.tfn_verification.submitted"
+  | "sms.undelivered"
+  | "verify.attempt.delivered"
+  | "verify.attempt.sent"
+  | "verify.attempt.undelivered"
+  | "verify.verification.created"
+  | "verify.verification.verified"
+  | "voice_call.answered"
+  | "voice_call.ended"
+  | "voice_call.initiated"
+  | "whatsapp.accepted"
+  | "whatsapp.delivered"
+  | "whatsapp.failed"
+  | "whatsapp.read"
+  | "whatsapp.rejected"
+  | "whatsapp.sent"
+  | (string & {});
 
 export type WebhookEventId = string;
 
@@ -216,7 +266,15 @@ export type EventWhatsAppRejectedData = EventWhatsAppBase & {
  * Failure reason, uniform whether the failure happened internally or was reported by the WhatsApp network. `insufficient_balance`: the workspace could not afford the send. `price_not_found`: no price was configured for this destination/template combination. `internal_error`: an unexpected Bird-side failure. `undeliverable`: the recipient could not be reached (for example not on WhatsApp, or the number is invalid). `service_window_expired`: the 24-hour customer care window has closed and a free-form message cannot be sent; send a template instead. `rate_limited`: the send was throttled. `recipient_suppressed`: the recipient is on the workspace's suppression list; the message was rejected before sending. Open enum: new codes may be added over time, so treat any unrecognized value as a future code rather than an error.
  *
  */
-export type WhatsAppErrorCode = string;
+export type WhatsAppErrorCode =
+  | "insufficient_balance"
+  | "price_not_found"
+  | "internal_error"
+  | "undeliverable"
+  | "service_window_expired"
+  | "rate_limited"
+  | "recipient_suppressed"
+  | (string & {});
 
 /**
  * Failure detail for a message that could not be delivered or was rejected.
@@ -487,7 +545,7 @@ export type EventVerifyVerificationVerifiedData = EventVerifyBase & {
 /**
  * The channel a passcode is delivered over. Open enum — new channels may be added over time, so treat any unrecognized value as a future channel rather than an error.
  */
-export type VerificationChannel = string;
+export type VerificationChannel = "email" | "sms" | "whatsapp" | (string & {});
 
 /**
  * The recipient to verify. Provide an `email_address`, a `phone_number`, or both; at least one is required. The addresses also identify the verification: a check must supply exactly the set used on the create call, so a verification created with both addresses is not found by either one alone.
@@ -580,9 +638,16 @@ export type EventVerifyVerificationCreated = {
 };
 
 /**
- * Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. Emitted reasons are `carrier_rejected` (SMS), `hard_bounce` (email, permanent bounce), `soft_bounce` (email, transient bounce such as a full mailbox), `undelivered` (a generic delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).
+ * Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. Emitted reasons are `carrier_rejected` (SMS), `hard_bounce` (email, permanent bounce), `soft_bounce` (email, transient bounce such as a full mailbox), `undelivered` (a generic delivery failure), `channel_unavailable` (the channel could not be used and the verification failed over), and `channel_disabled` (Bird has temporarily stopped sending over that channel, so the verification moved on to the next one).
  */
-export type VerificationAttemptFailureReason = string;
+export type VerificationAttemptFailureReason =
+  | "carrier_rejected"
+  | "hard_bounce"
+  | "soft_bounce"
+  | "undelivered"
+  | "channel_unavailable"
+  | "channel_disabled"
+  | (string & {});
 
 /**
  * Payload of the verify.attempt.undelivered event.
@@ -5087,7 +5152,7 @@ export type WhatsAppMessageSendRequest = {
  * The kind of value a template parameter accepts. `text` (the only kind today) is a plain string substituted into the placeholder. Open enum: more kinds may be added over time.
  *
  */
-export type WhatsAppTemplateParameterType = string;
+export type WhatsAppTemplateParameterType = "text" | (string & {});
 
 export type WhatsAppMessageTemplateComponentParameter = {
   /**
@@ -5186,7 +5251,8 @@ export type WhatsAppMessageStatus =
  * Meta's content classification for a template. `authentication` templates deliver one-time passcodes, `utility` templates deliver transaction-triggered updates (receipts, order status), and `marketing` templates carry promotional content. The category drives which sender number Bird selects and how the send is priced. Open enum: Meta may add new categories over time, so treat any unrecognized value as a future category rather than an error.
  *
  */
-export type WhatsAppTemplateCategory = string;
+export type WhatsAppTemplateCategory =
+  "authentication" | "utility" | "marketing" | (string & {});
 
 /**
  * The template a message was sent from. On reads `slug`, `language`, `category`, and `components` are always present; `components` is an empty array for an authentication template (the filled-in values, for example a verification code, are never returned).
@@ -5291,7 +5357,8 @@ export type VerificationChannelEntry = {
 /**
  * Why a verification session reached its final state without succeeding: `attempts_exhausted` (too many incorrect passcodes) or `ttl_elapsed` (the time window elapsed before a correct passcode). Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error.
  */
-export type VerificationTerminalReason = string;
+export type VerificationTerminalReason =
+  "attempts_exhausted" | "ttl_elapsed" | (string & {});
 
 export type Verification = {
   readonly id: VerificationId;
@@ -5823,7 +5890,7 @@ export type AudienceRef = {
  * A channel a contact can be reached on. Open enum: `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.
  *
  */
-export type ContactChannel = string;
+export type ContactChannel = "email" | (string & {});
 
 export type Contact = {
   /**
@@ -6116,7 +6183,22 @@ export type EmailEventList = {
 /**
  * Type of an event in a message's per-recipient delivery timeline. Open enum — new event types may be added over time, so treat any unrecognized value as a future event rather than an error. The values below are the types known at this version.
  */
-export type EmailEventType = string;
+export type EmailEventType =
+  | "email.accepted"
+  | "email.bounced"
+  | "email.canceled"
+  | "email.clicked"
+  | "email.complained"
+  | "email.deferred"
+  | "email.delivered"
+  | "email.list_unsubscribed"
+  | "email.opened"
+  | "email.out_of_band_bounce"
+  | "email.processed"
+  | "email.rejected"
+  | "email.scheduled"
+  | "email.unsubscribed"
+  | (string & {});
 
 export type EmailEvent = {
   /**
@@ -6318,6 +6400,13 @@ export type EmailMessageBatchResponse = {
   data: Array<EmailMessageBatchItem>;
 };
 
+export type EmailTemplateVersionId = string;
+
+/**
+ * A language tag in BCP-47 form, for example `en` or `pt-BR`.
+ */
+export type LanguageTag = string;
+
 export type EmailMessageBatchItem = {
   /**
    * Message ID assigned to this batch item.
@@ -6331,6 +6420,26 @@ export type EmailMessageBatchItem = {
    * Resolved category for this batch item.
    */
   category: "marketing" | "transactional";
+  /**
+   * The template language this item asked for, in canonical form. Null when the item named no language or used no template. Every item in a batch resolves its own template reference, so this and `resolved_language` can differ from item to item.
+   *
+   */
+  readonly requested_language?: LanguageTag | null;
+  /**
+   * The template language this item was actually delivered in, in canonical form. Null when the item used no template. A value here differing from `requested_language` means the template did not carry the language asked for and its `on_missing_language` policy chose this one.
+   *
+   */
+  readonly resolved_language?: LanguageTag | null;
+  /**
+   * The template this item rendered from, or null for an item that supplied its content inline.
+   *
+   */
+  readonly template_id?: EmailTemplateId | null;
+  /**
+   * The exact template version this item rendered from, or null for an inline item. Record it if you need to reproduce what was sent: a template's live version changes every time you submit it.
+   *
+   */
+  readonly template_version_id?: EmailTemplateVersionId | null;
 };
 
 /**
@@ -6338,11 +6447,6 @@ export type EmailMessageBatchItem = {
  *
  */
 export type EmailMessageBatchRequest = Array<EmailMessageSendRequest>;
-
-/**
- * A language tag in BCP-47 form, for example `en` or `pt-BR`.
- */
-export type LanguageTag = string;
 
 export type EmailTemplateSend = unknown & {
   /**
@@ -6637,6 +6741,26 @@ export type EmailMessage = {
    * Total click events across all recipients.
    */
   readonly click_count: number;
+  /**
+   * The template language this send asked for, in canonical form (`pt-BR` for a request of `pt-br`). Null when the send named no language (it took the template's default) or used no template at all. Compare it with `resolved_language`: when they differ, the language you asked for was not available and the template's `on_missing_language` policy chose the one shown there instead.
+   *
+   */
+  readonly requested_language?: LanguageTag | null;
+  /**
+   * The template language this send was actually delivered in, in canonical form. Null when the send used no template. A non-null value with a null `requested_language` means the send named no language and took the template's default.
+   *
+   */
+  readonly resolved_language?: LanguageTag | null;
+  /**
+   * The template this send rendered from, or null for a send that supplied its content inline.
+   *
+   */
+  readonly template_id?: EmailTemplateId | null;
+  /**
+   * The exact template version this send rendered from, or null for an inline send. A template's live version changes every time you submit it, so this is what identifies the wording that was actually delivered, together with `resolved_language`.
+   *
+   */
+  readonly template_version_id?: EmailTemplateVersionId | null;
   /**
    * Structured `{name, value}` filter labels applied to this send. See EmailMessageSendRequest for the tags vs metadata distinction.
    */

@@ -42,6 +42,9 @@ export class Connection extends Emitter {
 
   private attempt = 0;
   private intentional = false;
+  // Set when this side has already explained a refusal it is about to trigger,
+  // so the close it causes doesn't report the same failure twice.
+  private refusalReported = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private activityTimer: ReturnType<typeof setTimeout> | null = null;
   private pongTimer: ReturnType<typeof setTimeout> | null = null;
@@ -101,6 +104,7 @@ export class Connection extends Emitter {
       }
     }
     this.setState("connecting");
+    this.refusalReported = false;
     const ws = this.newSocket(this.url);
     this.ws = ws;
     ws.onopen = () => {
@@ -112,7 +116,7 @@ export class Connection extends Emitter {
     ws.onerror = () => {
       /* surfaced via the following close */
     };
-    ws.onclose = (ev) => this.onClose(ev.code);
+    ws.onclose = (ev) => this.onClose(ev.code, ev.reason);
   }
 
   private onMessage(raw: string): void {
@@ -130,6 +134,7 @@ export class Connection extends Emitter {
           // No connection id means this is not a Bird Realtime app (e.g. a
           // legacy socket_id handshake). Fail loudly instead of sitting
           // "connected" but unable to subscribe; 4001 is in the no-retry band.
+          this.refusalReported = true;
           this.emit("error", {
             code: null,
             message:
@@ -172,7 +177,7 @@ export class Connection extends Emitter {
     }
   }
 
-  private onClose(code: number): void {
+  private onClose(code: number, reason?: string): void {
     this.clearTimers();
     this.ws = null;
     if (this.intentional) {
@@ -184,6 +189,14 @@ export class Connection extends Emitter {
     //   4200–4299 retry immediately
     //   everything else (incl. network)  → retry with backoff
     if (code >= 4000 && code <= 4099) {
+      // A refused close is terminal, so the code is the only explanation the
+      // app ever gets — 4009 (the API terminated this member's connections)
+      // and 4004 (app over quota) call for very different UI. A refusal this
+      // side already reported (and then closed on) is not repeated.
+      if (!this.refusalReported) {
+        this.emit("error", { code, message: reason ?? "Connection refused" });
+      }
+      this.refusalReported = false;
       this.setState("failed");
       return;
     }

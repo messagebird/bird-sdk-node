@@ -1088,9 +1088,10 @@ export const VerificationAttemptFailureReasonSchema = {
     "soft_bounce",
     "undelivered",
     "channel_unavailable",
+    "channel_disabled",
   ],
   description:
-    "Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. Emitted reasons are `carrier_rejected` (SMS), `hard_bounce` (email, permanent bounce), `soft_bounce` (email, transient bounce such as a full mailbox), `undelivered` (a generic delivery failure), and `channel_unavailable` (the channel could not be used and the verification failed over).",
+    "Why a passcode send did not deliver. Open enum — new reasons may be added over time, so treat any unrecognized value as a future reason rather than an error. Emitted reasons are `carrier_rejected` (SMS), `hard_bounce` (email, permanent bounce), `soft_bounce` (email, transient bounce such as a full mailbox), `undelivered` (a generic delivery failure), `channel_unavailable` (the channel could not be used and the verification failed over), and `channel_disabled` (Bird has temporarily stopped sending over that channel, so the verification moved on to the next one).",
 } as const;
 
 export const EventVerifyAttemptUndeliveredDataSchema = {
@@ -11871,6 +11872,21 @@ export const EmailMessageBatchResponseSchema = {
   },
 } as const;
 
+export const EmailTemplateVersionIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^emv_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "emv_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const LanguageTagSchema = {
+  type: "string",
+  minLength: 2,
+  maxLength: 35,
+  description: "A language tag in BCP-47 form, for example `en` or `pt-BR`.",
+  example: "pt-BR",
+} as const;
+
 export const EmailMessageBatchItemSchema = {
   type: "object",
   additionalProperties: false,
@@ -11893,6 +11909,58 @@ export const EmailMessageBatchItemSchema = {
       minLength: 1,
       enum: ["marketing", "transactional"],
       description: "Resolved category for this batch item.",
+    },
+    requested_language: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/LanguageTag",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template language this item asked for, in canonical form. Null when the item named no language or used no template. Every item in a batch resolves its own template reference, so this and `resolved_language` can differ from item to item.\n",
+    },
+    resolved_language: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/LanguageTag",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template language this item was actually delivered in, in canonical form. Null when the item used no template. A value here differing from `requested_language` means the template did not carry the language asked for and its `on_missing_language` policy chose this one.\n",
+    },
+    template_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template this item rendered from, or null for an item that supplied its content inline.\n",
+    },
+    template_version_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateVersionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The exact template version this item rendered from, or null for an inline item. Record it if you need to reproduce what was sent: a template's live version changes every time you submit it.\n",
     },
   },
 } as const;
@@ -11936,14 +12004,6 @@ export const EmailMessageBatchRequestSchema = {
       text: "Thanks for your purchase! Your receipt is attached.",
     },
   ],
-} as const;
-
-export const LanguageTagSchema = {
-  type: "string",
-  minLength: 2,
-  maxLength: 35,
-  description: "A language tag in BCP-47 form, for example `en` or `pt-BR`.",
-  example: "pt-BR",
 } as const;
 
 export const EmailTemplateSendSchema = {
@@ -12440,6 +12500,58 @@ export const EmailMessageSchema = {
       readOnly: true,
       default: 0,
       description: "Total click events across all recipients.",
+    },
+    requested_language: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/LanguageTag",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template language this send asked for, in canonical form (`pt-BR` for a request of `pt-br`). Null when the send named no language (it took the template's default) or used no template at all. Compare it with `resolved_language`: when they differ, the language you asked for was not available and the template's `on_missing_language` policy chose the one shown there instead.\n",
+    },
+    resolved_language: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/LanguageTag",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template language this send was actually delivered in, in canonical form. Null when the send used no template. A non-null value with a null `requested_language` means the send named no language and took the template's default.\n",
+    },
+    template_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The template this send rendered from, or null for a send that supplied its content inline.\n",
+    },
+    template_version_id: {
+      oneOf: [
+        {
+          $ref: "#/components/schemas/EmailTemplateVersionID",
+        },
+        {
+          type: "null",
+        },
+      ],
+      readOnly: true,
+      description:
+        "The exact template version this send rendered from, or null for an inline send. A template's live version changes every time you submit it, so this is what identifies the wording that was actually delivered, together with `resolved_language`.\n",
     },
     tags: {
       type: "array",

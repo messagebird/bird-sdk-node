@@ -17,6 +17,7 @@ export const Outbound = {
   Unsubscribe: `${SYSTEM}unsubscribe`,
   Ping: `${SYSTEM}ping`,
   Pong: `${SYSTEM}pong`,
+  Signin: `${SYSTEM}signin`,
 } as const;
 
 /** Events the server sends to the client. */
@@ -25,6 +26,7 @@ export const Inbound = {
   Error: `${SYSTEM}error`,
   Ping: `${SYSTEM}ping`,
   Pong: `${SYSTEM}pong`,
+  SigninSuccess: `${SYSTEM}signin_success`,
   SubscriptionSucceeded: `${INTERNAL}subscription_succeeded`,
   SubscriptionError: `${INTERNAL}subscription_error`,
   ConnectionCount: `${INTERNAL}connection_count`,

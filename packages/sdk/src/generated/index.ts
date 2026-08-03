@@ -401,6 +401,7 @@ export type {
   EmailTemplateSend,
   EmailTemplateStatsPoint,
   EmailTemplateStatsPointWritable,
+  EmailTemplateVersionId,
   EmailThread,
   EmailThreadHighlights,
   EmailThreadList,

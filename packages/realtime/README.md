@@ -58,6 +58,31 @@ room.bind<Member>("bird:member_added", (member) => console.log("joined", member.
 
 Server subscription rejections (bad signature, capacity) arrive on the connection, not the channel — the wire carries no channel attribution — so bind `bird.connection.bind("error", …)` to observe them; an authorizer failure does emit `bird:subscription_error` on the channel.
 
+### Signing in a member
+
+`signin()` tells the edge who this connection belongs to, which is what lets the events API address a member and the disconnect API terminate them. The client POSTs `{ connection_id }` to `memberAuthEndpoint`; your server returns `{ auth, member_data }`, where `member_data` is the JSON string it signed.
+
+```ts
+const bird = new BirdRealtime({
+  appKey: "your-app-key",
+  region: "us1",
+  memberAuthEndpoint: "/bird/auth/member", // your backend
+});
+
+const member = await bird.signin();
+console.log("signed in as", member.member_id);
+
+// The API terminated this member's connections.
+bird.connection.bind("error", (e) => {
+  if (e.code === 4009) console.log("session ended elsewhere");
+});
+
+// A re-signin after a reconnect failed: still connected, but no identity.
+bird.connection.bind("signin_error", (e) => console.warn(e.message));
+```
+
+The identity lives on the connection, so it is dropped when the connection drops and re-established on the next one. Call `signin()` once. The re-signin has no promise to reject, which is what `signin_error` is for; it is a separate event from `error` so a failing member endpoint cannot disturb channel subscriptions.
+
 ### Client events
 
 On a subscribed private/presence channel you can trigger `client-` events:
@@ -83,6 +108,8 @@ Everything the SDK throws extends `BirdRealtimeError`; the default authorizer's 
 | _(none)_    | public   | no         |
 | `private-`  | private  | yes        |
 | `presence-` | presence | yes        |
+
+`signin()` adds a fourth authorized surface: it signs `<connection_id>::member::<member_data>` rather than a channel name, so a presence auth response can never be replayed as a signin.
 
 Lifecycle events you can bind to: `bird:subscription_succeeded`, `bird:subscription_error` (authorizer failures), `bird:connection_count`, and (presence) `bird:member_added` / `bird:member_removed`.
 

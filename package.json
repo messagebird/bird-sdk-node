@@ -1,5 +1,5 @@
 {
-  "name": "bird-sdk-node",
+  "name": "bird-sdk-typescript",
   "version": "0.0.0",
   "private": true,
   "description": "Workspace root for the Bird JS/TS packages mirror — not published; each package under packages/* publishes independently.",

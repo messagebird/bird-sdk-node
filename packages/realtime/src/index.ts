@@ -9,7 +9,10 @@ export type {
   ConnectionState,
   Authorizer,
   ChannelAuthResponse,
+  MemberAuthorizer,
+  MemberAuthResponse,
   Member,
+  SignedInMember,
   WebSocketLike,
   WebSocketFactory,
 } from "./types.js";

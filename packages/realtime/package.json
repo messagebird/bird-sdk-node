@@ -1,12 +1,12 @@
 {
   "name": "@messagebird/realtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bird Realtime browser client — subscribe to channels and receive events over WebSocket.",
   "license": "MIT",
   "author": "Bird",
   "homepage": "https://bird.com/docs/realtime",
   "bugs": {
-    "url": "https://github.com/messagebird/bird-sdk-node/issues"
+    "url": "https://github.com/messagebird/bird-sdk-typescript/issues"
   },
   "keywords": [
     "bird",
@@ -17,7 +17,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/messagebird/bird-sdk-node.git"
+    "url": "https://github.com/messagebird/bird-sdk-typescript.git"
   },
   "engines": {
     "node": ">=20.3.0"

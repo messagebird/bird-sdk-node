@@ -1,4 +1,4 @@
-# CI for the bird-sdk-node release mirror. Proof that the exported workspace
+# CI for the bird-sdk-typescript release mirror. Proof that the exported workspace
 # installs, builds, lints, and tests every package under packages/* with NO Bird
 # monorepo context — it runs on a GitHub-hosted runner against the checked-in
 # mirror content only.

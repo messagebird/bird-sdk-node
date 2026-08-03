@@ -166,6 +166,26 @@ export type {
 } from "./resources/realtime.js";
 export { WebhookEventType } from "./event-types.gen.js";
 export type { WebhookEventTypeValue } from "./event-types.gen.js";
+export {
+  ContactChannel,
+  EmailEventType,
+  VerificationAttemptFailureReason,
+  VerificationChannel,
+  VerificationTerminalReason,
+  WhatsAppErrorCode,
+  WhatsAppTemplateCategory,
+  WhatsAppTemplateParameterType,
+} from "./open-enums.gen.js";
+export type {
+  ContactChannelValue,
+  EmailEventTypeValue,
+  VerificationAttemptFailureReasonValue,
+  VerificationChannelValue,
+  VerificationTerminalReasonValue,
+  WhatsAppErrorCodeValue,
+  WhatsAppTemplateCategoryValue,
+  WhatsAppTemplateParameterTypeValue,
+} from "./open-enums.gen.js";
 export type {
   Mailbox,
   EmailMailboxesCreateParams,

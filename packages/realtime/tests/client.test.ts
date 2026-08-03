@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BirdRealtime } from "../src/client.js";
 import type { WebSocketLike } from "../src/connection.js";
-import type { Authorizer } from "../src/types.js";
+import type { Authorizer, MemberAuthorizer } from "../src/types.js";
 import { encode } from "../src/protocol.js";
 
 /** A fake WebSocket the test drives: records sent frames, exposes handlers. */
@@ -37,7 +37,9 @@ class FakeSocket implements WebSocketLike {
 }
 
 /** One client over a socket factory that records every socket it mints. */
-function client(extra: { authorizer?: Authorizer } = {}) {
+function client(
+  extra: { authorizer?: Authorizer; memberAuthorizer?: MemberAuthorizer } = {},
+) {
   const sockets: FakeSocket[] = [];
   const bird = new BirdRealtime({
     appKey: "app-key",
@@ -60,7 +62,9 @@ function handshake(socket: FakeSocket, connectionId = "77.1") {
   });
 }
 
-function connectedClient(extra: { authorizer?: Authorizer } = {}) {
+function connectedClient(
+  extra: { authorizer?: Authorizer; memberAuthorizer?: MemberAuthorizer } = {},
+) {
   const { bird, sockets } = client(extra);
   handshake(sockets[0]!);
   return { bird, socket: sockets[0]!, sockets };
@@ -121,6 +125,15 @@ describe("BirdRealtime", () => {
     expect(bird.connection.state).not.toBe("connected");
     expect(sockets[0]!.closed).toBe(true);
     expect(JSON.stringify(errors)).toContain("connection_id");
+
+    // A real socket delivers the close this side asked for; the refusal is
+    // already explained, so it must not be reported a second time.
+    sockets[0]!.onclose?.({
+      code: 4001,
+      reason: "handshake missing connection_id",
+    });
+    expect(errors).toHaveLength(1);
+    expect(bird.connection.state).toBe("failed");
   });
 
   it("speaks the member dialect on presence channels", async () => {
@@ -435,5 +448,197 @@ describe("subscribe lifecycle", () => {
     bird.subscribe("private-x"); // retry after failure
     await tick();
     expect(socket.subscribesFor("private-x")).toBe(1);
+  });
+  it("signs in the member and resolves with the signed identity", async () => {
+    const memberData = JSON.stringify({
+      member_id: "member-7",
+      member_info: { name: "Ada" },
+    });
+    const { bird, socket } = connectedClient({
+      memberAuthorizer: () =>
+        Promise.resolve({ auth: "key:sig", member_data: memberData }),
+    });
+
+    const pending = bird.signin();
+    await tick();
+    const frame = JSON.parse(socket.sent.at(-1)!) as {
+      event: string;
+      data: { auth: string; member_data: string };
+    };
+    expect(frame.event).toBe("bird:signin");
+    expect(frame.data).toEqual({ auth: "key:sig", member_data: memberData });
+
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await expect(pending).resolves.toEqual({
+      member_id: "member-7",
+      member_info: { name: "Ada" },
+    });
+    expect(bird.signedInMember?.member_id).toBe("member-7");
+  });
+
+  it("signs in again on a new connection, with that connection's id", async () => {
+    const seen: string[] = [];
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const { bird, socket, sockets } = connectedClient({
+      memberAuthorizer: ({ connectionId }) => {
+        seen.push(connectionId);
+        return Promise.resolve({ auth: "key:sig", member_data: memberData });
+      },
+    });
+
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await pending;
+
+    bird.disconnect();
+    expect(bird.signedInMember).toBeNull();
+    bird.connect();
+    handshake(sockets[1]!, "77.2");
+    await tick();
+
+    expect(seen).toEqual(["77.1", "77.2"]);
+    expect(sockets[1]!.sentEvents()).toContain("bird:signin");
+  });
+
+  it("rejects signin when the member authorizer fails", async () => {
+    const { bird } = connectedClient({
+      memberAuthorizer: () => Promise.reject(new Error("member auth down")),
+    });
+
+    await expect(bird.signin()).rejects.toThrow("member auth down");
+    expect(bird.signedInMember).toBeNull();
+  });
+
+  it("rejects signin when the server refuses it", async () => {
+    const { bird, socket } = connectedClient({
+      memberAuthorizer: () =>
+        Promise.resolve({
+          auth: "key:sig",
+          member_data: JSON.stringify({ member_id: "member-7" }),
+        }),
+    });
+
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:error", { code: null, message: "Invalid signature" });
+    await expect(pending).rejects.toThrow("Invalid signature");
+  });
+
+  it("reports a failed re-signin as signin_error, with no promise to reject", async () => {
+    let attempt = 0;
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const { bird, socket, sockets } = connectedClient({
+      memberAuthorizer: () => {
+        attempt += 1;
+        return attempt === 1
+          ? Promise.resolve({ auth: "key:sig", member_data: memberData })
+          : Promise.reject(new Error("session revoked"));
+      },
+    });
+
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await pending;
+
+    const signinErrors: Array<{ message?: string }> = [];
+    const errors: unknown[] = [];
+    bird.connection.bind("signin_error", (e) =>
+      signinErrors.push(e as { message?: string }),
+    );
+    bird.connection.bind("error", (e) => errors.push(e));
+    bird.disconnect();
+    bird.connect();
+    handshake(sockets[1]!, "77.2");
+    await tick();
+
+    expect(signinErrors.map((e) => e.message)).toEqual(["session revoked"]);
+    // Never on `error`: that path cancels every channel's in-flight authorize.
+    expect(errors).toEqual([]);
+    expect(bird.signedInMember).toBeNull();
+  });
+
+  it("a failed re-signin leaves channel resubscribes alone", async () => {
+    // The reported regression: after a reconnect, subscribeAll() and
+    // sendSignin() run together, so a member-auth failure that surfaced on the
+    // connection's `error` cancelled the channel authorization in flight.
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const channelGates: Array<(v: { auth: string }) => void> = [];
+    let memberAttempt = 0;
+    const { bird, socket, sockets } = connectedClient({
+      authorizer: () =>
+        new Promise((resolve) => {
+          channelGates.push(resolve);
+        }),
+      memberAuthorizer: () => {
+        memberAttempt += 1;
+        return memberAttempt === 1
+          ? Promise.resolve({ auth: "key:sig", member_data: memberData })
+          : Promise.reject(new Error("member auth down"));
+      },
+    });
+
+    const pending = bird.signin();
+    bird.subscribe("private-orders");
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    channelGates[0]!({ auth: "key:chan-sig" });
+    await pending;
+    await tick();
+    expect(socket.subscribesFor("private-orders")).toBe(1);
+
+    // Reconnect: the channel re-authorizes while the re-signin fails with no
+    // promise waiting on it.
+    bird.disconnect();
+    bird.connect();
+    handshake(sockets[1]!, "77.2");
+    await tick();
+    expect(channelGates).toHaveLength(2);
+    channelGates[1]!({ auth: "key:chan-sig-2" });
+    await tick();
+
+    expect(sockets[1]!.subscribesFor("private-orders")).toBe(1);
+  });
+
+  it("ignores an authorizer rejection that lands after a reconnect", async () => {
+    const gates: Array<(e: Error) => void> = [];
+    const { bird, sockets } = connectedClient({
+      memberAuthorizer: () =>
+        new Promise((_resolve, reject) => {
+          gates.push(reject);
+        }),
+    });
+
+    bird.signin().catch(() => {});
+    await tick();
+
+    const signinErrors: unknown[] = [];
+    bird.connection.bind("signin_error", (e) => signinErrors.push(e));
+    bird.disconnect();
+    bird.connect();
+    handshake(sockets[1]!, "77.2");
+    await tick();
+
+    // The first connection's authorization finally fails, long after its
+    // connection went away: it belongs to nobody now.
+    gates[0]!(new Error("stale failure"));
+    await tick();
+    expect(signinErrors).toEqual([]);
+  });
+
+  it("surfaces the 4009 close when the API terminates the member", async () => {
+    const { bird, socket } = connectedClient();
+    const errors: Array<{ code?: number | null; message?: string }> = [];
+    bird.connection.bind("error", (e) =>
+      errors.push(e as { code?: number | null; message?: string }),
+    );
+
+    socket.onclose?.({ code: 4009, reason: "Member connections terminated" });
+
+    expect(errors).toEqual([
+      { code: 4009, message: "Member connections terminated" },
+    ]);
+    expect(bird.connection.state).toBe("failed");
   });
 });

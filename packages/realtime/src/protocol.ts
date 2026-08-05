@@ -46,6 +46,21 @@ export const UserFacing = {
 /** Prefix reserved for client-originated events (`channel.trigger`). */
 export const CLIENT_EVENT_PREFIX = "client-";
 
+/**
+ * The edge's reserved channel family for events addressed to one signed-in
+ * member. `#` is otherwise an illegal channel character, so these names cannot
+ * be created or subscribed to as ordinary channels: the edge admits a
+ * connection only when the id in the name matches the identity it signed in as,
+ * which is why the subscribe carries no auth payload. The "user" spelling is
+ * fixed upstream and never appears in this SDK's public surface.
+ */
+export const MEMBER_CHANNEL_PREFIX = "#server-to-user-";
+
+/** The reserved channel carrying events addressed to `memberId`. */
+export function memberChannelName(memberId: string): string {
+  return `${MEMBER_CHANNEL_PREFIX}${memberId}`;
+}
+
 export interface Frame {
   event: string;
   channel?: string;

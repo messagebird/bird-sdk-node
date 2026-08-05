@@ -143,6 +143,26 @@ describe("bird.realtime routes", () => {
     );
   });
 
+  it("members.send POSTs the event to the member's events path", async () => {
+    const { fn, calls } = fakeFetch([() => new Response(null, { status: 204 })]);
+
+    await bird(fn, creds).realtime.members.send(APP, "user_42", {
+      event: "order-shipped",
+      data: { order_id: "ord_123" },
+    });
+
+    expect(calls[0].method).toBe("POST");
+    expect(new URL(calls[0].url).pathname).toBe(
+      `/v1/realtime/apps/${APP}/members/user_42/events`,
+    );
+    // No channel is named anywhere: the member is the address, and the reserved
+    // channel the edge delivers on is built server-side.
+    await expect(calls[0].json()).resolves.toEqual({
+      event: "order-shipped",
+      data: { order_id: "ord_123" },
+    });
+  });
+
   it("members.disconnect is a bodyless POST on the member's disconnect path", async () => {
     const { fn, calls } = fakeFetch([() => new Response(null, { status: 204 })]);
 

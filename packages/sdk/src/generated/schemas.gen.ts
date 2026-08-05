@@ -463,7 +463,7 @@ export const EventWhatsAppRejectedSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).",
+    "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list, the wallet had insufficient balance, or the destination is unpriced). It was not sent and not charged.",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -7427,83 +7427,6 @@ export const EmailStatsByBroadcastResponseSchema = {
   },
 } as const;
 
-export const EmailStatsSeriesPointSchema = {
-  type: "object",
-  additionalProperties: false,
-  readOnly: true,
-  description:
-    "One point in a breakdown row's trend series: the headline delivery and engagement rates for that row's dimension value over a single day or hour. Returned only when `include_trend=true`; the bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.\n",
-  required: [
-    "bucket",
-    "delivered",
-    "bounced",
-    "delivery_rate",
-    "bounce_rate",
-    "complaint_rate",
-    "open_rate",
-    "click_rate",
-  ],
-  properties: {
-    bucket: {
-      type: "string",
-      minLength: 1,
-      readOnly: true,
-      description:
-        "The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.",
-      example: {},
-    },
-    delivered: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description: "Delivered recipients in this bucket.",
-    },
-    bounced: {
-      type: "integer",
-      minimum: 0,
-      readOnly: true,
-      description: "Bounced recipients in this bucket.",
-    },
-    delivery_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.",
-    },
-    bounce_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      maximum: 1,
-      readOnly: true,
-      description:
-        "Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.",
-    },
-    complaint_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Complaint rate for this bucket, as a fraction; event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
-    },
-    open_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Open rate for this bucket, as a fraction; event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
-    },
-    click_rate: {
-      type: ["number", "null"],
-      minimum: 0,
-      readOnly: true,
-      description:
-        "Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
-    },
-  },
-} as const;
-
 export const EmailBroadcastStatsPointSchema = {
   type: "object",
   additionalProperties: false,
@@ -7543,15 +7466,6 @@ export const EmailBroadcastStatsPointSchema = {
           $ref: "#/components/schemas/EmailLatencyStats",
         },
       ],
-    },
-    trend: {
-      type: "array",
-      readOnly: true,
-      description:
-        "Per-bucket rate series for this broadcast over the window. Never returned today, because `include_trend` is not available for the broadcast breakdown (supplying it returns 422).",
-      items: {
-        $ref: "#/components/schemas/EmailStatsSeriesPoint",
-      },
     },
   },
 } as const;
@@ -8016,6 +7930,83 @@ export const EmailStatsByTemplateResponseSchema = {
       description:
         "Total number of distinct templates with activity in the period, regardless of `limit`. When it exceeds the number of rows returned, the ranking was capped; raise `limit` (up to 200) or narrow the window to see more.\n",
       example: 42,
+    },
+  },
+} as const;
+
+export const EmailStatsSeriesPointSchema = {
+  type: "object",
+  additionalProperties: false,
+  readOnly: true,
+  description:
+    "One point in a breakdown row's trend series: the headline delivery and engagement rates for that row's dimension value over a single day or hour. Returned only when `include_trend=true`; the bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.\n",
+  required: [
+    "bucket",
+    "delivered",
+    "bounced",
+    "delivery_rate",
+    "bounce_rate",
+    "complaint_rate",
+    "open_rate",
+    "click_rate",
+  ],
+  properties: {
+    bucket: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description:
+        "The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.",
+      example: {},
+    },
+    delivered: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Delivered recipients in this bucket.",
+    },
+    bounced: {
+      type: "integer",
+      minimum: 0,
+      readOnly: true,
+      description: "Bounced recipients in this bucket.",
+    },
+    delivery_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.",
+    },
+    bounce_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      maximum: 1,
+      readOnly: true,
+      description:
+        "Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.",
+    },
+    complaint_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Complaint rate for this bucket, as a fraction; event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
+    },
+    open_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Open rate for this bucket, as a fraction; event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
+    },
+    click_rate: {
+      type: ["number", "null"],
+      minimum: 0,
+      readOnly: true,
+      description:
+        "Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.",
     },
   },
 } as const;
@@ -9365,9 +9356,10 @@ export const WhatsAppEventSchema = {
         "whatsapp.delivered",
         "whatsapp.read",
         "whatsapp.failed",
+        "whatsapp.rejected",
       ],
       description:
-        "Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
+        "Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. `whatsapp.rejected`: Bird refused the message before sending it, so it was never charged. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
       example: "whatsapp.delivered",
     },
     occurred_at: {
@@ -9379,7 +9371,8 @@ export const WhatsAppEventSchema = {
     },
     error: {
       $ref: "#/components/schemas/WhatsAppError",
-      description: "Failure detail. Present only on `whatsapp.failed` events.",
+      description:
+        "Failure detail. Present only on `whatsapp.failed` and `whatsapp.rejected` events.",
     },
   },
 } as const;
@@ -9482,7 +9475,7 @@ export const WhatsAppMessageTemplateComponentParameterSchema = {
       type: "string",
       minLength: 1,
       description:
-        "For named-parameter templates: the placeholder this value fills (for example `first_name`). Omit for positional templates.",
+        "Required when the template declares named parameters: the placeholder this value fills (for example `first_name`), matching exactly one of the names the template declares. Name every parameter in that case; order does not matter once names are supplied. Omit this field for a positional template, which takes its values in `{{n}}` order instead. Sending the wrong set of names, or leaving one out that the template requires, returns a `422` `WhatsAppTemplateParameterMismatch`.\n",
     },
   },
 } as const;
@@ -9502,7 +9495,7 @@ export const WhatsAppMessageTemplateComponentSchema = {
     parameters: {
       type: "array",
       description:
-        "The values that fill this part's placeholders, in `{{n}}` placeholder order.\n",
+        "The values that fill this part's placeholders. A positional template takes them in `{{n}}` placeholder order; a template with named parameters requires each parameter's `name` to match one the template declares, and order then carries no meaning.\n",
       items: {
         $ref: "#/components/schemas/WhatsAppMessageTemplateComponentParameter",
       },
@@ -9556,7 +9549,7 @@ export const WhatsAppTemplateSendSchema = {
     components: {
       type: "array",
       description:
-        "The values that fill the template's placeholders: one entry per content block that has placeholders, each carrying its `parameters` in `{{n}}` order. Parameter counts must match the template's declared placeholders exactly, or the send returns a `422` `WhatsAppTemplateParameterMismatch`.\n",
+        "The values that fill the template's placeholders: one entry per content block that has placeholders, each carrying its `parameters`. A positional template takes its parameters in `{{n}}` order; a template with named parameters requires each parameter's `name` to match one the template declares. Either way, sending parameters that do not match what the template declares returns a `422` `WhatsAppTemplateParameterMismatch`.\n",
       items: {
         $ref: "#/components/schemas/WhatsAppMessageTemplateComponent",
       },
@@ -9572,10 +9565,12 @@ export const WhatsAppTemplateSendSchema = {
           parameters: [
             {
               type: "text",
+              name: "ref",
               text: "A1B2C3D4",
             },
             {
               type: "text",
+              name: "amount",
               text: "EUR 49.99",
             },
           ],
@@ -9672,7 +9667,7 @@ export const WhatsAppMessageStatusSchema = {
     "received",
   ],
   description:
-    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means the recipient is on the workspace's suppression list; the message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
+    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means Bird refused the message before sending it to WhatsApp, because the recipient is on the workspace's suppression list, the wallet had insufficient balance, or the destination is unpriced. A rejected message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
 } as const;
 
 export const WhatsAppTemplateCategorySchema = {
@@ -10142,6 +10137,13 @@ export const TemplateVariableSchema = {
       readOnly: true,
       description: "A human-readable description of the accepted values.",
     },
+    sensitive: {
+      type: "boolean",
+      readOnly: true,
+      default: false,
+      description:
+        "Whether this slot's value is redacted before it reaches storage. A sensitive slot's rendered value never appears in message content read back through the API: a stand-in placeholder is stored instead.\n",
+    },
   },
 } as const;
 
@@ -10524,8 +10526,8 @@ export const SMSMessageSchema = {
       type: "string",
       minLength: 1,
       description:
-        "The message body as sent. For a template send, this is the rendered text after parameter substitution.\n",
-      example: "Your verification code is 123456.",
+        "The message body as sent. For a template send, this is the rendered text after parameter substitution. When `category` is `authentication` (a message carrying a one-time code), this is `**REDACTED**`: the code still reaches the recipient, Bird just does not persist it for later reads.\n",
+      example: "Your order has shipped and is on its way.",
     },
     category: {
       oneOf: [
@@ -10997,7 +10999,7 @@ export const ContactSchema = {
           type: "object",
           additionalProperties: true,
           description:
-            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
+            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
         },
         channels: {
           type: "array",
@@ -11109,7 +11111,7 @@ export const ContactPropertyUpdateRequestSchema = {
     fallback_value: {
       maxLength: 500,
       description:
-        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters); a value of another type returns a validation error. Set to null to remove the fallback.",
+        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters); a value of another type returns a validation error. Set to null to remove the fallback.",
     },
   },
   example: {
@@ -11136,7 +11138,7 @@ export const ContactPropertyCreateRequestSchema = {
     fallback_value: {
       maxLength: 500,
       description:
-        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback; a value of another type returns a validation error.",
+        "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters), or null for no fallback; a value of another type returns a validation error.",
     },
   },
   example: {
@@ -11149,14 +11151,15 @@ export const ContactPropertyCreateRequestSchema = {
 export const ContactPropertyTypeSchema = {
   type: "string",
   minLength: 1,
-  enum: ["string", "number", "boolean"],
+  enum: ["string", "number", "boolean", "datetime"],
   "x-enum-varnames": [
     "ContactPropertyTypeString",
     "ContactPropertyTypeNumber",
     "ContactPropertyTypeBoolean",
+    "ContactPropertyTypeDatetime",
   ],
   description:
-    "The value type every contact must use for a property. Cannot be changed after creation.",
+    "The value type every contact must use for a property. Cannot be changed after creation.\n\n`datetime` values are RFC 3339 timestamps with an explicit offset (for example `2024-01-15T09:30:00Z` or `2024-01-15T11:30:00+02:00`); a bare date or a time with no offset is rejected. The value is normalized to UTC with second precision on write, so `2024-01-15T11:30:00+02:00` is stored and returned as `2024-01-15T09:30:00Z`, and any fractional seconds are dropped.\n",
 } as const;
 
 export const ContactPropertyListSchema = {
@@ -11213,7 +11216,7 @@ export const ContactPropertySchema = {
         fallback_value: {
           maxLength: 500,
           description:
-            "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.",
+            "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters), or null when no fallback is set.",
         },
         archived: {
           type: "boolean",
@@ -11326,7 +11329,7 @@ export const ContactUpdateRequestSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); writing an unregistered or archived key returns a validation error. The merged result is capped at 2 KB serialized.\n",
+        "Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters); writing an unregistered or archived key returns a validation error. The merged result is capped at 2 KB serialized.\n",
     },
   },
   example: {
@@ -11483,7 +11486,7 @@ export const ContactCreateRequestSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); a null value is ignored. Unregistered or archived keys are rejected with a validation error. Total size is capped at 2 KB serialized.\n",
+        "Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters); a null value is ignored. Unregistered or archived keys are rejected with a validation error. Total size is capped at 2 KB serialized.\n",
     },
   },
   example: {
@@ -11509,7 +11512,7 @@ export const ContactListSchema = {
       },
     },
     {
-      $ref: "#/components/schemas/_ListEnvelope",
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
     },
   ],
 } as const;
@@ -12043,7 +12046,7 @@ export const EmailTemplateSendSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Send everything the template's `variables` lists rather than only what you expect the chosen language to use: languages need not reference the same variables, and a value no language uses is ignored. Cap: 16 KB serialized.\n",
+        'Values for the template\'s variables, keyed by variable name. A token with no matching value renders empty. Nest values to fill dotted tokens: `{"contact": {"first_name": "Ada"}}` fills `{{ contact.first_name }}`. Send everything the template\'s `variables` lists rather than only what you expect the chosen language to use: languages need not reference the same variables, and a value no language uses is ignored. Cap: 16 KB serialized.\n',
       example: {
         first_name: "Ada",
       },
@@ -12572,7 +12575,7 @@ export const EmailMessageSchema = {
       additionalProperties: true,
       readOnly: true,
       description:
-        "The substitution values this send supplied, or null for a send that carried its content inline. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.\n",
+        "The substitution values this send supplied, whether inline or from a template, or null if none were supplied. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.\n",
     },
     attachments: {
       type: "array",
@@ -12631,6 +12634,98 @@ export const EmailMessageSchema = {
         "When this message is scheduled to send, for a send created with a future send time. Null for an immediate send. Stays set after the scheduled send fires.",
     },
   },
+} as const;
+
+export const RealtimeAppKeyListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "The app's keys, oldest first. Revoked keys are excluded unless include_revoked=true.",
+      items: {
+        $ref: "#/components/schemas/RealtimeAppKey",
+      },
+    },
+  },
+} as const;
+
+export const RealtimeAppKeyIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^rak_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "rak_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const RealtimeAppKeySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "key", "revoked_at", "created_at"],
+  properties: {
+    id: {
+      readOnly: true,
+      $ref: "#/components/schemas/RealtimeAppKeyID",
+    },
+    key: {
+      type: "string",
+      minLength: 1,
+      readOnly: true,
+      description: "The public app key clients use to connect.",
+      example: "d0e95a856ddc1b09d4c8",
+    },
+    secret: {
+      type: "string",
+      readOnly: true,
+      "x-sensitive": true,
+      description:
+        "The key secret, used for server-side request signing. Returned only when the key is created, and never shown again — store it securely. If lost, create a new key and revoke this one.",
+      example: "862925e1991a8b6902f9",
+    },
+    revoked_at: {
+      type: ["string", "null"],
+      format: "date-time",
+      readOnly: true,
+      description: "When the key was revoked, or null if still active.",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      minLength: 1,
+      readOnly: true,
+    },
+  },
+} as const;
+
+export const RealtimeMemberPublishSchema = {
+  type: "object",
+  additionalProperties: false,
+  description:
+    "An event addressed to one member rather than to a channel. Every connection that member currently holds receives it; if they hold none, the event is dropped.",
+  required: ["event"],
+  properties: {
+    event: {
+      $ref: "#/components/schemas/RealtimeEventName",
+    },
+    data: {
+      $ref: "#/components/schemas/RealtimeEventData",
+    },
+  },
+} as const;
+
+export const RealtimeEventDataSchema = {
+  description:
+    "Arbitrary JSON payload delivered as the event data — an object, array, or scalar. Cap: 10 KB serialized.",
+} as const;
+
+export const RealtimeEventNameSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: 200,
+  description:
+    "The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.",
+  example: "order-updated",
 } as const;
 
 export const RealtimeChannelMembersSchema = {
@@ -12829,20 +12924,6 @@ export const RealtimeExcludeConnectionIdSchema = {
     "Exclude this connection from delivery, to avoid echoing a change back to the client that triggered it. The value is the client's connection id, assigned when its connection is established.",
 } as const;
 
-export const RealtimeEventDataSchema = {
-  description:
-    "Arbitrary JSON payload delivered as the event data — an object, array, or scalar. Cap: 10 KB serialized.",
-} as const;
-
-export const RealtimeEventNameSchema = {
-  type: "string",
-  minLength: 1,
-  maxLength: 200,
-  description:
-    "The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.",
-  example: "order-updated",
-} as const;
-
 export const RealtimeBatchEventSchema = {
   type: "object",
   additionalProperties: false,
@@ -12929,11 +13010,277 @@ export const RealtimePublishSchema = {
   },
 } as const;
 
+export const RealtimeAppUpdateSchema = {
+  description:
+    "Mutable Realtime app fields. Omitted fields are left unchanged. Region is immutable and TLS is always enforced, so neither appears here.",
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      example: "chat-production",
+    },
+    client_events: {
+      type: "boolean",
+      description: "Allow clients to trigger events directly (client events).",
+    },
+    connection_counting: {
+      type: "boolean",
+      description:
+        "Count the connections subscribed to each channel and expose the count on channel queries.",
+    },
+    connection_count_events: {
+      type: "boolean",
+      description:
+        "Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.",
+    },
+    authorized_connections: {
+      type: "boolean",
+      description: "Require every connection to be authorized.",
+    },
+  },
+} as const;
+
+export const RealtimeAppCreatedSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/RealtimeApp",
+    },
+    {
+      type: "object",
+      required: ["key"],
+      properties: {
+        key: {
+          readOnly: true,
+          description:
+            "The app's initial key, including its one-time secret. Present in this create response only; the secret is never returned again.",
+          allOf: [
+            {
+              $ref: "#/components/schemas/RealtimeAppKey",
+            },
+          ],
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RegionSchema = {
+  type: "string",
+  minLength: 1,
+  enum: ["us1", "eu1"],
+  description: "Deployment region identifier.",
+  example: "us1",
+} as const;
+
 export const RealtimeAppIDSchema = {
   type: "string",
   minLength: 1,
   pattern: "^rap_[0-9a-hjkmnp-tv-z]{26}$",
   example: "rap_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
+export const RealtimeAppSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/Timestamps",
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "id",
+        "app_id",
+        "name",
+        "region",
+        "client_events",
+        "connection_counting",
+        "connection_count_events",
+        "authorized_connections",
+        "status",
+      ],
+      properties: {
+        client_events: {
+          type: "boolean",
+          description:
+            "Allow clients to trigger events directly (client events).",
+        },
+        connection_counting: {
+          type: "boolean",
+          description:
+            "Count the connections subscribed to each channel and expose the count on channel queries.",
+        },
+        connection_count_events: {
+          type: "boolean",
+          description:
+            "Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.",
+        },
+        authorized_connections: {
+          type: "boolean",
+          description: "Require every connection to be authorized.",
+        },
+        id: {
+          readOnly: true,
+          $ref: "#/components/schemas/RealtimeAppID",
+        },
+        app_id: {
+          type: "integer",
+          format: "int64",
+          readOnly: true,
+          description:
+            "The numeric Realtime app id. Use it together with a key and secret to initialize a Realtime client/server SDK. Immutable.",
+          example: 432557,
+        },
+        name: {
+          type: "string",
+          minLength: 1,
+          example: "chat-production",
+        },
+        region: {
+          allOf: [
+            {
+              $ref: "#/components/schemas/Region",
+            },
+          ],
+          description:
+            "The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.",
+        },
+        status: {
+          type: "string",
+          minLength: 1,
+          readOnly: true,
+          enum: ["active", "suspended"],
+          description:
+            "Lifecycle state of the app. `active` apps serve connections; `suspended` apps are provisioned but reject connections.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RealtimeAppCreateSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/RealtimeAppConfig",
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["name", "region"],
+      properties: {
+        name: {
+          type: "string",
+          minLength: 1,
+          maxLength: 100,
+          example: "chat-production",
+        },
+        region: {
+          allOf: [
+            {
+              $ref: "#/components/schemas/Region",
+            },
+          ],
+          description:
+            "The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.",
+        },
+        client_events: {
+          type: "boolean",
+          default: false,
+        },
+        connection_counting: {
+          type: "boolean",
+          default: false,
+        },
+        connection_count_events: {
+          type: "boolean",
+          default: false,
+        },
+        authorized_connections: {
+          type: "boolean",
+          default: false,
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RealtimeAppConfigSchema = {
+  type: "object",
+  description:
+    "Realtime app configuration flags. TLS is always enforced (non-TLS client connections are rejected) and is not configurable.",
+  properties: {
+    client_events: {
+      type: "boolean",
+      description: "Allow clients to trigger events directly (client events).",
+    },
+    connection_counting: {
+      type: "boolean",
+      description:
+        "Count the connections subscribed to each channel and expose the count on channel queries.",
+    },
+    connection_count_events: {
+      type: "boolean",
+      description:
+        "Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.",
+    },
+    authorized_connections: {
+      type: "boolean",
+      description: "Require every connection to be authorized.",
+    },
+  },
+} as const;
+
+export const RealtimeAppListSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/RealtimeApp",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
+} as const;
+
+export const RealtimeRegionListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description: "The regions a Realtime app can be created in.",
+      items: {
+        $ref: "#/components/schemas/RealtimeRegion",
+      },
+    },
+  },
+} as const;
+
+export const RealtimeRegionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: {
+      allOf: [
+        {
+          $ref: "#/components/schemas/Region",
+        },
+      ],
+      description: "Region identifier to pass as a Realtime app's region.",
+    },
+  },
 } as const;
 
 export const DocsPageSchema = {
@@ -13434,7 +13781,7 @@ export const EventWhatsAppRejectedWritableSchema = {
   type: "object",
   additionalProperties: false,
   description:
-    "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).",
+    "Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list, the wallet had insufficient balance, or the destination is unpriced). It was not sent and not charged.",
   required: ["type", "timestamp", "data"],
   properties: {
     type: {
@@ -15078,7 +15425,8 @@ export const WhatsAppEventWritableSchema = {
   properties: {
     error: {
       $ref: "#/components/schemas/WhatsAppErrorWritable",
-      description: "Failure detail. Present only on `whatsapp.failed` events.",
+      description:
+        "Failure detail. Present only on `whatsapp.failed` and `whatsapp.rejected` events.",
     },
   },
 } as const;
@@ -15226,8 +15574,8 @@ export const SMSMessageWritableSchema = {
       type: "string",
       minLength: 1,
       description:
-        "The message body as sent. For a template send, this is the rendered text after parameter substitution.\n",
-      example: "Your verification code is 123456.",
+        "The message body as sent. For a template send, this is the rendered text after parameter substitution. When `category` is `authentication` (a message carrying a one-time code), this is `**REDACTED**`: the code still reaches the recipient, Bird just does not persist it for later reads.\n",
+      example: "Your order has shipped and is on its way.",
     },
     category: {
       oneOf: [
@@ -15363,7 +15711,7 @@ export const ContactWritableSchema = {
           type: "object",
           additionalProperties: true,
           description:
-            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
+            "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
         },
       },
     },
@@ -15422,7 +15770,7 @@ export const ContactPropertyWritableSchema = {
         fallback_value: {
           maxLength: 500,
           description:
-            "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.",
+            "Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters), or null when no fallback is set.",
         },
       },
     },
@@ -15501,7 +15849,7 @@ export const ContactListWritableSchema = {
       },
     },
     {
-      $ref: "#/components/schemas/_ListEnvelope",
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
     },
   ],
 } as const;
@@ -15854,6 +16202,19 @@ export const EmailMessageWritableSchema = {
   },
 } as const;
 
+export const RealtimeAppKeyListWritableSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["data"],
+  properties: {
+    data: {
+      type: "array",
+      description:
+        "The app's keys, oldest first. Revoked keys are excluded unless include_revoked=true.",
+    },
+  },
+} as const;
+
 export const RealtimeBatchPublishResultWritableSchema = {
   type: "object",
   additionalProperties: false,
@@ -15866,6 +16227,86 @@ export const RealtimePublishResultWritableSchema = {
   additionalProperties: false,
   description:
     "The result of a Realtime publish. The event was accepted and fanned out to the requested channels; delivery to connected clients is asynchronous.\n",
+} as const;
+
+export const RealtimeAppCreatedWritableSchema = {
+  allOf: [
+    {
+      $ref: "#/components/schemas/RealtimeAppWritable",
+    },
+  ],
+} as const;
+
+export const RealtimeAppWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "name",
+        "region",
+        "client_events",
+        "connection_counting",
+        "connection_count_events",
+        "authorized_connections",
+      ],
+      properties: {
+        client_events: {
+          type: "boolean",
+          description:
+            "Allow clients to trigger events directly (client events).",
+        },
+        connection_counting: {
+          type: "boolean",
+          description:
+            "Count the connections subscribed to each channel and expose the count on channel queries.",
+        },
+        connection_count_events: {
+          type: "boolean",
+          description:
+            "Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.",
+        },
+        authorized_connections: {
+          type: "boolean",
+          description: "Require every connection to be authorized.",
+        },
+        name: {
+          type: "string",
+          minLength: 1,
+          example: "chat-production",
+        },
+        region: {
+          allOf: [
+            {
+              $ref: "#/components/schemas/Region",
+            },
+          ],
+          description:
+            "The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.",
+        },
+      },
+    },
+  ],
+} as const;
+
+export const RealtimeAppListWritableSchema = {
+  allOf: [
+    {
+      type: "object",
+      required: ["data"],
+      properties: {
+        data: {
+          type: "array",
+          items: {
+            $ref: "#/components/schemas/RealtimeAppWritable",
+          },
+        },
+      },
+    },
+    {
+      $ref: "#/components/schemas/_ListEnvelopeWithTotal",
+    },
+  ],
 } as const;
 
 export const ErrorWritableSchema = {

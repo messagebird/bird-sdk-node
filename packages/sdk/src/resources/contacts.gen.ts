@@ -13,7 +13,7 @@ export type ContactBatchParams = NonNullable<CreateContactBatchData["body"]>;
 
 export class ContactsResource extends Resource {
   /**
-   * List the workspace's contacts as a cursor page, newest first. Look one up by exact email or external_id, or search by email substring.
+   * List the workspace's contacts as a cursor page, newest first. Look one up by exact email or external_id, or search by email/name substring. Pass include_total for a total count.
    *
    * @example Iterate every contact, or take one page
    * for await (const contact of bird.contacts.list({ q: "acme.com" })) {

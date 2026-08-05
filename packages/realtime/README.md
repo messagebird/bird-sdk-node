@@ -83,6 +83,20 @@ bird.connection.bind("signin_error", (e) => console.warn(e.message));
 
 The identity lives on the connection, so it is dropped when the connection drops and re-established on the next one. Call `signin()` once. The re-signin has no promise to reject, which is what `signin_error` is for; it is a separate event from `error` so a failing member endpoint cannot disturb channel subscriptions.
 
+### Events addressed to a member
+
+Your server can send an event to a member rather than to a channel, reaching every connection that member holds. Once `signin()` succeeds the client subscribes to the member's reserved channel automatically; bind on `bird.member`:
+
+```ts
+await bird.signin();
+
+bird.member.bind("order.shipped", (data) => {
+  console.log("your order moved", data);
+});
+```
+
+Delivery is tied to the identity, not to the page: after a reconnect the client signs in again and resubscribes, and while a connection has no identity nothing arrives. Publish with [`bird.realtime.members.send(...)`](https://bird.com/docs/api/reference/send-realtime-app-member-event) from the server SDK.
+
 ### Client events
 
 On a subscribed private/presence channel you can trigger `client-` events:

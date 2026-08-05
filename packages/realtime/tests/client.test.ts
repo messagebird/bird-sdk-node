@@ -525,6 +525,128 @@ describe("subscribe lifecycle", () => {
     await expect(pending).rejects.toThrow("Invalid signature");
   });
 
+  it("subscribes the member channel once signed in and delivers its events", async () => {
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const { bird, socket } = connectedClient({
+      memberAuthorizer: () =>
+        Promise.resolve({ auth: "key:sig", member_data: memberData }),
+    });
+
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await pending;
+    await tick();
+
+    // The subscribe carries no auth payload: the edge authorizes this channel by
+    // the signed-in identity, not a signature.
+    const subscribe = socket.sent
+      .map(
+        (raw) =>
+          JSON.parse(raw) as { event: string; data?: Record<string, unknown> },
+      )
+      .find(
+        (f) =>
+          f.event === "bird:subscribe" &&
+          String(f.data?.channel).startsWith("#server-to-user-"),
+      );
+    expect(subscribe?.data).toEqual({ channel: "#server-to-user-member-7" });
+
+    const received: unknown[] = [];
+    bird.member.bind("order.shipped", (d) => received.push(d));
+    socket.deliver(
+      "bird_internal:subscription_succeeded",
+      {},
+      "#server-to-user-member-7",
+    );
+    socket.deliver("order.shipped", { id: 42 }, "#server-to-user-member-7");
+
+    expect(received).toEqual([{ id: 42 }]);
+  });
+
+  it("keeps protocol frames off the member emitter", async () => {
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const { bird, socket } = connectedClient({
+      memberAuthorizer: () =>
+        Promise.resolve({ auth: "key:sig", member_data: memberData }),
+    });
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await pending;
+    await tick();
+
+    const seen: string[] = [];
+    bird.member.bindGlobal((_d, event) => seen.push(String(event)));
+    const channel = "#server-to-user-member-7";
+    socket.deliver("bird_internal:subscription_succeeded", {}, channel);
+    socket.deliver(
+      "bird_internal:connection_count",
+      { connection_count: 2 },
+      channel,
+    );
+    socket.deliver("payment.failed", { id: 1 }, channel);
+
+    expect(seen).toEqual(["payment.failed"]);
+  });
+
+  it("does not deliver another member's events", async () => {
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const { bird, socket } = connectedClient({
+      memberAuthorizer: () =>
+        Promise.resolve({ auth: "key:sig", member_data: memberData }),
+    });
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await pending;
+    await tick();
+
+    const received: unknown[] = [];
+    bird.member.bind("order.shipped", (d) => received.push(d));
+    // A frame for a different member's reserved channel: not ours, so it must
+    // not reach our emitter even though the event name matches.
+    socket.deliver("order.shipped", { id: 9 }, "#server-to-user-member-8");
+
+    expect(received).toEqual([]);
+  });
+
+  it("re-subscribes the member channel on the next connection's signin", async () => {
+    const memberData = JSON.stringify({ member_id: "member-7" });
+    const { bird, socket, sockets } = connectedClient({
+      memberAuthorizer: () =>
+        Promise.resolve({ auth: "key:sig", member_data: memberData }),
+    });
+    const pending = bird.signin();
+    await tick();
+    socket.deliver("bird:signin_success", { member_data: memberData });
+    await pending;
+    await tick();
+
+    bird.disconnect();
+    // The old channel is forgotten with the connection, so a late frame on it
+    // cannot reach the emitter.
+    const received: unknown[] = [];
+    bird.member.bind("order.shipped", (d) => received.push(d));
+    socket.deliver("order.shipped", { id: 1 }, "#server-to-user-member-7");
+    expect(received).toEqual([]);
+
+    bird.connect();
+    handshake(sockets[1]!, "77.2");
+    await tick();
+    sockets[1]!.deliver("bird:signin_success", { member_data: memberData });
+    await tick();
+
+    expect(sockets[1]!.subscribesFor("#server-to-user-member-7")).toBe(1);
+    sockets[1]!.deliver(
+      "bird_internal:subscription_succeeded",
+      {},
+      "#server-to-user-member-7",
+    );
+    sockets[1]!.deliver("order.shipped", { id: 2 }, "#server-to-user-member-7");
+    expect(received).toEqual([{ id: 2 }]);
+  });
+
   it("reports a failed re-signin as signin_error, with no promise to reject", async () => {
     let attempt = 0;
     const memberData = JSON.stringify({ member_id: "member-7" });

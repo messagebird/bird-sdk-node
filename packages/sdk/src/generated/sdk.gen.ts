@@ -234,6 +234,9 @@ import type {
   ResumeMailboxData,
   ResumeMailboxErrors,
   ResumeMailboxResponses,
+  SendRealtimeAppMemberEventData,
+  SendRealtimeAppMemberEventErrors,
+  SendRealtimeAppMemberEventResponses,
   SendWhatsAppMessageData,
   SendWhatsAppMessageErrors,
   SendWhatsAppMessageResponses,
@@ -450,6 +453,38 @@ export const disconnectRealtimeAppMember = <
   });
 
 /**
+ * Send an event to a member
+ *
+ * Delivers an event to one member of a Realtime app, addressing the person rather than a channel. Every connection that member currently holds receives it, across tabs and devices, so there is no need to track their connections or give them a channel of their own.
+ * The member must have signed in on the connection for it to be addressable. Delivery is best-effort and not queued: a member holding no connections at the moment of the call simply does not receive the event.
+ */
+export const sendRealtimeAppMemberEvent = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<SendRealtimeAppMemberEventData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SendRealtimeAppMemberEventResponses,
+    SendRealtimeAppMemberEventErrors,
+    ThrowOnError
+  >({
+    security: [
+      { scheme: "bearer", type: "http" },
+      {
+        in: "cookie",
+        name: "bird_session",
+        type: "apiKey",
+      },
+    ],
+    url: "/v1/realtime/apps/{realtime_app_id}/members/{member_id}/events",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
  * List messages
  *
  * Returns the workspace's sent and scheduled messages, newest first, as a cursor page. Each item carries the aggregate delivery `status` and per-state recipient counts, not the message body. Combine filters to narrow the page: `status`, `category`, `tag`, exact `to`/`from` address, and a `created_after`/`created_before` time window.
@@ -476,7 +511,7 @@ export const listEmailMessages = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Send a message
+ * Send an email message
  *
  * Sends an email to the recipients you list explicitly in `to`/`cc`/`bcc`. Use it for
  * transactional sends (receipts, password resets, alerts) and for marketing sends where
@@ -605,7 +640,7 @@ export const cancelEmailMessage = <ThrowOnError extends boolean = false>(
 /**
  * List contacts
  *
- * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email` or `external_id`, or search by email substring with `q`.
+ * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email` or `external_id`, or search by email, first name, or last name substring with `q`. Pass `include_total=true` to add the total number of matching contacts to the response.
  *
  */
 export const listContacts = <ThrowOnError extends boolean = false>(

@@ -40,6 +40,8 @@ export class EmailMailboxesResource extends Resource {
   }
 
   /**
+   * Read one mailbox by id. A mailbox deleted within its 30-day restore window is still returned, carrying a non-null `deleted_at`; once that window closes it is gone and this returns 404.
+   *
    * @example Get a mailbox
    * const mailbox = await bird.email.mailboxes.get("mbx_01abc");
    * console.log(mailbox.state); // "active"
@@ -99,6 +101,8 @@ export class EmailMailboxesResource extends Resource {
   }
 
   /**
+   * Read a mailbox's sent and received email statistics over a window: a period summary plus a bucketed series. Rows are bucketed by event time rather than send time, so engagement that arrived during the period for messages sent earlier is counted here. Both window bounds must use the same form, calendar days or RFC 3339 instants, matching the granularity.
+   *
    * @example Get mailbox stats
    * const stats = await bird.email.mailboxes.stats("mbx_01abc");
    * console.log(stats.summary?.sends_accepted);

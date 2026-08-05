@@ -1,6 +1,6 @@
 {
   "name": "@messagebird/realtime",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Bird Realtime browser client — subscribe to channels and receive events over WebSocket.",
   "license": "MIT",
   "author": "Bird",

@@ -13,6 +13,7 @@ import {
   listRealtimeAppChannels,
   publishRealtimeAppBatch,
   publishRealtimeAppEvent,
+  sendRealtimeAppMemberEvent,
 } from "../generated/sdk.gen.js";
 import type {
   GetRealtimeAppChannelData,
@@ -25,6 +26,7 @@ import type {
   RealtimeChannelMember,
   RealtimeChannelMembers,
   RealtimeChannelsList,
+  RealtimeMemberPublish,
   RealtimePublish,
   RealtimePublishResult,
 } from "../generated/types.gen.js";
@@ -50,6 +52,8 @@ export type { RealtimeChannelInclude };
 
 /** Body for `bird.realtime.publish` — one event to one or more channels. */
 export type RealtimePublishParams = RealtimePublish;
+/** Params for `bird.realtime.members.send` — the event and its payload. */
+export type RealtimeMemberSendParams = RealtimeMemberPublish;
 /** Body for `bird.realtime.publishBatch` — up to 10 events, one channel each. */
 export type RealtimeBatchPublishParams = RealtimeBatchPublish;
 /** Query params for `bird.realtime.channels.list`. */
@@ -224,6 +228,39 @@ export class RealtimeChannelsResource extends RealtimeBase {
 /** `bird.realtime.members` — acts on a member across all of its connections. */
 export class RealtimeMembersResource extends RealtimeBase {
   /**
+   * Send an event to one member instead of to a channel. Every connection that
+   * member currently holds receives it, across tabs and devices, so there is no
+   * need to track their connections or give them a channel of their own. The
+   * member must have signed in on the connection to be addressable.
+   *
+   * Delivery is best-effort: a member holding no connections right now simply
+   * does not receive the event, and that is not reported back.
+   *
+   * @example Notify one person wherever they are signed in
+   * await bird.realtime.members.send("rap_01krdgeqcxet5s7t44vh8rt9mg", "user_42", {
+   *   event: "order-shipped",
+   *   data: { order_id: "ord_123" },
+   * });
+   */
+  send(
+    appId: string,
+    memberId: string,
+    params: RealtimeMemberSendParams,
+    options?: RealtimeRequestOptions,
+  ): APIPromise<void> {
+    const auth = this.auth(options);
+    return this.call<void>("POST", options, ({ signal, headers }) =>
+      sendRealtimeAppMemberEvent({
+        client: this.client,
+        path: { realtime_app_id: appId, member_id: memberId },
+        body: params,
+        headers: { ...headers, ...auth },
+        signal,
+      }),
+    );
+  }
+
+  /**
    * Disconnect every active connection a member holds — sign-out, ban, or a
    * revoked session. Resolves once the disconnect is applied; the member may
    * reconnect immediately unless your authorization endpoint refuses them.
@@ -258,7 +295,7 @@ export class RealtimeResource extends RealtimeBase {
   /** Channel state — `bird.realtime.channels.list(...)`, `.get(...)`, `.members(...)`. */
   readonly channels: RealtimeChannelsResource;
 
-  /** Members — `bird.realtime.members.disconnect(...)`. */
+  /** Members — `bird.realtime.members.send(...)`, `.disconnect(...)`. */
   readonly members: RealtimeMembersResource;
 
   constructor(

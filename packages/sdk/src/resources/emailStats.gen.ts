@@ -264,7 +264,7 @@ export class EmailStatsResource extends Resource {
   }
 
   /**
-   * Email delivery and engagement stats grouped by broadcast; only broadcast sends appear. Reflects roughly the last 30 days of activity; `include_trend` is not available here and returns 422.
+   * Email delivery and engagement stats grouped by broadcast; only broadcast sends appear. Reflects roughly the last 30 days of activity.
    *
    * @example 
    * const { data } = await bird.email.stats.byBroadcast({

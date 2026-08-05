@@ -296,7 +296,7 @@ export type WhatsAppError = {
 } | null;
 
 /**
- * Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).
+ * Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list, the wallet had insufficient balance, or the destination is unpriced). It was not sent and not charged.
  */
 export type EventWhatsAppRejected = {
   /**
@@ -4171,45 +4171,6 @@ export type EmailStatsByBroadcastResponse = {
 };
 
 /**
- * One point in a breakdown row's trend series: the headline delivery and engagement rates for that row's dimension value over a single day or hour. Returned only when `include_trend=true`; the bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.
- *
- */
-export type EmailStatsSeriesPoint = {
-  /**
-   * The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.
-   */
-  readonly bucket: string;
-  /**
-   * Delivered recipients in this bucket.
-   */
-  readonly delivered: number;
-  /**
-   * Bounced recipients in this bucket.
-   */
-  readonly bounced: number;
-  /**
-   * Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
-   */
-  readonly delivery_rate: number | null;
-  /**
-   * Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
-   */
-  readonly bounce_rate: number | null;
-  /**
-   * Complaint rate for this bucket, as a fraction; event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
-   */
-  readonly complaint_rate: number | null;
-  /**
-   * Open rate for this bucket, as a fraction; event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
-   */
-  readonly open_rate: number | null;
-  /**
-   * Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
-   */
-  readonly click_rate: number | null;
-};
-
-/**
  * Aggregate delivery, engagement, and latency stats for the messages of a single broadcast over the requested period.
  */
 export type EmailBroadcastStatsPoint = {
@@ -4220,10 +4181,6 @@ export type EmailBroadcastStatsPoint = {
   readonly delivery: EmailDeliveryStats;
   readonly engagement: EmailEngagementStats;
   readonly latency: EmailLatencyStats;
-  /**
-   * Per-bucket rate series for this broadcast over the window. Never returned today, because `include_trend` is not available for the broadcast breakdown (supplying it returns 422).
-   */
-  readonly trend?: Array<EmailStatsSeriesPoint>;
 };
 
 /**
@@ -4487,6 +4444,45 @@ export type EmailStatsByTemplateResponse = {
    *
    */
   readonly total: number;
+};
+
+/**
+ * One point in a breakdown row's trend series: the headline delivery and engagement rates for that row's dimension value over a single day or hour. Returned only when `include_trend=true`; the bucket grain (day or hour) follows the `trend_grain` parameter. Counts and rates are approximate at scale.
+ *
+ */
+export type EmailStatsSeriesPoint = {
+  /**
+   * The day (YYYY-MM-DD) or hour (ISO 8601, on the hour) this point covers, matching the requested `trend_grain`.
+   */
+  readonly bucket: string;
+  /**
+   * Delivered recipients in this bucket.
+   */
+  readonly delivered: number;
+  /**
+   * Bounced recipients in this bucket.
+   */
+  readonly bounced: number;
+  /**
+   * Delivery rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
+   */
+  readonly delivery_rate: number | null;
+  /**
+   * Bounce rate for this bucket, as a fraction. Null when nothing was delivered or bounced.
+   */
+  readonly bounce_rate: number | null;
+  /**
+   * Complaint rate for this bucket, as a fraction; event-time attribution can push it above 1 when complaints outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row complaints are not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
+   */
+  readonly complaint_rate: number | null;
+  /**
+   * Open rate for this bucket, as a fraction; event-time attribution can push it above 1 when opens outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
+   */
+  readonly open_rate: number | null;
+  /**
+   * Click rate for this bucket, as a fraction; event-time attribution can push it above 1 when clicks outrun the bucket's deliveries. Null when nothing was delivered in the bucket. On a sending-IP row engagement is not attributed to the IP, so this reads 0 in buckets that had deliveries and null in buckets that had none.
+   */
+  readonly click_rate: number | null;
 };
 
 export type EmailTemplateId = string;
@@ -5109,7 +5105,7 @@ export type WhatsAppEvent = {
    */
   readonly id: WhatsAppEventId;
   /**
-   * Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.
+   * Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. `whatsapp.rejected`: Bird refused the message before sending it, so it was never charged. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.
    *
    */
   readonly type: string;
@@ -5118,7 +5114,7 @@ export type WhatsAppEvent = {
    */
   readonly occurred_at: string;
   /**
-   * Failure detail. Present only on `whatsapp.failed` events.
+   * Failure detail. Present only on `whatsapp.failed` and `whatsapp.rejected` events.
    */
   error?: WhatsAppError;
 };
@@ -5164,7 +5160,8 @@ export type WhatsAppMessageTemplateComponentParameter = {
    */
   text: string;
   /**
-   * For named-parameter templates: the placeholder this value fills (for example `first_name`). Omit for positional templates.
+   * Required when the template declares named parameters: the placeholder this value fills (for example `first_name`), matching exactly one of the names the template declares. Name every parameter in that case; order does not matter once names are supplied. Omit this field for a positional template, which takes its values in `{{n}}` order instead. Sending the wrong set of names, or leaving one out that the template requires, returns a `422` `WhatsAppTemplateParameterMismatch`.
+   *
    */
   name?: string;
 };
@@ -5176,7 +5173,7 @@ export type WhatsAppMessageTemplateComponent = {
    */
   type: string;
   /**
-   * The values that fill this part's placeholders, in `{{n}}` placeholder order.
+   * The values that fill this part's placeholders. A positional template takes them in `{{n}}` placeholder order; a template with named parameters requires each parameter's `name` to match one the template declares, and order then carries no meaning.
    *
    */
   parameters?: Array<WhatsAppMessageTemplateComponentParameter>;
@@ -5204,7 +5201,7 @@ export type WhatsAppTemplateSend = {
    */
   language?: WhatsAppLanguage;
   /**
-   * The values that fill the template's placeholders: one entry per content block that has placeholders, each carrying its `parameters` in `{{n}}` order. Parameter counts must match the template's declared placeholders exactly, or the send returns a `422` `WhatsAppTemplateParameterMismatch`.
+   * The values that fill the template's placeholders: one entry per content block that has placeholders, each carrying its `parameters`. A positional template takes its parameters in `{{n}}` order; a template with named parameters requires each parameter's `name` to match one the template declares. Either way, sending parameters that do not match what the template declares returns a `422` `WhatsAppTemplateParameterMismatch`.
    *
    */
   components?: Array<WhatsAppMessageTemplateComponent>;
@@ -5234,7 +5231,7 @@ export type Money = {
 };
 
 /**
- * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means the recipient is on the workspace's suppression list; the message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).
+ * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means Bird refused the message before sending it to WhatsApp, because the recipient is on the workspace's suppression list, the wallet had insufficient balance, or the destination is unpriced. A rejected message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).
  *
  */
 export type WhatsAppMessageStatus =
@@ -5466,6 +5463,11 @@ export type TemplateVariable = {
    * A human-readable description of the accepted values.
    */
   readonly constraint: string;
+  /**
+   * Whether this slot's value is redacted before it reaches storage. A sensitive slot's rendered value never appears in message content read back through the API: a stand-in placeholder is stored instead.
+   *
+   */
+  readonly sensitive?: boolean;
 };
 
 /**
@@ -5662,7 +5664,7 @@ export type SmsMessage = {
    */
   from: string;
   /**
-   * The message body as sent. For a template send, this is the rendered text after parameter substitution.
+   * The message body as sent. For a template send, this is the rendered text after parameter substitution. When `category` is `authentication` (a message carrying a one-time code), this is `**REDACTED**`: the code still reaches the recipient, Bird just does not persist it for later reads.
    *
    */
   text: string;
@@ -5914,7 +5916,7 @@ export type Contact = {
    */
   external_id?: string | null;
   /**
-   * Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.
+   * Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.
    *
    */
   data?: {
@@ -5968,7 +5970,7 @@ export type AudienceCreateRequest = {
 
 export type ContactPropertyUpdateRequest = {
   /**
-   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters); a value of another type returns a validation error. Set to null to remove the fallback.
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters); a value of another type returns a validation error. Set to null to remove the fallback.
    */
   fallback_value?: unknown;
 };
@@ -5980,15 +5982,18 @@ export type ContactPropertyCreateRequest = {
   key: string;
   type: ContactPropertyType;
   /**
-   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null for no fallback; a value of another type returns a validation error.
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters), or null for no fallback; a value of another type returns a validation error.
    */
   fallback_value?: unknown;
 };
 
 /**
  * The value type every contact must use for a property. Cannot be changed after creation.
+ *
+ * `datetime` values are RFC 3339 timestamps with an explicit offset (for example `2024-01-15T09:30:00Z` or `2024-01-15T11:30:00+02:00`); a bare date or a time with no offset is rejected. The value is normalized to UTC with second precision on write, so `2024-01-15T11:30:00+02:00` is stored and returned as `2024-01-15T09:30:00Z`, and any fractional seconds are dropped.
+ *
  */
-export type ContactPropertyType = "string" | "number" | "boolean";
+export type ContactPropertyType = "string" | "number" | "boolean" | "datetime";
 
 export type ContactPropertyList = {
   /**
@@ -6010,7 +6015,7 @@ export type ContactProperty = {
   key: string;
   type: ContactPropertyType;
   /**
-   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters), or null when no fallback is set.
    */
   fallback_value?: unknown;
   /**
@@ -6064,7 +6069,7 @@ export type ContactUpdateRequest = {
    */
   external_id?: string | null;
   /**
-   * Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); writing an unregistered or archived key returns a validation error. The merged result is capped at 2 KB serialized.
+   * Custom property values to change, merged into the contact's existing data. Keys you supply are set, keys set to null are removed, and keys you omit are left unchanged. Each key must be a property created via the contact properties API, and each value must be a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters); writing an unregistered or archived key returns a validation error. The merged result is capped at 2 KB serialized.
    *
    */
   data?: {
@@ -6143,7 +6148,7 @@ export type ContactCreateRequest = {
    */
   external_id?: string;
   /**
-   * Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, or boolean matching the property's declared type (strings up to 500 characters); a null value is ignored. Unregistered or archived keys are rejected with a validation error. Total size is capped at 2 KB serialized.
+   * Custom property values for this contact. Each key must be a property created via the contact properties API, and each value must be a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters); a null value is ignored. Unregistered or archived keys are rejected with a validation error. Total size is capped at 2 KB serialized.
    *
    */
   data?: {
@@ -6156,7 +6161,7 @@ export type ContactList = {
    * Page of contact objects.
    */
   data: Array<Contact>;
-} & ListEnvelope;
+} & ListEnvelopeWithTotal;
 
 /**
  * The body content of a sent email message, as delivered. A send that used a template stores the template's body, so these report it with the send's `parameters` substituted in.
@@ -6463,7 +6468,7 @@ export type EmailTemplateSend = unknown & {
    */
   language?: LanguageTag;
   /**
-   * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Send everything the template's `variables` lists rather than only what you expect the chosen language to use: languages need not reference the same variables, and a value no language uses is ignored. Cap: 16 KB serialized.
+   * Values for the template's variables, keyed by variable name. A token with no matching value renders empty. Nest values to fill dotted tokens: `{"contact": {"first_name": "Ada"}}` fills `{{ contact.first_name }}`. Send everything the template's `variables` lists rather than only what you expect the chosen language to use: languages need not reference the same variables, and a value no language uses is ignored. Cap: 16 KB serialized.
    *
    */
   parameters?: {
@@ -6772,7 +6777,7 @@ export type EmailMessage = {
     [key: string]: unknown;
   };
   /**
-   * The substitution values this send supplied, or null for a send that carried its content inline. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.
+   * The substitution values this send supplied, whether inline or from a template, or null if none were supplied. They are the values applied to `subject` and to the bodies the content endpoint returns, kept so you can see what produced the delivered copy and not only the result.
    *
    */
   readonly parameters?: {
@@ -6811,6 +6816,50 @@ export type EmailMessage = {
    */
   readonly scheduled_at?: string | null;
 };
+
+export type RealtimeAppKeyList = {
+  /**
+   * The app's keys, oldest first. Revoked keys are excluded unless include_revoked=true.
+   */
+  data: Array<RealtimeAppKey>;
+};
+
+export type RealtimeAppKeyId = string;
+
+export type RealtimeAppKey = {
+  readonly id: RealtimeAppKeyId;
+  /**
+   * The public app key clients use to connect.
+   */
+  readonly key: string;
+  /**
+   * The key secret, used for server-side request signing. Returned only when the key is created, and never shown again — store it securely. If lost, create a new key and revoke this one.
+   */
+  readonly secret?: string;
+  /**
+   * When the key was revoked, or null if still active.
+   */
+  readonly revoked_at: string | null;
+  readonly created_at: string;
+};
+
+/**
+ * An event addressed to one member rather than to a channel. Every connection that member currently holds receives it; if they hold none, the event is dropped.
+ */
+export type RealtimeMemberPublish = {
+  event: RealtimeEventName;
+  data?: RealtimeEventData;
+};
+
+/**
+ * Arbitrary JSON payload delivered as the event data — an object, array, or scalar. Cap: 10 KB serialized.
+ */
+export type RealtimeEventData = unknown;
+
+/**
+ * The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.
+ */
+export type RealtimeEventName = string;
 
 /**
  * The members present on a presence channel.
@@ -6907,16 +6956,6 @@ export type RealtimeChannelInclude = "member_count" | "connection_count";
 export type RealtimeExcludeConnectionId = string;
 
 /**
- * Arbitrary JSON payload delivered as the event data — an object, array, or scalar. Cap: 10 KB serialized.
- */
-export type RealtimeEventData = unknown;
-
-/**
- * The event name clients bind to. Application event names are free-form; the `bird:` and `bird_internal:` prefixes are reserved for the protocol and rejected.
- */
-export type RealtimeEventName = string;
-
-/**
  * One item of a batch publish — a single event to a single channel.
  */
 export type RealtimeBatchEvent = {
@@ -6960,7 +6999,127 @@ export type RealtimePublish = {
   include?: Array<RealtimeChannelInclude>;
 };
 
+/**
+ * Mutable Realtime app fields. Omitted fields are left unchanged. Region is immutable and TLS is always enforced, so neither appears here.
+ */
+export type RealtimeAppUpdate = {
+  name?: string;
+  /**
+   * Allow clients to trigger events directly (client events).
+   */
+  client_events?: boolean;
+  /**
+   * Count the connections subscribed to each channel and expose the count on channel queries.
+   */
+  connection_counting?: boolean;
+  /**
+   * Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+   */
+  connection_count_events?: boolean;
+  /**
+   * Require every connection to be authorized.
+   */
+  authorized_connections?: boolean;
+};
+
+export type RealtimeAppCreated = RealtimeApp & {
+  /**
+   * The app's initial key, including its one-time secret. Present in this create response only; the secret is never returned again.
+   */
+  readonly key: RealtimeAppKey;
+};
+
+/**
+ * Deployment region identifier.
+ */
+export type Region = "us1" | "eu1";
+
 export type RealtimeAppId = string;
+
+export type RealtimeApp = Timestamps & {
+  /**
+   * Allow clients to trigger events directly (client events).
+   */
+  client_events: boolean;
+  /**
+   * Count the connections subscribed to each channel and expose the count on channel queries.
+   */
+  connection_counting: boolean;
+  /**
+   * Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+   */
+  connection_count_events: boolean;
+  /**
+   * Require every connection to be authorized.
+   */
+  authorized_connections: boolean;
+  readonly id: RealtimeAppId;
+  /**
+   * The numeric Realtime app id. Use it together with a key and secret to initialize a Realtime client/server SDK. Immutable.
+   */
+  readonly app_id: number;
+  name: string;
+  /**
+   * The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.
+   */
+  region: Region;
+  /**
+   * Lifecycle state of the app. `active` apps serve connections; `suspended` apps are provisioned but reject connections.
+   */
+  readonly status: "active" | "suspended";
+};
+
+export type RealtimeAppCreate = RealtimeAppConfig & {
+  name: string;
+  /**
+   * The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.
+   */
+  region: Region;
+  client_events?: boolean;
+  connection_counting?: boolean;
+  connection_count_events?: boolean;
+  authorized_connections?: boolean;
+};
+
+/**
+ * Realtime app configuration flags. TLS is always enforced (non-TLS client connections are rejected) and is not configurable.
+ */
+export type RealtimeAppConfig = {
+  /**
+   * Allow clients to trigger events directly (client events).
+   */
+  client_events?: boolean;
+  /**
+   * Count the connections subscribed to each channel and expose the count on channel queries.
+   */
+  connection_counting?: boolean;
+  /**
+   * Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+   */
+  connection_count_events?: boolean;
+  /**
+   * Require every connection to be authorized.
+   */
+  authorized_connections?: boolean;
+};
+
+export type RealtimeAppList = {
+  data: Array<RealtimeApp>;
+} & ListEnvelopeWithTotal;
+
+export type RealtimeRegionList = {
+  /**
+   * The regions a Realtime app can be created in.
+   */
+  data: Array<RealtimeRegion>;
+};
+
+export type RealtimeRegion = {
+  /**
+   * Region identifier to pass as a Realtime app's region.
+   */
+  id: Region;
+};
 
 export type DocsPage = {
   /**
@@ -7242,7 +7401,7 @@ export type WhatsAppErrorWritable = {
 } | null;
 
 /**
- * Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list).
+ * Bird rejected the message before sending it to WhatsApp (the recipient is on the workspace suppression list, the wallet had insufficient balance, or the destination is unpriced). It was not sent and not charged.
  */
 export type EventWhatsAppRejectedWritable = {
   /**
@@ -8235,7 +8394,7 @@ export type WhatsAppEventListWritable = {
 
 export type WhatsAppEventWritable = {
   /**
-   * Failure detail. Present only on `whatsapp.failed` events.
+   * Failure detail. Present only on `whatsapp.failed` and `whatsapp.rejected` events.
    */
   error?: WhatsAppErrorWritable;
 };
@@ -8320,7 +8479,7 @@ export type SmsMessageWritable = {
    */
   from: string;
   /**
-   * The message body as sent. For a template send, this is the rendered text after parameter substitution.
+   * The message body as sent. For a template send, this is the rendered text after parameter substitution. When `category` is `authentication` (a message carrying a one-time code), this is `**REDACTED**`: the code still reaches the recipient, Bird just does not persist it for later reads.
    *
    */
   text: string;
@@ -8390,7 +8549,7 @@ export type ContactWritable = {
    */
   external_id?: string | null;
   /**
-   * Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, or boolean matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.
+   * Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.
    *
    */
   data?: {
@@ -8416,7 +8575,7 @@ export type ContactPropertyWritable = {
   key: string;
   type: ContactPropertyType;
   /**
-   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, or boolean matching the declared type (strings up to 500 characters), or null when no fallback is set.
+   * Default used when a contact has no value for this property and the template does not supply an inline fallback. A string, number, boolean, or RFC 3339 datetime matching the declared type (strings up to 500 characters), or null when no fallback is set.
    */
   fallback_value?: unknown;
 };
@@ -8449,7 +8608,7 @@ export type ContactListWritable = {
    * Page of contact objects.
    */
   data: Array<ContactWritable>;
-} & ListEnvelope;
+} & ListEnvelopeWithTotal;
 
 export type EmailEventListWritable = {
   /**
@@ -8658,6 +8817,13 @@ export type EmailMessageWritable = {
   track_clicks: boolean;
 };
 
+export type RealtimeAppKeyListWritable = {
+  /**
+   * The app's keys, oldest first. Revoked keys are excluded unless include_revoked=true.
+   */
+  data: Array<unknown>;
+};
+
 /**
  * The result of a Realtime batch publish. The events were accepted for delivery; delivery to connected clients is asynchronous.
  *
@@ -8673,6 +8839,36 @@ export type RealtimeBatchPublishResultWritable = {
 export type RealtimePublishResultWritable = {
   [key: string]: never;
 };
+
+export type RealtimeAppCreatedWritable = RealtimeAppWritable;
+
+export type RealtimeAppWritable = {
+  /**
+   * Allow clients to trigger events directly (client events).
+   */
+  client_events: boolean;
+  /**
+   * Count the connections subscribed to each channel and expose the count on channel queries.
+   */
+  connection_counting: boolean;
+  /**
+   * Broadcast a connection-count event to a channel's subscribers whenever its connection count changes. Requires `connection_counting`.
+   */
+  connection_count_events: boolean;
+  /**
+   * Require every connection to be authorized.
+   */
+  authorized_connections: boolean;
+  name: string;
+  /**
+   * The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.
+   */
+  region: Region;
+};
+
+export type RealtimeAppListWritable = {
+  data: Array<RealtimeAppWritable>;
+} & ListEnvelopeWithTotal;
 
 export type ErrorWritable = {
   error: ErrorBodyWritable;
@@ -8753,7 +8949,7 @@ export type ErrorBodyWritable = {
 export type EmailStatsTemplateFilter = string;
 
 /**
- * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+ * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
  *
  */
 export type StatsTimezone = string;
@@ -8820,10 +9016,10 @@ export type PaginationLimit = number;
 /**
  * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
  * Two distinct 409 errors signal misuse:
- * - `request_in_progress` (E01004) — the same key is currently being
+ * - `request_in_progress` (E01004): the same key is currently being
  * processed by a concurrent request. Wait briefly and retry; the lock
  * expires within 30 seconds.
- * - `idempotency_key_reuse` (E01005) — the same key has already completed
+ * - `idempotency_key_reuse` (E01005): the same key has already completed
  * against a different request body or method. Generate a new key.
  *
  * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -8841,10 +9037,10 @@ export type PublishRealtimeAppEventData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -8927,10 +9123,10 @@ export type PublishRealtimeAppBatchData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9239,10 +9435,10 @@ export type DisconnectRealtimeAppMemberData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9313,6 +9509,96 @@ export type DisconnectRealtimeAppMemberResponses = {
 
 export type DisconnectRealtimeAppMemberResponse =
   DisconnectRealtimeAppMemberResponses[keyof DisconnectRealtimeAppMemberResponses];
+
+export type SendRealtimeAppMemberEventData = {
+  body: RealtimeMemberPublish;
+  headers: {
+    /**
+     * Workspace context. Required for session auth; derived from API key otherwise.
+     */
+    "X-Workspace-Id"?: string;
+    /**
+     * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
+     * Two distinct 409 errors signal misuse:
+     * - `request_in_progress` (E01004): the same key is currently being
+     * processed by a concurrent request. Wait briefly and retry; the lock
+     * expires within 30 seconds.
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
+     * against a different request body or method. Generate a new key.
+     *
+     * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
+     *
+     */
+    "Idempotency-Key"?: string;
+    /**
+     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
+     *
+     */
+    "X-Realtime-Key": string;
+    /**
+     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
+     *
+     */
+    "X-Realtime-Secret": string;
+  };
+  path: {
+    /**
+     * Realtime app ID
+     */
+    realtime_app_id: RealtimeAppId;
+    /**
+     * The member to deliver the event to.
+     */
+    member_id: RealtimeMemberId;
+  };
+  query?: never;
+  url: "/v1/realtime/apps/{realtime_app_id}/members/{member_id}/events";
+};
+
+export type SendRealtimeAppMemberEventErrors = {
+  /**
+   * Bad request
+   */
+  400: Error;
+  /**
+   * Authentication required
+   */
+  401: Error;
+  /**
+   * Insufficient permissions
+   */
+  403: Error;
+  /**
+   * Resource not found
+   */
+  404: Error;
+  /**
+   * Unprocessable request. Either field validation failed (type: validation_error, includes details array) or a business rule was violated (e.g. domain_not_verified). Both use the unified Error envelope; validation errors include the details array.
+   *
+   */
+  422: Error;
+  /**
+   * Rate limit exceeded
+   */
+  429: Error;
+  /**
+   * Internal server error
+   */
+  500: Error;
+};
+
+export type SendRealtimeAppMemberEventError =
+  SendRealtimeAppMemberEventErrors[keyof SendRealtimeAppMemberEventErrors];
+
+export type SendRealtimeAppMemberEventResponses = {
+  /**
+   * The event was accepted for delivery. No body: a member has no channel occupancy or counts to report, and whether they hold connections is not something a publish can confirm.
+   */
+  204: void;
+};
+
+export type SendRealtimeAppMemberEventResponse =
+  SendRealtimeAppMemberEventResponses[keyof SendRealtimeAppMemberEventResponses];
 
 export type ListEmailMessagesData = {
   body?: never;
@@ -9403,10 +9689,10 @@ export type CreateEmailMessageData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9474,10 +9760,10 @@ export type CreateEmailMessageBatchData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9593,10 +9879,10 @@ export type CancelEmailMessageData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9667,7 +9953,7 @@ export type ListContactsData = {
      */
     external_id?: string;
     /**
-     * Case-insensitive substring match against the contact's email address.
+     * Case-insensitive substring match against the contact's email address, first name, or last name.
      */
     q?: string;
     /**
@@ -9682,6 +9968,10 @@ export type ListContactsData = {
      * Cursor from the `prev_cursor` field of a previous list response. Returns items immediately before the cursor position in the current sort order.
      */
     ending_before?: string;
+    /**
+     * When true, the response includes a `total` field with the total number of items matching the request's filters across all pages.
+     */
+    include_total?: boolean;
   };
   url: "/v1/contacts";
 };
@@ -9728,10 +10018,10 @@ export type CreateContactData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9794,10 +10084,10 @@ export type CreateContactBatchData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9857,10 +10147,10 @@ export type DeleteContactData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -9965,10 +10255,10 @@ export type UpdateContactData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10092,10 +10382,10 @@ export type CreateContactPropertyData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10207,10 +10497,10 @@ export type UpdateContactPropertyData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10279,10 +10569,10 @@ export type ArchiveContactPropertyData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10346,10 +10636,10 @@ export type UnarchiveContactPropertyData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10468,10 +10758,10 @@ export type CreateAudienceData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10531,10 +10821,10 @@ export type DeleteAudienceData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10645,10 +10935,10 @@ export type UpdateAudienceData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10782,10 +11072,10 @@ export type AssignAudienceContactsData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10854,10 +11144,10 @@ export type UnassignAudienceContactsData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -10926,10 +11216,10 @@ export type UnassignAudienceContactData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -11089,10 +11379,10 @@ export type CreateSmsMessageData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -11156,10 +11446,10 @@ export type CreateSmsMessageBatchData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -11382,10 +11672,10 @@ export type CreateVerificationData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -11454,10 +11744,10 @@ export type CreateVerificationCheckData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -11608,10 +11898,10 @@ export type SendWhatsAppMessageData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -11790,7 +12080,7 @@ export type GetEmailStatsDailyData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -11886,7 +12176,7 @@ export type GetEmailStatsHourlyData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -11982,7 +12272,7 @@ export type GetEmailStatsByTagData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12073,7 +12363,7 @@ export type GetEmailStatsSummaryData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12174,7 +12464,7 @@ export type GetEmailStatsBySendingIpData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12280,7 +12570,7 @@ export type GetEmailStatsBySendingDomainData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12369,7 +12659,7 @@ export type GetEmailStatsByCategoryData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12454,7 +12744,7 @@ export type GetEmailStatsByMailboxProviderData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12543,7 +12833,7 @@ export type GetEmailStatsByMailboxProviderRegionData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12632,7 +12922,7 @@ export type GetEmailStatsByRecipientDomainData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12721,7 +13011,7 @@ export type GetEmailStatsByTemplateData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12810,7 +13100,7 @@ export type GetEmailStatsByLocationData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12895,7 +13185,7 @@ export type GetEmailStatsByClientData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -12980,7 +13270,7 @@ export type GetEmailStatsByBounceCodeData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -13066,7 +13356,7 @@ export type GetEmailStatsByComplaintTypeData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -13158,15 +13448,6 @@ export type GetEmailStatsByBroadcastData = {
      * Maximum number of broadcast rows to return, ranked by the `sort` field descending.
      */
     limit?: number;
-    /**
-     * Requests a per-row `trend` series. Not available for the broadcast breakdown; supplying `true` returns 422.
-     *
-     */
-    include_trend?: boolean;
-    /**
-     * Bucket grain for the `trend` series. Has no effect on this breakdown, where `include_trend` is not available.
-     */
-    trend_grain?: StatsTrendGrain;
   };
   url: "/v1/email/stats/broadcasts";
 };
@@ -13296,10 +13577,10 @@ export type CreateDomainData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13362,10 +13643,10 @@ export type DeleteDomainData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13470,10 +13751,10 @@ export type UpdateDomainData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13545,10 +13826,10 @@ export type VerifyDomainData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13683,10 +13964,10 @@ export type CreateMailboxData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13749,10 +14030,10 @@ export type DeleteMailboxData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13862,10 +14143,10 @@ export type UpdateMailboxData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -13938,10 +14219,10 @@ export type RestoreMailboxData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14019,7 +14300,7 @@ export type GetMailboxStatsData = {
      */
     to?: string;
     /**
-     * IANA timezone identifier (for example `Asia/Kathmandu` or `America/New_York`) to report the statistics in. It is the single source of timezone: day and hour boundaries, and the relative window defaults used when `from` and `to` are omitted, are computed in this timezone instead of UTC, so a timezone with a sub-hour offset (such as India at +05:30 or Nepal at +05:45) still gets correct local-day and local-hour totals. When it is set, a `from` or `to` given as a calendar day names a local day in this timezone, and one given as an instant stays an absolute point in time but is rounded down to its hour and bucketed in this timezone (so the hour boundaries are local, not UTC). To avoid specifying the zone twice, a `from` or `to` that carries its own numeric UTC offset (for example `+05:45`) is rejected when `timezone` is set; use a calendar day or a `Z` (UTC) instant instead. Defaults to UTC.
+     * IANA timezone identifier (for example `Asia/Kathmandu`) to report in; defaults to UTC. Day and hour boundaries and the default window when `from` and `to` are omitted both follow it, so a calendar-day `from` or `to` names a local day. A `from` or `to` carrying its own UTC offset is rejected while this is set: pass a calendar day or a `Z` instant.
      *
      */
     timezone?: string;
@@ -14088,10 +14369,10 @@ export type ResumeMailboxData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14229,10 +14510,10 @@ export type CreateMailboxReceiveRuleData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14305,10 +14586,10 @@ export type DeleteMailboxReceiveRuleData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14461,10 +14742,10 @@ export type DeleteEmailThreadData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14585,10 +14866,10 @@ export type UpdateEmailThreadData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14912,10 +15193,10 @@ export type ReplyEmailThreadMessageData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).
@@ -14996,10 +15277,10 @@ export type CreateMailboxMessageData = {
     /**
      * Client-supplied deduplication key. When present, the server replays the original response for any duplicate request with the same key within the idempotency TTL window (3 hours by default).
      * Two distinct 409 errors signal misuse:
-     * - `request_in_progress` (E01004) — the same key is currently being
+     * - `request_in_progress` (E01004): the same key is currently being
      * processed by a concurrent request. Wait briefly and retry; the lock
      * expires within 30 seconds.
-     * - `idempotency_key_reuse` (E01005) — the same key has already completed
+     * - `idempotency_key_reuse` (E01005): the same key has already completed
      * against a different request body or method. Generate a new key.
      *
      * Recommended key format is `<event-type>/<entity-id>` (e.g. `welcome-user/usr_abc123`).

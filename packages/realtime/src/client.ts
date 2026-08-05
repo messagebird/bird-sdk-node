@@ -1,13 +1,20 @@
 import { defaultAuthorizer, defaultMemberAuthorizer } from "./auth.js";
 import {
+  Channel,
   channelFor,
   PresenceChannel,
   PrivateChannel,
-  type Channel,
 } from "./channel.js";
 import { Connection } from "./connection.js";
+import { Emitter } from "./emitter.js";
 import { BirdRealtimeError } from "./errors.js";
-import { Inbound, Outbound, type Frame } from "./protocol.js";
+import {
+  Inbound,
+  Outbound,
+  isInternal,
+  memberChannelName,
+  type Frame,
+} from "./protocol.js";
 import type {
   Authorizer,
   MemberAuthorizer,
@@ -56,13 +63,28 @@ function resolveUrl(options: Options): string {
 export class BirdRealtime {
   readonly connection: Connection;
   readonly appKey: string;
+  /**
+   * Events addressed to the signed-in member rather than to a channel, as sent
+   * by the events API. Bind here after signin():
+   *
+   *   bird.member.bind("order.shipped", (data) => {});
+   *
+   * Delivery starts when signin() succeeds and resumes after a reconnect once
+   * the connection has signed in again. Protocol frames never surface.
+   */
+  readonly member = new Emitter();
   private readonly channels = new Map<string, Channel>();
   private readonly authorizer: Authorizer;
   private readonly memberAuthorizer: MemberAuthorizer;
   // Signin is per connection, so `member` is dropped whenever the connection
   // is, while `signinArmed` survives to re-sign in on the next one.
   private signinArmed = false;
-  private member: SignedInMember | null = null;
+  private identity: SignedInMember | null = null;
+  // The reserved channel carrying events addressed to this member. Deliberately
+  // NOT in `channels`: subscribeAll() runs on every `connected` and would send
+  // it before the connection has an identity, which the edge rejects. It is
+  // subscribed from the signin-success path and dropped with the connection.
+  private memberChannel: Channel | null = null;
   private signinWaiters: Array<{
     resolve: (member: SignedInMember) => void;
     reject: (error: Error) => void;
@@ -119,7 +141,8 @@ export class BirdRealtime {
         current === "failed"
       ) {
         for (const channel of this.channels.values()) channel.reset();
-        this.member = null;
+        this.identity = null;
+        this.dropMemberChannel();
         this.failSignin(
           new BirdRealtimeError("Connection lost before signin completed"),
         );
@@ -169,7 +192,7 @@ export class BirdRealtime {
    */
   signin(): Promise<SignedInMember> {
     this.signinArmed = true;
-    if (this.member) return Promise.resolve(this.member);
+    if (this.identity) return Promise.resolve(this.identity);
     const pending = new Promise<SignedInMember>((resolve, reject) => {
       this.signinWaiters.push({ resolve, reject });
     });
@@ -179,7 +202,7 @@ export class BirdRealtime {
 
   /** The signed-in member, or null when this connection has no identity. */
   get signedInMember(): SignedInMember | null {
-    return this.member;
+    return this.identity;
   }
 
   /** Unsubscribe and forget a channel. */
@@ -277,7 +300,10 @@ export class BirdRealtime {
     const member: SignedInMember = { member_id: memberId };
     const memberInfo = (parsed as { member_info?: unknown }).member_info;
     if (memberInfo !== undefined) member.member_info = memberInfo;
-    this.member = member;
+    this.identity = member;
+    // The identity is what authorizes this subscription, so it can only be sent
+    // once signin has succeeded on this connection.
+    this.subscribeMemberChannel(member.member_id);
     const waiters = this.signinWaiters;
     this.signinWaiters = [];
     for (const waiter of waiters) waiter.resolve(member);
@@ -299,12 +325,52 @@ export class BirdRealtime {
     }
   }
 
+  // Subscribes the member channel for this connection. Rebuilt per signin: a
+  // channel from a previous connection cannot carry a live subscription, and the
+  // member id may differ.
+  private subscribeMemberChannel(memberId: string): void {
+    const name = memberChannelName(memberId);
+    const connectionId = this.connection.connectionId;
+    if (!connectionId) return;
+    const existing = this.memberChannel;
+    if (existing?.name === name && existing.subscribed) return;
+    // A plain Channel: no prefix means no authorizer call, which is right — the
+    // edge authorizes this one by the signed-in identity, not a signature.
+    const channel = new Channel(name, (f) => this.connection.send(f));
+    channel.bindGlobal((data, event) => {
+      // Lifecycle frames belong to the channel; only application events, and
+      // the SDK's own re-emitted ones, reach the member emitter.
+      if (!event || isInternal(event) || event.startsWith("bird:")) return;
+      this.member.emit(event, data);
+    });
+    this.memberChannel = channel;
+    void channel.startSubscribe(
+      connectionId,
+      () =>
+        this.connection.connectionId === connectionId &&
+        this.memberChannel === channel,
+    );
+  }
+
+  // Drops the member subscription. The socket is gone, so there is nothing to
+  // unsubscribe: forgetting it is what stops a stale channel from receiving a
+  // later connection's frames.
+  private dropMemberChannel(): void {
+    this.memberChannel?.reset();
+    this.memberChannel?.unbindGlobal();
+    this.memberChannel = null;
+  }
+
   private route(frame: Frame): void {
     if (frame.event === Inbound.SigninSuccess) {
       this.handleSigninSuccess(frame);
       return;
     }
     if (!frame.channel) return;
+    if (frame.channel === this.memberChannel?.name) {
+      this.memberChannel.handleEvent(frame);
+      return;
+    }
     this.channels.get(frame.channel)?.handleEvent(frame);
   }
 }

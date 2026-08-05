@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- Deliver events addressed to a member. Once `signin()` succeeds the client subscribes to the member's reserved channel and surfaces those events on `bird.member`, so an event sent with `realtime.members.send` reaches every connection that member holds. The subscription follows the identity: it is established on each signin, including the automatic one after a reconnect, and dropped with the connection. Protocol frames never reach the emitter, and a different member's events never do either.
+
 ## 0.2.1
 
 - Point the package repository and issue URLs at the renamed bird-sdk-typescript mirror.

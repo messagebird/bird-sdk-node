@@ -13678,6 +13678,10 @@ export type DeleteDomainErrors = {
    */
   404: Error;
   /**
+   * Resource conflict
+   */
+  409: Error;
+  /**
    * Rate limit exceeded
    */
   429: Error;

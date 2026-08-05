@@ -429,11 +429,11 @@ export type EventVoiceBase = {
   /**
    * Calling party number in E.164 format.
    */
-  src_number: string;
+  from: string;
   /**
    * Called party number in E.164 format.
    */
-  dst_number: string;
+  to: string;
 };
 
 /**
@@ -3369,7 +3369,7 @@ export type MailboxUpdate = {
    */
   receive_policy?: "open" | "replies_only" | "allowlist" | "drop";
   /**
-   * How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.
+   * How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. Only `30d` is available today; additional tiers are planned.
    */
   retention_tier?: "30d";
   /**
@@ -3405,7 +3405,7 @@ export type MailboxCreate = {
    */
   receive_policy?: "open" | "replies_only" | "allowlist" | "drop";
   /**
-   * How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.
+   * How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. Only `30d` is available today; additional tiers are planned.
    */
   retention_tier?: "30d";
   /**
@@ -3859,7 +3859,7 @@ export type DomainDkimConfig = {
 };
 
 /**
- * Tracking domain configuration for branded open and click tracking URLs. Provide only the name part; Bird adds the sending domain automatically. Defaults to `links` when omitted at creation. Tracked links are served over HTTPS once the tracking record verifies.
+ * Tracking domain configuration for branded open and click tracking URLs. Provide only the name part; Bird adds the sending domain automatically. A domain created with no tracking configuration defaults to the name `links`. Tracked links are served over HTTPS once the tracking record verifies.
  *
  */
 export type DomainTrackingConfig = {
@@ -4948,7 +4948,7 @@ export type EmailStatsComparisonDelta = {
 };
 
 /**
- * The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.
+ * The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
  *
  */
 export type EmailStatsComparison = {
@@ -5121,7 +5121,7 @@ export type WhatsAppEvent = {
 
 export type WhatsAppMessageSendRequest = {
   /**
-   * The message recipient's phone number in E.164 format (for example `+31612345678`). A value that is not a valid phone number returns a `422` `WhatsAppInvalidRecipient`.
+   * The message recipient: a phone number in E.164 format (for example `+31612345678`), or the recipient's business-scoped user ID (for example `US.13491208655302741918`), which addresses a WhatsApp user whose phone number you do not have. A value that is neither returns a `422` `WhatsAppInvalidRecipient`. One-time-passcode templates require a phone number and return a `422` `WhatsAppRecipientNotSupportedForTemplate` when sent to a business-scoped user ID.
    *
    */
   to: string;
@@ -5180,9 +5180,9 @@ export type WhatsAppMessageTemplateComponent = {
 };
 
 /**
- * Language code of the template variant (for example `en` or `pt_BR`).
+ * A language tag in BCP-47 form, for example `en` or `pt-BR`.
  */
-export type WhatsAppLanguage = string;
+export type LanguageTag = string;
 
 /**
  * A template's slug: its permanent, workspace-unique handle and API address. Lowercase letters, numbers, hyphens, and underscores. Fixed at creation, so anything that references it never breaks; the display name is the label to change freely.
@@ -5190,16 +5190,22 @@ export type WhatsAppLanguage = string;
  */
 export type TemplateSlug = string;
 
-export type WhatsAppTemplateSend = {
+export type WhatsAppTemplateId = string;
+
+export type WhatsAppTemplateSend = unknown & {
+  /**
+   * The template to send, by its id.
+   */
+  id?: WhatsAppTemplateId;
   /**
    * The template to send, by its slug (for example `bird_otp`).
    */
-  slug: TemplateSlug;
+  slug?: TemplateSlug;
   /**
-   * Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language; when it is stocked in several, omitting the language returns a `422` that names the available codes. The accepted message echoes the resolved language.
+   * Which of the template's languages to send, as a BCP-47 tag (for example `en` or `pt-BR`). Meta's underscore form (`pt_BR`) is accepted and normalized; the accepted message echoes the canonical BCP-47 form. May be omitted when the template has a single language; when it is stocked in several, omitting the language returns a `422` that names the available tags.
    *
    */
-  language?: WhatsAppLanguage;
+  language?: LanguageTag;
   /**
    * The values that fill the template's placeholders: one entry per content block that has placeholders, each carrying its `parameters`. A positional template takes its parameters in `{{n}}` order; a template with named parameters requires each parameter's `name` to match one the template declares. Either way, sending parameters that do not match what the template declares returns a `422` `WhatsAppTemplateParameterMismatch`.
    *
@@ -5265,9 +5271,9 @@ export type WhatsAppMessageTemplate = {
    */
   readonly category: WhatsAppTemplateCategory;
   /**
-   * The language code of the template variant that was sent (for example `en`).
+   * The canonical BCP-47 tag of the template variant that was sent.
    */
-  readonly language: string;
+  readonly language: LanguageTag;
   /**
    * The values that filled the template's placeholders. Empty for an authentication template, whose content is never returned.
    *
@@ -5736,10 +5742,10 @@ export type SmsTemplateSend = unknown & {
    */
   name?: TemplateName;
   /**
-   * Language tag (BCP 47, for example `fr` or `pt-BR`) selecting the localized body. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.
+   * Which of the template's localized bodies to send, as a BCP-47 tag. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.
    *
    */
-  language?: string;
+  language?: LanguageTag;
   /**
    * Values for the template's variables, keyed by variable name. The accepted keys and their formats are fixed per template (the template's `variables` on the templates endpoint). A missing required variable, an undeclared key, a value that does not match its variable's format, or a serialized payload over 16 KB each return a `422`.
    *
@@ -6406,11 +6412,6 @@ export type EmailMessageBatchResponse = {
 };
 
 export type EmailTemplateVersionId = string;
-
-/**
- * A language tag in BCP-47 form, for example `en` or `pt-BR`.
- */
-export type LanguageTag = string;
 
 export type EmailMessageBatchItem = {
   /**
@@ -8348,7 +8349,7 @@ export type EmailStatsSummaryWritable = {
 };
 
 /**
- * The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.
+ * The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.
  *
  */
 export type EmailStatsComparisonWritable = {
@@ -8971,18 +8972,6 @@ export type CreatedBefore = string;
 export type CreatedAfter = string;
 
 /**
- * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
- *
- */
-export type RealtimeSecret = string;
-
-/**
- * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
- *
- */
-export type RealtimeKey = string;
-
-/**
  * Workspace context. Required for session auth; derived from API key otherwise.
  */
 export type XWorkspaceId = string;
@@ -9029,7 +9018,7 @@ export type IdempotencyKey = string;
 
 export type PublishRealtimeAppEventData = {
   body: RealtimePublish;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
@@ -9047,16 +9036,6 @@ export type PublishRealtimeAppEventData = {
      *
      */
     "Idempotency-Key"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -9115,7 +9094,7 @@ export type PublishRealtimeAppEventResponse =
 
 export type PublishRealtimeAppBatchData = {
   body: RealtimeBatchPublish;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
@@ -9133,16 +9112,6 @@ export type PublishRealtimeAppBatchData = {
      *
      */
     "Idempotency-Key"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -9201,21 +9170,11 @@ export type PublishRealtimeAppBatchResponse =
 
 export type ListRealtimeAppChannelsData = {
   body?: never;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
     "X-Workspace-Id"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -9278,21 +9237,11 @@ export type ListRealtimeAppChannelsResponse =
 
 export type GetRealtimeAppChannelData = {
   body?: never;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
     "X-Workspace-Id"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -9355,21 +9304,11 @@ export type GetRealtimeAppChannelResponse =
 
 export type ListRealtimeAppChannelMembersData = {
   body?: never;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
     "X-Workspace-Id"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -9427,7 +9366,7 @@ export type ListRealtimeAppChannelMembersResponse =
 
 export type DisconnectRealtimeAppMemberData = {
   body?: never;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
@@ -9445,16 +9384,6 @@ export type DisconnectRealtimeAppMemberData = {
      *
      */
     "Idempotency-Key"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -9512,7 +9441,7 @@ export type DisconnectRealtimeAppMemberResponse =
 
 export type SendRealtimeAppMemberEventData = {
   body: RealtimeMemberPublish;
-  headers: {
+  headers?: {
     /**
      * Workspace context. Required for session auth; derived from API key otherwise.
      */
@@ -9530,16 +9459,6 @@ export type SendRealtimeAppMemberEventData = {
      *
      */
     "Idempotency-Key"?: string;
-    /**
-     * The Realtime app key. With X-Realtime-Secret it authenticates the request to the Realtime edge. Both come from the app's credentials (shown once at creation) and must belong to the calling workspace.
-     *
-     */
-    "X-Realtime-Key": string;
-    /**
-     * The Realtime app secret, paired with X-Realtime-Key. Sent over TLS and used only to sign the request to the edge — never stored. Rotate it by rotating the app key.
-     *
-     */
-    "X-Realtime-Secret": string;
   };
   path: {
     /**
@@ -11892,7 +11811,7 @@ export type ListWhatsAppMessagesResponses = {
 export type ListWhatsAppMessagesResponse =
   ListWhatsAppMessagesResponses[keyof ListWhatsAppMessagesResponses];
 
-export type SendWhatsAppMessageData = {
+export type CreateWhatsAppMessageData = {
   body: WhatsAppMessageSendRequest;
   headers?: {
     /**
@@ -11914,7 +11833,7 @@ export type SendWhatsAppMessageData = {
   url: "/v1/whatsapp/messages";
 };
 
-export type SendWhatsAppMessageErrors = {
+export type CreateWhatsAppMessageErrors = {
   /**
    * Bad request
    */
@@ -11942,18 +11861,18 @@ export type SendWhatsAppMessageErrors = {
   500: Error;
 };
 
-export type SendWhatsAppMessageError =
-  SendWhatsAppMessageErrors[keyof SendWhatsAppMessageErrors];
+export type CreateWhatsAppMessageError =
+  CreateWhatsAppMessageErrors[keyof CreateWhatsAppMessageErrors];
 
-export type SendWhatsAppMessageResponses = {
+export type CreateWhatsAppMessageResponses = {
   /**
    * Message accepted for asynchronous delivery.
    */
   202: WhatsAppMessage;
 };
 
-export type SendWhatsAppMessageResponse =
-  SendWhatsAppMessageResponses[keyof SendWhatsAppMessageResponses];
+export type CreateWhatsAppMessageResponse =
+  CreateWhatsAppMessageResponses[keyof CreateWhatsAppMessageResponses];
 
 export type GetWhatsAppMessageData = {
   body?: never;

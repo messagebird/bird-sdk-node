@@ -2,7 +2,7 @@
 // collection, which a generated class can't declare.
 
 import { Resource } from "./base.js";
-import { EmailThreadsResource as EmailThreadsResourceBase } from "./emailThreads.gen.js";
+import { EmailThreadsResourceBase } from "./emailThreads.gen.js";
 import { EmailThreadsMessagesResource } from "./emailThreadsMessages.gen.js";
 
 export class EmailThreadsResource extends EmailThreadsResourceBase {

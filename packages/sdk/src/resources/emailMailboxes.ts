@@ -2,7 +2,7 @@
 // collections (messages, receiveRules), which a generated class can't declare.
 
 import { Resource } from "./base.js";
-import { EmailMailboxesResource as EmailMailboxesResourceBase } from "./emailMailboxes.gen.js";
+import { EmailMailboxesResourceBase } from "./emailMailboxes.gen.js";
 import { EmailMailboxesMessagesResource } from "./emailMailboxesMessages.js";
 import { EmailMailboxesReceiveRulesResource } from "./emailMailboxesReceiveRules.gen.js";
 

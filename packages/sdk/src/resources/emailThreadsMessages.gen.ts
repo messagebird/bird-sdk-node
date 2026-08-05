@@ -25,7 +25,7 @@ export class EmailThreadsMessagesResource extends Resource {
   }
 
   /**
-   * Get one conversation message with its extracted plain text — readable for the mailbox's full retention period, no MIME parsing needed.
+   * Get one conversation message with its extracted plain text, readable for the mailbox's full retention period without MIME parsing.
    *
    * @example Get a message
    * const msg = await bird.email.threads.messages.get("thr_01abc", "rem_01xyz");

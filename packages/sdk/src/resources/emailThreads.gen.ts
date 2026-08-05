@@ -9,9 +9,9 @@ export type EmailThreadsListQuery = NonNullable<ListEmailThreadsData["query"]>;
 export type EmailThreadsUpdateParams = NonNullable<UpdateEmailThreadData["body"]>;
 export type EmailThreadsDeleteQuery = NonNullable<DeleteEmailThreadData["query"]>;
 
-export class EmailThreadsResource extends Resource {
+export class EmailThreadsResourceBase extends Resource {
   /**
-   * List mailbox conversations as a cursor page, most recently active first. `label` selects the view — inbox (default), archive, spam, blocked, or a custom label. Filter by mailbox, contact, participant address, or subject substring.
+   * List mailbox conversations as a cursor page, most recently active first. `label` selects the view: inbox (default), archive, spam, blocked, or a custom label. Filter by mailbox, contact, participant address, or subject substring.
    *
    * @example List conversation threads
    * for await (const thread of bird.email.threads.list({ mailbox_id: "mbx_01abc" })) {
@@ -36,7 +36,7 @@ export class EmailThreadsResource extends Resource {
   }
 
   /**
-   * Add or remove labels on a conversation — adding `spam` files it as spam, adding `archive` clears it out of the inbox, adding `inbox` brings it back — or link/unlink a contact.
+   * Add or remove labels on a conversation, or link and unlink a contact. Adding `spam` files it as spam, `archive` clears it out of the inbox, and `inbox` brings it back.
    *
    * @example Apply label changes to a thread
    * const thread = await bird.email.threads.update("thr_01abc", {

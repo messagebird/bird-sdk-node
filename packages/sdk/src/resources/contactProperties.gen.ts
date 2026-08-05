@@ -49,7 +49,7 @@ export class ContactPropertiesResource extends Resource {
   }
 
   /**
-   * Update a contact property's fallback value. The key and type are immutable; create a new property instead.
+   * Update a contact property's fallback value. Only the fallback value can change; the key and type are fixed at creation, so a different key or type needs a new property.
    *
    * @example Change a property's fallback value
    * await bird.contactProperties.update("cp_01krdgeqcxet5s7t44vh8rt9mg", { fallback_value: "free" });

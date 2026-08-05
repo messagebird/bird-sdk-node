@@ -54,6 +54,9 @@ import type {
   CreateVerificationData,
   CreateVerificationErrors,
   CreateVerificationResponses,
+  CreateWhatsAppMessageData,
+  CreateWhatsAppMessageErrors,
+  CreateWhatsAppMessageResponses,
   DeleteAudienceData,
   DeleteAudienceErrors,
   DeleteAudienceResponses,
@@ -237,9 +240,6 @@ import type {
   SendRealtimeAppMemberEventData,
   SendRealtimeAppMemberEventErrors,
   SendRealtimeAppMemberEventResponses,
-  SendWhatsAppMessageData,
-  SendWhatsAppMessageErrors,
-  SendWhatsAppMessageResponses,
   UnarchiveContactPropertyData,
   UnarchiveContactPropertyErrors,
   UnarchiveContactPropertyResponses,
@@ -305,6 +305,8 @@ export const publishRealtimeAppEvent = <ThrowOnError extends boolean = false>(
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -334,6 +336,8 @@ export const publishRealtimeAppBatch = <ThrowOnError extends boolean = false>(
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -363,6 +367,8 @@ export const listRealtimeAppChannels = <ThrowOnError extends boolean = false>(
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -388,6 +394,8 @@ export const getRealtimeAppChannel = <ThrowOnError extends boolean = false>(
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -415,6 +423,8 @@ export const listRealtimeAppChannelMembers = <
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -442,6 +452,8 @@ export const disconnectRealtimeAppMember = <
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -470,6 +482,8 @@ export const sendRealtimeAppMemberEvent = <
   >({
     security: [
       { scheme: "bearer", type: "http" },
+      { name: "X-Realtime-Key", type: "apiKey" },
+      { name: "X-Realtime-Secret", type: "apiKey" },
       {
         in: "cookie",
         name: "bird_session",
@@ -1533,12 +1547,12 @@ export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
  * that is not a valid phone number each return a `422`.
  *
  */
-export const sendWhatsAppMessage = <ThrowOnError extends boolean = false>(
-  options: Options<SendWhatsAppMessageData, ThrowOnError>,
+export const createWhatsAppMessage = <ThrowOnError extends boolean = false>(
+  options: Options<CreateWhatsAppMessageData, ThrowOnError>,
 ) =>
   (options.client ?? client).post<
-    SendWhatsAppMessageResponses,
-    SendWhatsAppMessageErrors,
+    CreateWhatsAppMessageResponses,
+    CreateWhatsAppMessageErrors,
     ThrowOnError
   >({
     security: [
@@ -2544,7 +2558,7 @@ export const listMailboxReceiveRules = <ThrowOnError extends boolean = false>(
 /**
  * Add a receive rule
  *
- * Adds an allow or block rule to the mailbox. Rules match the message's envelope sender; domain entries also match subdomains. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes. An entry can be allow or block, never both: to flip it, delete the rule and re-create it. A mailbox holds up to 200 rules.
+ * Adds an allow or block rule to the mailbox. Rules match the message's envelope sender; domain entries also match subdomains. Block rules always win — over allow rules and over the reply admission on allowlist mailboxes. An entry is either allow or block. Rules have no update operation, so a rule that needs the other action is a new rule and the old one is removed. A mailbox holds up to 200 rules.
  *
  */
 export const createMailboxReceiveRule = <ThrowOnError extends boolean = false>(
@@ -2574,7 +2588,7 @@ export const createMailboxReceiveRule = <ThrowOnError extends boolean = false>(
 /**
  * Delete a receive rule
  *
- * Removes a receive rule from the mailbox. To change an entry from allow to block (or back), delete the rule and create a new one.
+ * Removes a receive rule from the mailbox. There is no update operation for rules, so a rule's allow or block action cannot be changed after it is created.
  *
  */
 export const deleteMailboxReceiveRule = <ThrowOnError extends boolean = false>(

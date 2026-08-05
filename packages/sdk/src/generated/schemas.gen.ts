@@ -677,13 +677,7 @@ export const EventVoiceBaseSchema = {
   type: "object",
   description:
     "Identity fields shared by every voice call lifecycle event payload.",
-  required: [
-    "call_id",
-    "workspace_id",
-    "direction",
-    "src_number",
-    "dst_number",
-  ],
+  required: ["call_id", "workspace_id", "direction", "from", "to"],
   properties: {
     call_id: {
       $ref: "#/components/schemas/VoiceCallID",
@@ -708,13 +702,13 @@ export const EventVoiceBaseSchema = {
     direction: {
       $ref: "#/components/schemas/VoiceCallDirection",
     },
-    src_number: {
+    from: {
       type: "string",
       minLength: 1,
       description: "Calling party number in E.164 format.",
       example: "+14155551234",
     },
-    dst_number: {
+    to: {
       type: "string",
       minLength: 1,
       description: "Called party number in E.164 format.",
@@ -3768,6 +3762,7 @@ export const WebhookEndpointUpdateSchema = {
   properties: {
     url: {
       type: "string",
+      maxLength: 2048,
       format: "uri",
       description:
         "Replacement delivery URL. Same rules as at creation: HTTPS, at most 2048 characters, and the host must be publicly reachable (private, loopback, and link-local addresses return a `422`). Omit to keep the current URL.\n",
@@ -3775,6 +3770,7 @@ export const WebhookEndpointUpdateSchema = {
     },
     description: {
       type: "string",
+      maxLength: 256,
       description:
         "Human-readable label for this endpoint, up to 256 characters.",
       example: "Updated webhook endpoint",
@@ -3903,6 +3899,7 @@ export const WebhookEndpointCreateSchema = {
   properties: {
     url: {
       type: "string",
+      maxLength: 2048,
       format: "uri",
       minLength: 1,
       description:
@@ -3921,6 +3918,7 @@ export const WebhookEndpointCreateSchema = {
     },
     description: {
       type: "string",
+      maxLength: 256,
       description:
         "Human-readable label for this endpoint, up to 256 characters.",
       example: "Production webhook endpoint",
@@ -6041,7 +6039,7 @@ export const MailboxUpdateSchema = {
       type: "string",
       enum: ["30d"],
       description:
-        "How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.",
+        "How long the mailbox remembers message metadata and extracted text. Lowering the tier deletes memory older than the new horizon and requires `confirm=true` when messages older than the new horizon would be deleted. Only `30d` is available today; additional tiers are planned.",
     },
     metadata: {
       type: "object",
@@ -6106,7 +6104,7 @@ export const MailboxCreateSchema = {
       enum: ["30d"],
       default: "30d",
       description:
-        "How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. Only `30d` is available today; longer tiers (`90d`, `1y`, and beyond) are coming soon.",
+        "How long the mailbox remembers message metadata and extracted text. Original rendered source is always available for 30 days regardless of tier. Only `30d` is available today; additional tiers are planned.",
     },
     metadata: {
       type: "object",
@@ -6972,7 +6970,7 @@ export const DomainTrackingConfigSchema = {
   additionalProperties: false,
   required: ["name"],
   description:
-    "Tracking domain configuration for branded open and click tracking URLs. Provide only the name part; Bird adds the sending domain automatically. Defaults to `links` when omitted at creation. Tracked links are served over HTTPS once the tracking record verifies.\n",
+    "Tracking domain configuration for branded open and click tracking URLs. Provide only the name part; Bird adds the sending domain automatically. A domain created with no tracking configuration defaults to the name `links`. Tracked links are served over HTTPS once the tracking record verifies.\n",
   properties: {
     name: {
       type: "string",
@@ -9021,7 +9019,7 @@ export const EmailStatsComparisonSchema = {
   additionalProperties: false,
   readOnly: true,
   description:
-    'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.\n',
+    "The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.\n",
   required: [
     "period",
     "sends_accepted",
@@ -9386,7 +9384,7 @@ export const WhatsAppMessageSendRequestSchema = {
       type: "string",
       minLength: 1,
       description:
-        "The message recipient's phone number in E.164 format (for example `+31612345678`). A value that is not a valid phone number returns a `422` `WhatsAppInvalidRecipient`.\n",
+        "The message recipient: a phone number in E.164 format (for example `+31612345678`), or the recipient's business-scoped user ID (for example `US.13491208655302741918`), which addresses a WhatsApp user whose phone number you do not have. A value that is neither returns a `422` `WhatsAppInvalidRecipient`. One-time-passcode templates require a phone number and return a `422` `WhatsAppRecipientNotSupportedForTemplate` when sent to a business-scoped user ID.\n",
       example: "+31612345678",
     },
     template: {
@@ -9503,12 +9501,12 @@ export const WhatsAppMessageTemplateComponentSchema = {
   },
 } as const;
 
-export const WhatsAppLanguageSchema = {
+export const LanguageTagSchema = {
   type: "string",
-  minLength: 1,
-  description:
-    "Language code of the template variant (for example `en` or `pt_BR`).",
-  example: "en",
+  minLength: 2,
+  maxLength: 35,
+  description: "A language tag in BCP-47 form, for example `en` or `pt-BR`.",
+  example: "pt-BR",
 } as const;
 
 export const TemplateSlugSchema = {
@@ -9521,11 +9519,31 @@ export const TemplateSlugSchema = {
   example: "welcome-email",
 } as const;
 
+export const WhatsAppTemplateIDSchema = {
+  type: "string",
+  minLength: 1,
+  pattern: "^wat_[0-9a-hjkmnp-tv-z]{26}$",
+  example: "wat_01krdgeqcxet5s7t44vh8rt9mg",
+} as const;
+
 export const WhatsAppTemplateSendSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["slug"],
+  description:
+    "A send-by-template reference. Identify the template by its `id` or its `slug` (supply exactly one), optionally pick a language, and pass its placeholder values in `components`.\n",
+  oneOf: [
+    {
+      required: ["id"],
+    },
+    {
+      required: ["slug"],
+    },
+  ],
   properties: {
+    id: {
+      description: "The template to send, by its id.",
+      $ref: "#/components/schemas/WhatsAppTemplateID",
+    },
     slug: {
       allOf: [
         {
@@ -9539,12 +9557,12 @@ export const WhatsAppTemplateSendSchema = {
     language: {
       allOf: [
         {
-          $ref: "#/components/schemas/WhatsAppLanguage",
+          $ref: "#/components/schemas/LanguageTag",
         },
       ],
       description:
-        "Language code of the template variant to send (for example `en` or `pt_BR`). May be omitted when the template has a single language; when it is stocked in several, omitting the language returns a `422` that names the available codes. The accepted message echoes the resolved language.\n",
-      example: "en",
+        "Which of the template's languages to send, as a BCP-47 tag (for example `en` or `pt-BR`). Meta's underscore form (`pt_BR`) is accepted and normalized; the accepted message echoes the canonical BCP-47 form. May be omitted when the template has a single language; when it is stocked in several, omitting the language returns a `422` that names the available tags.\n",
+      example: "pt-BR",
     },
     components: {
       type: "array",
@@ -9556,6 +9574,30 @@ export const WhatsAppTemplateSendSchema = {
     },
   },
   examples: [
+    {
+      id: "wat_01ky4x8e4genzb7way45txfkm1",
+      language: "en",
+      components: [
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              text: "1234",
+            },
+          ],
+        },
+        {
+          type: "button",
+          parameters: [
+            {
+              type: "text",
+              text: "1234",
+            },
+          ],
+        },
+      ],
+    },
     {
       slug: "bird_order_confirmation",
       language: "en",
@@ -9707,12 +9749,15 @@ export const WhatsAppMessageTemplateSchema = {
         "Content classification applied to messages sent from this template.",
     },
     language: {
-      type: "string",
-      minLength: 1,
+      allOf: [
+        {
+          $ref: "#/components/schemas/LanguageTag",
+        },
+      ],
       readOnly: true,
       description:
-        "The language code of the template variant that was sent (for example `en`).",
-      example: "en",
+        "The canonical BCP-47 tag of the template variant that was sent.",
+      example: "pt-BR",
     },
     components: {
       type: "array",
@@ -10653,10 +10698,13 @@ export const SMSTemplateSendSchema = {
       example: "bird_otp_verification_ttl",
     },
     language: {
-      type: "string",
-      minLength: 2,
+      allOf: [
+        {
+          $ref: "#/components/schemas/LanguageTag",
+        },
+      ],
       description:
-        "Language tag (BCP 47, for example `fr` or `pt-BR`) selecting the localized body. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.\n",
+        "Which of the template's localized bodies to send, as a BCP-47 tag. Falls back to the closest available language, then English, when the exact tag is not stocked. Omit for English.\n",
       example: "fr",
     },
     parameters: {
@@ -11880,14 +11928,6 @@ export const EmailTemplateVersionIDSchema = {
   minLength: 1,
   pattern: "^emv_[0-9a-hjkmnp-tv-z]{26}$",
   example: "emv_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const LanguageTagSchema = {
-  type: "string",
-  minLength: 2,
-  maxLength: 35,
-  description: "A language tag in BCP-47 form, for example `en` or `pt-BR`.",
-  example: "pt-BR",
 } as const;
 
 export const EmailMessageBatchItemSchema = {
@@ -15371,7 +15411,7 @@ export const EmailStatsComparisonWritableSchema = {
   additionalProperties: false,
   readOnly: true,
   description:
-    'The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. Use it to render "+X% vs last period" without issuing a second request.\n',
+    "The same statistics for the equal-length, inclusive period ending the day immediately before the requested start, together with the change between the two periods. Present only when `compare=previous_period` is requested. The change is already computed, so a percentage difference needs no second request.\n",
 } as const;
 
 export const EmailStatsTagsResponseWritableSchema = {

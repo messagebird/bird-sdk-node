@@ -36,7 +36,7 @@ export class DomainsResource extends Resource {
   }
 
   /**
-   * Register a new sending domain and get the DNS records to publish. Flow: call this, publish the returned DNS records at your DNS provider, then call email_domains_verify (repeat until status is verified — DNS propagation can take minutes to hours).
+   * Register a new sending domain and get the DNS records to publish. Verification is a second step: the records go live at the DNS provider, then email_domains_verify confirms them. Propagation takes minutes to hours, so the first verify often still reports unverified and a later one succeeds.
    *
    * @example Register a sending domain
    * const domain = await bird.domains.create({ domain: "mail.acme.com" });
@@ -60,7 +60,7 @@ export class DomainsResource extends Resource {
   }
 
   /**
-   * Update a sending domain's tracking and inbound configuration. Tracking: toggle click_tracking and open_tracking (applied immediately to new sends), and set, change, or remove the tracking domain (the name part only — Bird appends the sending domain). Enabling either toggle with no tracking domain configured returns 409; removing the tracking domain while either toggle is still on also returns 409. Tracking-domain changes on a verified domain are staged behind DNS verification, so the current config keeps serving until the new records verify. Inbound receiving: set inbound.enabled to start or stop receiving mail for the domain. Enabling requires the domain's DKIM to be verified first (a fresh enable on an unverified domain returns 422), and a domain already receiving inbound for another organization returns 422. The MX records to publish are always listed in dns_records regardless, so enabling — not merely publishing them — is what turns receiving on.
+   * Update a sending domain's tracking and inbound configuration. Tracking: click_tracking and open_tracking apply immediately to new sends, and the tracking domain can be set, changed, or removed (the name part only; Bird appends the sending domain). Enabling either toggle with no tracking domain configured returns 409, and removing the tracking domain while either toggle is still on also returns 409. Tracking-domain changes on a verified domain are staged behind DNS verification, so the current config keeps serving until the new records verify. Inbound receiving: inbound.enabled starts or stops receiving mail for the domain. Enabling requires the domain's DKIM to be verified first (a fresh enable on an unverified domain returns 422), and a domain already receiving inbound for another organization returns 422. The MX records to publish are always listed in dns_records regardless, so receiving starts only once inbound.enabled is set, even when those records are already published.
    *
    * @example Enable tracking on a domain
    * await bird.domains.update("dom_01krdgeqcxet5s7t44vh8rt9mg", {

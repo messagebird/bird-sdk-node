@@ -1,7 +1,7 @@
 // `bird.whatsapp` — the WhatsApp channel: send WhatsApp messages and read their
 // status and events.
 
-import { sendWhatsAppMessage } from "../generated/sdk.gen.js";
+import { createWhatsAppMessage } from "../generated/sdk.gen.js";
 import type {
   WhatsAppMessageSendRequest,
   WhatsAppMessage,
@@ -36,7 +36,7 @@ export class WhatsappResource extends WhatsappResourceBase {
     options?: RequestOptions,
   ): APIPromise<WhatsAppMessage> {
     return this.call<WhatsAppMessage>("POST", options, ({ signal, headers }) =>
-      sendWhatsAppMessage({
+      createWhatsAppMessage({
         client: this.client,
         body: params,
         headers,

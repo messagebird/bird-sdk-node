@@ -13,7 +13,7 @@ export type EmailMailboxesUpdateParams = NonNullable<UpdateMailboxData["body"]>;
 export type EmailMailboxesUpdateQuery = NonNullable<UpdateMailboxData["query"]>;
 export type EmailMailboxesStatsQuery = NonNullable<GetMailboxStatsData["query"]>;
 
-export class EmailMailboxesResource extends Resource {
+export class EmailMailboxesResourceBase extends Resource {
   /**
    * List the workspace's mailboxes as a cursor page, newest first. Search addresses and display names with q, or filter by exact address, state, or domain.
    *
@@ -28,7 +28,7 @@ export class EmailMailboxesResource extends Resource {
   }
 
   /**
-   * Create a mailbox — a durable agent identity that owns an email address, groups mail into threads, and remembers conversations for its retention tier.
+   * Create a mailbox: a durable agent identity that owns an email address, groups mail into threads, and remembers conversations for its retention tier.
    *
    * @example Create a mailbox
    * const mailbox = await bird.email.mailboxes.create({ display_name: "Support" });
@@ -52,7 +52,7 @@ export class EmailMailboxesResource extends Resource {
   }
 
   /**
-   * Update a mailbox's display name, reply-to, receive policy, retention tier, contact, or metadata. Lowering the retention tier onto remembered messages older than the new horizon requires confirm=true.
+   * Update a mailbox's display name, reply-to, receive policy, retention tier, IP pool, or metadata. Lowering the retention tier onto remembered messages older than the new horizon requires confirm=true.
    *
    * @example Change a mailbox's receive policy
    * const mailbox = await bird.email.mailboxes.update("mbx_01abc", {

@@ -654,7 +654,7 @@ export const cancelEmailMessage = <ThrowOnError extends boolean = false>(
 /**
  * List contacts
  *
- * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email` or `external_id`, or search by email, first name, or last name substring with `q`. Pass `include_total=true` to add the total number of matching contacts to the response.
+ * Returns a paginated list of contacts in the workspace, newest first. Look up a single contact by its exact `email`, `phone`, or `external_id`, or search by email, first name, last name, or phone substring with `q`. Pass `include_total=true` to add the total number of matching contacts to the response.
  *
  */
 export const listContacts = <ThrowOnError extends boolean = false>(
@@ -680,7 +680,7 @@ export const listContacts = <ThrowOnError extends boolean = false>(
 /**
  * Create a contact
  *
- * Creates a contact in the workspace. The email address is the contact's identity: it is stored trimmed and lowercased, and creating a second contact with the same email, or reusing another contact's `external_id`, returns a conflict error.
+ * Creates a contact in the workspace, identified by an email address, a phone number, or both; at least one is required. Email is stored trimmed and lowercased, and phone in its canonical international form. Creating a second contact with the same email or phone number, or reusing another contact's `external_id`, returns a conflict error.
  *
  * To create or update many contacts in one request, or to write a contact without knowing whether the address already exists, use [Create or update contacts in bulk](/docs/api/reference/create-contact-batch) instead.
  *
@@ -712,7 +712,7 @@ export const createContact = <ThrowOnError extends boolean = false>(
 /**
  * Create or update contacts in bulk
  *
- * Creates or updates up to 1,000 contacts in one request, matched by email address (trimmed and lowercased before matching). A new address creates a contact; an existing one is updated with the fields that entry supplies, and omitted fields keep their stored values. Optionally adds every contact in the request to up to 10 audiences.
+ * Creates or updates up to 1,000 contacts in one request. Each entry is matched automatically against every identifier it supplies: its email address (trimmed and lowercased before matching), its phone number (normalized to international form), and your own `external_id`. An entry that matches no existing contact creates one; an entry whose identifiers all point at one contact updates it with the fields it supplies, and omitted fields keep their stored values, so a contact's email address can change under a stable `external_id` without creating a second record. An entry whose identifiers belong to more than one contact fails with an error naming each matched contact, since Bird never merges contacts or picks between them. Supplying `match_on` overrides the automatic matching: every entry is matched by that one field only, and must carry it. Optionally adds every contact in the request to up to 10 audiences.
  *
  * Each entry succeeds or fails on its own: the response lists one result per contact in submission order (`created`, `updated`, or `failed` with the reason), and a failed entry does not abort the rest. If the request itself is invalid, for example when an entry in `audience_ids` does not exist, the whole request fails with a validation error and no contacts are written.
  *
@@ -798,7 +798,7 @@ export const getContact = <ThrowOnError extends boolean = false>(
  *
  * Updates a contact. Supplied fields are changed and omitted fields are left unchanged; set `first_name`, `last_name`, or `external_id` to null to clear them. Custom values in `data` are merged: keys you supply are set, keys set to null are removed, and keys you omit are unchanged.
  *
- * Changing the email address or `external_id` to a value already used by another contact returns a conflict error.
+ * Changing the email address, phone number, or `external_id` to a value already used by another contact returns a conflict error, and a contact always keeps at least one identifier: clearing both email and phone in the same contact is rejected.
  *
  */
 export const updateContact = <ThrowOnError extends boolean = false>(
@@ -1502,7 +1502,7 @@ export const createVerificationCheck = <ThrowOnError extends boolean = false>(
 /**
  * List WhatsApp messages
  *
- * Returns the workspace's WhatsApp messages as a cursor-paginated list, newest first. Filter by status, contact phone number, business-scoped user ID, tag, or creation time; pass the response's `next_cursor` back as `starting_after` to fetch the next page. To follow a single message's delivery, use [Get a WhatsApp message](/docs/api/reference/get-whats-app-message) instead.
+ * Returns the workspace's WhatsApp messages as a cursor-paginated list, newest first. Filter by direction, status, contact phone number, business-scoped user ID, tag, or creation time; pass the response's `next_cursor` back as `starting_after` to fetch the next page. To follow a single message's delivery, use [Get a WhatsApp message](/docs/api/reference/get-whats-app-message) instead.
  *
  */
 export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
@@ -1530,10 +1530,10 @@ export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
  *
  * Sends a WhatsApp message built from a message template to one recipient.
  * Name the template, optionally pick its language variant, and fill its
- * placeholders in `components`; Bird selects the sender number from the
- * template's category, so the request carries no sender field. Templates are
- * the only supported content type: a request without `template` is rejected
- * with a `422`. Browse your workspace's templates in the Bird dashboard.
+ * placeholders in `components`; a Bird-managed template selects its sender
+ * number from its category, so the request carries no sender field. A request
+ * that carries no content is rejected with a `422`. Browse your workspace's
+ * templates in the Bird dashboard.
  *
  * The `202` response is the accepted message, echoing the resolved template
  * and language; it is not a delivery confirmation. Follow delivery with
@@ -1544,7 +1544,8 @@ export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
  *
  * A template slug or language the catalogue does not stock, parameter values
  * that do not match the template's declared placeholders, and a recipient
- * that is not a valid phone number each return a `422`.
+ * that is not a valid phone number each return a `422`, as does a request
+ * that carries no content at all.
  *
  */
 export const createWhatsAppMessage = <ThrowOnError extends boolean = false>(

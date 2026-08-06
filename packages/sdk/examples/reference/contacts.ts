@@ -38,7 +38,7 @@ export async function contactsBatch() {
     contacts: [{ email: "jane@acme.com", first_name: "Jane" }],
   });
   for (const item of result.data) {
-    console.log(item.email, item.status);
+    console.log(item.entry.email, item.status);
   }
 }
 

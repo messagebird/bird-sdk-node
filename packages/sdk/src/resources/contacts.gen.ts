@@ -13,7 +13,7 @@ export type ContactBatchParams = NonNullable<CreateContactBatchData["body"]>;
 
 export class ContactsResource extends Resource {
   /**
-   * List the workspace's contacts as a cursor page, newest first. Look one up by exact email or external_id, or search by email/name substring. Pass include_total for a total count.
+   * List the workspace's contacts as a cursor page, newest first. Look one up by exact email, phone, or external_id, or search by email, name, or phone substring. Pass include_total for a total count.
    *
    * @example Iterate every contact, or take one page
    * for await (const contact of bird.contacts.list({ q: "acme.com" })) {
@@ -27,7 +27,7 @@ export class ContactsResource extends Resource {
   }
 
   /**
-   * Get a single contact by ID (`con_`-prefixed). Look up an ID by exact email or external_id with `contacts.list`.
+   * Get a single contact by ID (`con_`-prefixed). Look up an ID by exact email, phone, or external_id with `contacts.list`.
    *
    * @example Fetch a contact by id
    * const contact = await bird.contacts.get("con_01krdgeqcxet5s7t44vh8rt9mg");
@@ -39,7 +39,7 @@ export class ContactsResource extends Resource {
   }
 
   /**
-   * Create a contact by email address in the workspace. Fails with a conflict if the email or external_id is already used by another contact. For bulk import or create-or-update semantics use `contacts.batch`.
+   * Create a contact identified by an email address, an E.164 phone number, or both. Fails with a conflict if the email, phone, or external_id is already used by another contact. For bulk import or create-or-update semantics use `contacts.batch`.
    *
    * @example Create a contact
    * const contact = await bird.contacts.create({
@@ -48,13 +48,13 @@ export class ContactsResource extends Resource {
    * });
    * console.log(contact.id); // "con_…"
    */
-  create(params: ContactCreateParams, options?: RequestOptions): APIPromise<Contact> {
+  create(params: ContactCreateParams = {}, options?: RequestOptions): APIPromise<Contact> {
     return this.call<Contact>("POST", options, ({ signal, headers }) =>
       createContact({ client: this.client, body: params, headers, signal }));
   }
 
   /**
-   * Update a contact's name, external_id, email, or custom data. Only supplied fields change; custom data keys are merged, with null removing a key.
+   * Update a contact's name, external_id, email, phone, or custom data. Only supplied fields change; custom data keys are merged, with null removing a key. A contact keeps at least one identifier: clearing both email and phone is rejected.
    *
    * @example Change a contact's fields
    * const contact = await bird.contacts.update("con_01krdgeqcxet5s7t44vh8rt9mg", {
@@ -79,14 +79,14 @@ export class ContactsResource extends Resource {
   }
 
   /**
-   * Create or update up to 1,000 contacts in one request, matched by email address, and optionally add them all to one or more audiences. Per-contact results are returned in submission order.
+   * Create or update up to 1,000 contacts in one request, each entry matched automatically against every identifier it supplies (email, phone, external_id) or, with match_on, by that one field only, and optionally add them all to one or more audiences. Per-contact results are returned in submission order.
    *
-   * @example Create or update many contacts at once, matched by email
+   * @example Create or update many contacts at once, matched by the identifiers each entry carries
    * const result = await bird.contacts.batch({
    *   contacts: [{ email: "jane@acme.com", first_name: "Jane" }],
    * });
    * for (const item of result.data) {
-   *   console.log(item.email, item.status);
+   *   console.log(item.entry.email, item.status);
    * }
    */
   batch(params: ContactBatchParams, options?: RequestOptions): APIPromise<ContactUpsertResult> {

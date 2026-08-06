@@ -157,17 +157,15 @@ export type {
   RealtimeChannelInclude,
   // request params and query
   RealtimePublishParams,
-  RealtimeBatchPublishParams,
-  RealtimeChannelsListQuery,
+  RealtimePublishBatchParams,
+  RealtimeChannelListQuery,
   RealtimeChannelGetQuery,
-  // credentials: client config + per-call override
+  // credentials: client config
   RealtimeOptions,
-  RealtimeRequestOptions,
 } from "./resources/realtime.js";
 export { WebhookEventType } from "./event-types.gen.js";
 export type { WebhookEventTypeValue } from "./event-types.gen.js";
 export {
-  ContactChannel,
   EmailEventType,
   VerificationAttemptFailureReason,
   VerificationChannel,
@@ -177,7 +175,6 @@ export {
   WhatsAppTemplateParameterType,
 } from "./open-enums.gen.js";
 export type {
-  ContactChannelValue,
   EmailEventTypeValue,
   VerificationAttemptFailureReasonValue,
   VerificationChannelValue,

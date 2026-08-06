@@ -42,13 +42,30 @@ describe("bird.realtime credentials", () => {
     expect(calls[0].headers.get("Authorization")).toBe("Bearer bk_eu1_test");
   });
 
+  // The app secret must reach ONLY the operations that declare the schemes. A
+  // shared header path once put it on every request, so this pins the scope.
+  it("does not send the app credentials on an unrelated resource", async () => {
+    const { fn, calls } = fakeFetch([() => json(200, { id: "em_1" })]);
+
+    await bird(fn, { key: "rk_live", secret: "rs_live" }).email.send({
+      from: "hello@acme.com",
+      to: ["customer@example.com"],
+      subject: "hi",
+      html: "<p>hi</p>",
+    });
+
+    expect(calls[0].headers.get("X-Realtime-Key")).toBeNull();
+    expect(calls[0].headers.get("X-Realtime-Secret")).toBeNull();
+    expect(calls[0].headers.get("Authorization")).toBe("Bearer bk_eu1_test");
+  });
+
   it("a per-call key/secret overrides the client config", async () => {
     const { fn, calls } = fakeFetch([() => json(200, { data: [] })]);
 
     await bird(fn, { key: "rk_live", secret: "rs_live" }).realtime.channels.list(
       APP,
       undefined,
-      { key: "rk_other", secret: "rs_other" },
+      { credentials: { RealtimeKey: "rk_other", RealtimeSecret: "rs_other" } },
     );
 
     expect(calls[0].headers.get("X-Realtime-Key")).toBe("rk_other");
@@ -60,10 +77,10 @@ describe("bird.realtime credentials", () => {
     const client = bird(fn);
 
     expect(() => client.realtime.publish(APP, { event: "x", channels: ["c"] })).toThrow(
-      /Realtime app credentials/,
+      /is required for this operation/,
     );
     expect(() => client.realtime.members.disconnect(APP, "user_42")).toThrow(
-      /Realtime app credentials/,
+      /is required for this operation/,
     );
     expect(calls).toHaveLength(0);
   });
@@ -71,7 +88,7 @@ describe("bird.realtime credentials", () => {
   it("throws when only one half of the pair is set", () => {
     const { fn } = fakeFetch([() => json(200, {})]);
     expect(() => bird(fn, { key: "rk_live" }).realtime.channels.get(APP, "orders")).toThrow(
-      /Realtime app credentials/,
+      /is required for this operation/,
     );
   });
 });

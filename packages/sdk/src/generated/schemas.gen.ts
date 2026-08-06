@@ -51,10 +51,6 @@ export const WebhookEventTypeSchema = {
     "sms.failed",
     "sms.rejected",
     "sms.sent",
-    "sms.tfn_verification.approved",
-    "sms.tfn_verification.info_requested",
-    "sms.tfn_verification.rejected",
-    "sms.tfn_verification.submitted",
     "sms.undelivered",
     "verify.attempt.delivered",
     "verify.attempt.sent",
@@ -335,12 +331,12 @@ export const EventWhatsAppBaseSchema = {
     from: {
       $ref: "#/components/schemas/WhatsAppAddress",
       description:
-        "Sender of the message. On outbound messages, the business number it was sent from.",
+        "Sender of the message. On outbound messages, the business number it was sent from; on inbound, the WhatsApp contact.",
     },
     to: {
       $ref: "#/components/schemas/WhatsAppAddress",
       description:
-        "Recipient of the message. On outbound messages, the WhatsApp contact.",
+        "Recipient of the message. On outbound messages, the WhatsApp contact; on inbound, the business number.",
     },
     tags: {
       type: ["array", "null"],
@@ -1450,218 +1446,6 @@ export const EventSMSUndeliveredSchema = {
     },
     data: {
       $ref: "#/components/schemas/EventSMSUndeliveredData",
-    },
-  },
-} as const;
-
-export const EventSMSTfnVerificationSubmittedDataSchema = {
-  type: "object",
-  description: "Payload of the sms.tfn_verification.submitted event.",
-  allOf: [
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
-    },
-  ],
-} as const;
-
-export const SMSSenderIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^snd_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "snd_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const TFNVerificationIDSchema = {
-  type: "string",
-  minLength: 1,
-  pattern: "^tfv_[0-9a-hjkmnp-tv-z]{26}$",
-  example: "tfv_01krdgeqcxet5s7t44vh8rt9mg",
-} as const;
-
-export const EventSMSTfnVerificationBaseSchema = {
-  type: "object",
-  description:
-    "Identity fields shared by every toll-free verification event payload.",
-  required: ["verification_id", "workspace_id", "status", "sender_id"],
-  properties: {
-    verification_id: {
-      $ref: "#/components/schemas/TFNVerificationID",
-      description: "ID of the toll-free verification.",
-    },
-    workspace_id: {
-      $ref: "#/components/schemas/WorkspaceID",
-      description: "ID of the workspace that owns the verification.",
-    },
-    status: {
-      type: "string",
-      minLength: 1,
-      description:
-        "Lifecycle state of the verification at the time of the event.",
-      example: "approved",
-    },
-    sender_id: {
-      $ref: "#/components/schemas/SMSSenderID",
-      description: "ID of the toll-free number the verification licenses.",
-    },
-  },
-} as const;
-
-export const EventSMSTfnVerificationSubmittedSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "A toll-free number verification was submitted to the carrier for review.",
-  required: ["type", "timestamp", "data"],
-  properties: {
-    type: {
-      type: "string",
-      minLength: 1,
-      enum: ["sms.tfn_verification.submitted"],
-      description: "Event type.",
-      example: "sms.tfn_verification.submitted",
-    },
-    timestamp: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      description: "Time the verification was submitted.",
-      example: {},
-    },
-    data: {
-      $ref: "#/components/schemas/EventSMSTfnVerificationSubmittedData",
-    },
-  },
-} as const;
-
-export const EventSMSTfnVerificationRejectedDataSchema = {
-  type: "object",
-  description: "Payload of the sms.tfn_verification.rejected event.",
-  allOf: [
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
-    },
-    {
-      type: "object",
-      required: ["denial_reasons", "resubmit_allowed"],
-      properties: {
-        denial_reasons: {
-          type: "array",
-          items: {
-            type: "string",
-            minLength: 1,
-          },
-          description:
-            "Human-readable reasons the carrier gave for the rejection.",
-          example: ["opt-in workflow unclear"],
-        },
-        resubmit_allowed: {
-          type: "boolean",
-          description:
-            "Whether the verification may be corrected and resubmitted within the resubmission window.",
-          example: true,
-        },
-      },
-    },
-  ],
-} as const;
-
-export const EventSMSTfnVerificationRejectedSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "The carrier rejected a toll-free number verification; the number cannot send until an accepted verification is approved.",
-  required: ["type", "timestamp", "data"],
-  properties: {
-    type: {
-      type: "string",
-      minLength: 1,
-      enum: ["sms.tfn_verification.rejected"],
-      description: "Event type.",
-      example: "sms.tfn_verification.rejected",
-    },
-    timestamp: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      description: "Time the rejection was recorded.",
-      example: {},
-    },
-    data: {
-      $ref: "#/components/schemas/EventSMSTfnVerificationRejectedData",
-    },
-  },
-} as const;
-
-export const EventSMSTfnVerificationInfoRequestedDataSchema = {
-  type: "object",
-  description: "Payload of the sms.tfn_verification.info_requested event.",
-  allOf: [
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
-    },
-  ],
-} as const;
-
-export const EventSMSTfnVerificationInfoRequestedSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "The carrier requested more information before deciding a toll-free number verification.",
-  required: ["type", "timestamp", "data"],
-  properties: {
-    type: {
-      type: "string",
-      minLength: 1,
-      enum: ["sms.tfn_verification.info_requested"],
-      description: "Event type.",
-      example: "sms.tfn_verification.info_requested",
-    },
-    timestamp: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      description: "Time the information request was recorded.",
-      example: {},
-    },
-    data: {
-      $ref: "#/components/schemas/EventSMSTfnVerificationInfoRequestedData",
-    },
-  },
-} as const;
-
-export const EventSMSTfnVerificationApprovedDataSchema = {
-  type: "object",
-  description: "Payload of the sms.tfn_verification.approved event.",
-  allOf: [
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationBase",
-    },
-  ],
-} as const;
-
-export const EventSMSTfnVerificationApprovedSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "The carrier approved a toll-free number verification; the number can now send in its licensed countries.",
-  required: ["type", "timestamp", "data"],
-  properties: {
-    type: {
-      type: "string",
-      minLength: 1,
-      enum: ["sms.tfn_verification.approved"],
-      description: "Event type.",
-      example: "sms.tfn_verification.approved",
-    },
-    timestamp: {
-      type: "string",
-      minLength: 1,
-      format: "date-time",
-      description: "Time the approval was recorded.",
-      example: {},
-    },
-    data: {
-      $ref: "#/components/schemas/EventSMSTfnVerificationApprovedData",
     },
   },
 } as const;
@@ -3594,18 +3378,6 @@ export const WebhookEventSchema = {
       $ref: "#/components/schemas/EventSMSSent",
     },
     {
-      $ref: "#/components/schemas/EventSMSTfnVerificationApproved",
-    },
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationInfoRequested",
-    },
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationRejected",
-    },
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationSubmitted",
-    },
-    {
       $ref: "#/components/schemas/EventSMSUndelivered",
     },
     {
@@ -3693,14 +3465,6 @@ export const WebhookEventSchema = {
       "sms.failed": "#/components/schemas/EventSMSFailed",
       "sms.rejected": "#/components/schemas/EventSMSRejected",
       "sms.sent": "#/components/schemas/EventSMSSent",
-      "sms.tfn_verification.approved":
-        "#/components/schemas/EventSMSTfnVerificationApproved",
-      "sms.tfn_verification.info_requested":
-        "#/components/schemas/EventSMSTfnVerificationInfoRequested",
-      "sms.tfn_verification.rejected":
-        "#/components/schemas/EventSMSTfnVerificationRejected",
-      "sms.tfn_verification.submitted":
-        "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndelivered",
       "verify.attempt.delivered":
         "#/components/schemas/EventVerifyAttemptDelivered",
@@ -9357,7 +9121,7 @@ export const WhatsAppEventSchema = {
         "whatsapp.rejected",
       ],
       description:
-        "Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. `whatsapp.rejected`: Bird refused the message before sending it, so it was never charged. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
+        "Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. `whatsapp.rejected`: Bird refused the message before sending it, so it was never charged. `whatsapp.received`: an inbound message arrived from the contact. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.\n",
       example: "whatsapp.delivered",
     },
     occurred_at: {
@@ -9378,6 +9142,8 @@ export const WhatsAppEventSchema = {
 export const WhatsAppMessageSendRequestSchema = {
   type: "object",
   additionalProperties: false,
+  description:
+    "A WhatsApp message to send. Carry exactly one kind of content: a request with none returns a `422` `WhatsAppContentRequired`, and one carrying more than one returns a `422` `WhatsAppContentAmbiguous`. The schema does not express that constraint, because which combinations are available depends on the content types your workspace can send.\n",
   required: ["to"],
   properties: {
     to: {
@@ -9394,7 +9160,7 @@ export const WhatsAppMessageSendRequestSchema = {
         },
       ],
       description:
-        "The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are the only supported content type today: a request without one is rejected with a `422`.\n",
+        "The template to send. For a Bird-managed template, Bird selects the sender number from the template's category, so `from` must be omitted. A template is the only content deliverable outside a customer service window.\n",
     },
     tags: {
       type: "array",
@@ -9709,7 +9475,7 @@ export const WhatsAppMessageStatusSchema = {
     "received",
   ],
   description:
-    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means Bird refused the message before sending it to WhatsApp, because the recipient is on the workspace's suppression list, the wallet had insufficient balance, or the destination is unpriced. A rejected message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).\n",
+    "Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means Bird refused the message before sending it to WhatsApp, because the recipient is on the workspace's suppression list, the wallet had insufficient balance, or the destination is unpriced. A rejected message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (a message a contact sent you).\n",
 } as const;
 
 export const WhatsAppTemplateCategorySchema = {
@@ -9869,7 +9635,7 @@ export const WhatsAppMessageSchema = {
         },
       ],
       description:
-        "Amount charged for this message, at full precision. Null until the message has been priced, and on messages that were rejected before pricing. The rate depends on the template category and the recipient's country.",
+        "Amount charged for this message, at full precision. Null until the message has been priced, and on messages that were rejected before pricing. The rate depends on the message category and the recipient's country.",
     },
     tags: {
       type: "array",
@@ -10997,19 +10763,11 @@ export const AudienceRefSchema = {
   },
 } as const;
 
-export const ContactChannelSchema = {
-  type: "string",
-  minLength: 1,
-  "x-extensible-enum": ["email"],
-  description:
-    "A channel a contact can be reached on. Open enum: `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.\n",
-} as const;
-
 export const ContactSchema = {
   allOf: [
     {
       type: "object",
-      required: ["id", "email", "created_at", "updated_at"],
+      required: ["id", "email", "phone", "created_at", "updated_at"],
       properties: {
         id: {
           readOnly: true,
@@ -11018,12 +10776,18 @@ export const ContactSchema = {
             "ID of the contact (`con_`-prefixed), accepted by every operation that takes a `contact_id`.",
         },
         email: {
-          type: "string",
+          type: ["string", "null"],
           format: "email",
-          minLength: 1,
           maxLength: 254,
           description:
-            "The contact's email address, stored trimmed and lowercased. Unique within the workspace.",
+            "The contact's email address, in its stored form, trimmed and lowercased before uniqueness is checked. Unique within the workspace. Null when the contact has no email address.",
+        },
+        phone: {
+          type: ["string", "null"],
+          minLength: 5,
+          maxLength: 16,
+          description:
+            "The contact's phone number in normalized international form (a leading `+` and four to 15 digits), which may differ from the form it was supplied in. Bird normalizes formatting but does not verify the number against numbering-plan metadata. Unique within the workspace. Carriers recycle disconnected numbers, so a long-stored number can come to belong to someone else; `external_id` is the durable key for your own records. Null when the contact has no phone number.",
         },
         first_name: {
           type: ["string", "null"],
@@ -11048,15 +10812,6 @@ export const ContactSchema = {
           additionalProperties: true,
           description:
             "Custom property values for this contact, available as template variables in broadcasts. Each key is a property created via the contact properties API, and each value is a string, number, boolean, or RFC 3339 datetime matching the property's declared type (strings up to 500 characters). Total size is capped at 2 KB serialized. Values stored under a property that was later archived remain readable here.\n",
-        },
-        channels: {
-          type: "array",
-          readOnly: true,
-          description:
-            "Channels this contact can be reached on, derived from the identifiers it has. A contact with an email address includes `email`. More values are added as a contact gains identifiers for other channels.\n",
-          items: {
-            $ref: "#/components/schemas/ContactChannel",
-          },
         },
       },
     },
@@ -11350,12 +11105,17 @@ export const ContactUpdateRequestSchema = {
   additionalProperties: false,
   properties: {
     email: {
-      type: "string",
+      type: ["string", "null"],
       format: "email",
-      minLength: 1,
       maxLength: 254,
       description:
-        "New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace. Omit to keep the current address; a contact's email cannot be removed.",
+        "New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace. Omit to keep the current address; set to null to remove it, as long as the contact keeps at least one identifier.",
+    },
+    phone: {
+      type: ["string", "null"],
+      maxLength: 32,
+      description:
+        "New phone number for the contact, in E.164 format with the leading `+` and country code. Spaces and punctuation are accepted and stripped. Stored in its canonical form, which may differ from what you send, and unique within the workspace. Omit to keep the current number; set to null to remove it, as long as the contact keeps at least one identifier. An empty string behaves as null.",
     },
     first_name: {
       type: ["string", "null"],
@@ -11404,13 +11164,20 @@ export const ContactUpsertResultSchema = {
 export const ContactUpsertErrorSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["type", "message"],
+  required: ["type", "code", "message"],
   properties: {
     type: {
       type: "string",
       minLength: 1,
       description:
         "Machine-readable error category for this entry, such as `validation_error` or `conflict_error`, in the same vocabulary as the top-level error `type`. New categories may be added over time, so treat unrecognized values as a generic failure.",
+    },
+    code: {
+      type: "string",
+      minLength: 6,
+      pattern: "^E\\d{5}$",
+      description:
+        "The specific error code for this entry, from the same catalog as the top-level error `code`: the discriminator within a category. `E04058` (the entry matched two different contacts, a human must decide) and `E04055` (the phone belongs to another contact, retry with different data) are both `conflict_error`; the code tells a sync which one it hit.",
     },
     message: {
       type: "string",
@@ -11420,17 +11187,50 @@ export const ContactUpsertErrorSchema = {
   },
 } as const;
 
+export const ContactMatchedOnSchema = {
+  type: ["string", "null"],
+  enum: ["email", "phone", "external_id", null],
+  description:
+    "Which identifier matched a batch entry to an existing contact. Null when the entry created a new contact.",
+} as const;
+
+export const ContactUpsertEntrySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["email", "phone", "external_id"],
+  description:
+    "The identifiers a batch entry supplied, in the normalized form they were matched with, null where the entry carried none. An echo of the request row for correlation, never the contact's current state.",
+  properties: {
+    email: {
+      type: ["string", "null"],
+      description:
+        "Email address this entry carried, trimmed and lowercased. Null when the entry carried none.",
+    },
+    phone: {
+      type: ["string", "null"],
+      description:
+        "Phone number this entry carried, in its normalized international form. Null when the entry carried none. A row rejected for an invalid phone echoes the value as sent, trimmed, since no normalized form exists.",
+    },
+    external_id: {
+      type: ["string", "null"],
+      description:
+        "Your own identifier for this entry, when the entry supplied one.",
+    },
+  },
+} as const;
+
 export const ContactUpsertResultItemSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["email", "status"],
+  required: ["entry", "matched_on", "status"],
   properties: {
-    email: {
-      type: "string",
-      format: "email",
-      minLength: 1,
+    entry: {
+      $ref: "#/components/schemas/ContactUpsertEntry",
+    },
+    matched_on: {
+      $ref: "#/components/schemas/ContactMatchedOn",
       description:
-        "Email address this entry refers to, in the normalized (trimmed and lowercased) form it was matched and stored as.",
+        "Which identifier matched this entry to an existing contact. Null when the entry created a new contact.",
     },
     status: {
       type: "string",
@@ -11464,7 +11264,7 @@ export const ContactUpsertRequestSchema = {
         $ref: "#/components/schemas/ContactCreateRequest",
       },
       description:
-        "Contacts to create or update, matched by email address. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. New addresses create contacts.",
+        "Contacts to create or update, matched automatically against every identifier an entry supplies. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. Unmatched entries create contacts.",
     },
     audience_ids: {
       type: "array",
@@ -11475,6 +11275,11 @@ export const ContactUpsertRequestSchema = {
       },
       description:
         "Audiences every contact in this request is added to. Contacts that are already members are left in place. Every listed audience must exist, or the whole request fails with a validation error and nothing is written.",
+    },
+    match_on: {
+      $ref: "#/components/schemas/ContactMatchKey",
+      description:
+        "Optional. Forces every entry to be matched to an existing contact by this one field, which every entry must then carry. When omitted, each entry is matched automatically against every identifier it supplies: no match creates a contact, one match updates it, and an entry whose identifiers belong to more than one contact fails with an error naming each.\n",
     },
     data_mode: {
       type: "string",
@@ -11501,18 +11306,29 @@ export const ContactUpsertRequestSchema = {
   },
 } as const;
 
+export const ContactMatchKeySchema = {
+  type: "string",
+  enum: ["email", "phone", "external_id"],
+  description: "A contact identifier a batch entry can be matched on.",
+} as const;
+
 export const ContactCreateRequestSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["email"],
   properties: {
     email: {
       type: "string",
       format: "email",
-      minLength: 1,
       maxLength: 254,
       description:
-        "The contact's email address. Trimmed and lowercased before it is stored and checked for uniqueness. Unique within the workspace.",
+        "The contact's email address. Trimmed and lowercased before it is stored and checked for uniqueness. Unique within the workspace. Supply an email address, a phone number, or both.",
+    },
+    phone: {
+      type: "string",
+      maxLength: 32,
+      description:
+        "The contact's phone number in E.164 format, including the leading `+` and country code. Spaces and punctuation are accepted and stripped; the number is stored in its canonical form, which may differ from what you send, and is unique within the workspace. An empty string is treated as if the field were omitted. Supply an email address, a phone number, or both.",
+      example: "+31612345678",
     },
     first_name: {
       type: "string",
@@ -11539,6 +11355,7 @@ export const ContactCreateRequestSchema = {
   },
   example: {
     email: "alice@acme.com",
+    phone: "+31612345678",
     first_name: "Alice",
     last_name: "Anderson",
   },
@@ -14158,18 +13975,6 @@ export const WebhookEventWritableSchema = {
       $ref: "#/components/schemas/EventSMSSent",
     },
     {
-      $ref: "#/components/schemas/EventSMSTfnVerificationApproved",
-    },
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationInfoRequested",
-    },
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationRejected",
-    },
-    {
-      $ref: "#/components/schemas/EventSMSTfnVerificationSubmitted",
-    },
-    {
       $ref: "#/components/schemas/EventSMSUndeliveredWritable",
     },
     {
@@ -14257,14 +14062,6 @@ export const WebhookEventWritableSchema = {
       "sms.failed": "#/components/schemas/EventSMSFailedWritable",
       "sms.rejected": "#/components/schemas/EventSMSRejectedWritable",
       "sms.sent": "#/components/schemas/EventSMSSent",
-      "sms.tfn_verification.approved":
-        "#/components/schemas/EventSMSTfnVerificationApproved",
-      "sms.tfn_verification.info_requested":
-        "#/components/schemas/EventSMSTfnVerificationInfoRequested",
-      "sms.tfn_verification.rejected":
-        "#/components/schemas/EventSMSTfnVerificationRejected",
-      "sms.tfn_verification.submitted":
-        "#/components/schemas/EventSMSTfnVerificationSubmitted",
       "sms.undelivered": "#/components/schemas/EventSMSUndeliveredWritable",
       "verify.attempt.delivered":
         "#/components/schemas/EventVerifyAttemptDelivered",
@@ -15719,15 +15516,21 @@ export const ContactWritableSchema = {
   allOf: [
     {
       type: "object",
-      required: ["email", "created_at", "updated_at"],
+      required: ["email", "phone", "created_at", "updated_at"],
       properties: {
         email: {
-          type: "string",
+          type: ["string", "null"],
           format: "email",
-          minLength: 1,
           maxLength: 254,
           description:
-            "The contact's email address, stored trimmed and lowercased. Unique within the workspace.",
+            "The contact's email address, in its stored form, trimmed and lowercased before uniqueness is checked. Unique within the workspace. Null when the contact has no email address.",
+        },
+        phone: {
+          type: ["string", "null"],
+          minLength: 5,
+          maxLength: 16,
+          description:
+            "The contact's phone number in normalized international form (a leading `+` and four to 15 digits), which may differ from the form it was supplied in. Bird normalizes formatting but does not verify the number against numbering-plan metadata. Unique within the workspace. Carriers recycle disconnected numbers, so a long-stored number can come to belong to someone else; `external_id` is the durable key for your own records. Null when the contact has no phone number.",
         },
         first_name: {
           type: ["string", "null"],

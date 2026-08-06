@@ -9,6 +9,13 @@ import { BirdError } from "../errors.js";
 
 /** Per-request overrides accepted by every resource method. */
 export interface RequestOptions {
+  /**
+   * Per-call override for the extra credentials an operation requires, keyed by
+   * security scheme (`{ RealtimeKey: "…", RealtimeSecret: "…" }`). Overrides the
+   * client config for this call, so one client can address several apps.
+   */
+  credentials?: Record<string, string>;
+
   /** Idempotency key; auto-generated for mutations if omitted, reused on retry. */
   idempotencyKey?: string;
   /** Caller cancellation. Rejects with the native `AbortError`. */

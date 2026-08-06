@@ -101,7 +101,7 @@ const result = await bird.contacts.batch({
   contacts: [{ email: "jane@acme.com", first_name: "Jane" }],
 });
 for (const item of result.data) {
-  console.log(item.email, item.status);
+  console.log(item.entry.email, item.status);
 }
 }
 
@@ -505,11 +505,9 @@ console.log(thread.id);
 }
 
 export async function _ex_74() {
-const channel = await bird.realtime.channels.get(
-  "rap_01krdgeqcxet5s7t44vh8rt9mg",
-  "presence-lobby",
-  { include: ["member_count"] },
-);
+const channel = await bird.realtime.channels.get("rap_01krdgeqcxet5s7t44vh8rt9mg", "presence-lobby", {
+  include: ["member_count"],
+});
 console.log(channel.occupied, channel.member_count);
 }
 
@@ -522,10 +520,7 @@ for (const channel of data) console.log(channel.name, channel.member_count);
 }
 
 export async function _ex_76() {
-const { members } = await bird.realtime.channels.members(
-  "rap_01krdgeqcxet5s7t44vh8rt9mg",
-  "presence-lobby",
-);
+const { members } = await bird.realtime.channels.members("rap_01krdgeqcxet5s7t44vh8rt9mg", "presence-lobby");
 for (const member of members) console.log(member.member_id);
 }
 

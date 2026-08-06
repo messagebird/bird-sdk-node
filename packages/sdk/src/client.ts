@@ -224,6 +224,18 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     this.core = new BirdHTTPClient({
       timeout: opts.timeout ?? DEFAULT_TIMEOUT_MS,
       maxRetries: opts.maxRetries ?? DEFAULT_MAX_RETRIES,
+      credentials: {
+        RealtimeKey: {
+          header: "X-Realtime-Key",
+          value: opts.realtime?.key,
+          how: "Set `realtime: { key, secret }` on the client.",
+        },
+        RealtimeSecret: {
+          header: "X-Realtime-Secret",
+          value: opts.realtime?.secret,
+          how: "Set `realtime: { key, secret }` on the client.",
+        },
+      },
     });
     // The runtime value is the configured defaults (or undefined); the precise
     // conditional type can't be reproved from the widened access, so assert it.
@@ -244,7 +256,7 @@ export class BirdClient<const O extends BirdClientOptions = BirdClientOptions> {
     );
     this.domains = new DomainsResource(this.core, this.#client);
     this.webhooks = new WebhooksResource(opts.webhooks);
-    this.realtime = new RealtimeResource(this.core, this.#client, opts.realtime);
+    this.realtime = new RealtimeResource(this.core, this.#client);
   }
 
   /**

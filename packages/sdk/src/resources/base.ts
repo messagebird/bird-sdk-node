@@ -33,9 +33,16 @@ export abstract class Resource {
     method: string,
     options: RequestOptions | undefined,
     invoke: (ctx: CallContext) => Promise<FetchOutcome<T>>,
+    schemes?: string[],
   ): APIPromise<T> {
+    // Resolved eagerly so a missing credential throws before the lifecycle starts,
+    // never as a rejected promise with a request already in flight.
+    const credentials = this.core.credentialHeaders(schemes, options?.credentials);
     return apiPromise(
-      this.core.request<T>((ctx) => invoke(callContext(ctx, options)), lifecycle(method, options)),
+      this.core.request<T>(
+        (ctx) => invoke(callContext(ctx, options, credentials)),
+        lifecycle(method, options),
+      ),
     );
   }
 
@@ -44,18 +51,27 @@ export abstract class Resource {
     method: string,
     options: RequestOptions | undefined,
     invoke: (ctx: CallContext, cursor: string | undefined) => Promise<FetchOutcome<CursorPage<T>>>,
+    schemes?: string[],
   ): PaginatedPromise<T> {
+    const credentials = this.core.credentialHeaders(schemes, options?.credentials);
     return paginate<T>((cursor) =>
       this.core.request<CursorPage<T>>(
-        (ctx) => invoke(callContext(ctx, options), cursor),
+        (ctx) => invoke(callContext(ctx, options, credentials), cursor),
         lifecycle(method, options),
       ),
     );
   }
 }
 
-function callContext(ctx: AttemptContext, options: RequestOptions | undefined): CallContext {
-  return { signal: ctx.signal, headers: mergeHeaders(ctx.idempotencyKey, options?.headers) };
+function callContext(
+  ctx: AttemptContext,
+  options: RequestOptions | undefined,
+  credentials: Record<string, string> = {},
+): CallContext {
+  return {
+    signal: ctx.signal,
+    headers: { ...mergeHeaders(ctx.idempotencyKey, options?.headers), ...credentials },
+  };
 }
 
 function lifecycle(method: string, options: RequestOptions | undefined): RequestLifecycleOptions {

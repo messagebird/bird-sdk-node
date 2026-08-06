@@ -50,10 +50,6 @@ export type WebhookEventType =
   | "sms.failed"
   | "sms.rejected"
   | "sms.sent"
-  | "sms.tfn_verification.approved"
-  | "sms.tfn_verification.info_requested"
-  | "sms.tfn_verification.rejected"
-  | "sms.tfn_verification.submitted"
   | "sms.undelivered"
   | "verify.attempt.delivered"
   | "verify.attempt.sent"
@@ -216,11 +212,11 @@ export type EventWhatsAppBase = {
    */
   direction: "outbound" | "inbound";
   /**
-   * Sender of the message. On outbound messages, the business number it was sent from.
+   * Sender of the message. On outbound messages, the business number it was sent from; on inbound, the WhatsApp contact.
    */
   from: WhatsAppAddress;
   /**
-   * Recipient of the message. On outbound messages, the WhatsApp contact.
+   * Recipient of the message. On outbound messages, the WhatsApp contact; on inbound, the business number.
    */
   to: WhatsAppAddress;
   /**
@@ -863,123 +859,6 @@ export type EventSmsUndelivered = {
    */
   timestamp: string;
   data: EventSmsUndeliveredData;
-};
-
-/**
- * Payload of the sms.tfn_verification.submitted event.
- */
-export type EventSmsTfnVerificationSubmittedData = EventSmsTfnVerificationBase;
-
-export type SmsSenderId = string;
-
-export type TfnVerificationId = string;
-
-/**
- * Identity fields shared by every toll-free verification event payload.
- */
-export type EventSmsTfnVerificationBase = {
-  /**
-   * ID of the toll-free verification.
-   */
-  verification_id: TfnVerificationId;
-  /**
-   * ID of the workspace that owns the verification.
-   */
-  workspace_id: WorkspaceId;
-  /**
-   * Lifecycle state of the verification at the time of the event.
-   */
-  status: string;
-  /**
-   * ID of the toll-free number the verification licenses.
-   */
-  sender_id: SmsSenderId;
-};
-
-/**
- * A toll-free number verification was submitted to the carrier for review.
- */
-export type EventSmsTfnVerificationSubmitted = {
-  /**
-   * Event type.
-   */
-  type: "sms.tfn_verification.submitted";
-  /**
-   * Time the verification was submitted.
-   */
-  timestamp: string;
-  data: EventSmsTfnVerificationSubmittedData;
-};
-
-/**
- * Payload of the sms.tfn_verification.rejected event.
- */
-export type EventSmsTfnVerificationRejectedData =
-  EventSmsTfnVerificationBase & {
-    /**
-     * Human-readable reasons the carrier gave for the rejection.
-     */
-    denial_reasons: Array<string>;
-    /**
-     * Whether the verification may be corrected and resubmitted within the resubmission window.
-     */
-    resubmit_allowed: boolean;
-  };
-
-/**
- * The carrier rejected a toll-free number verification; the number cannot send until an accepted verification is approved.
- */
-export type EventSmsTfnVerificationRejected = {
-  /**
-   * Event type.
-   */
-  type: "sms.tfn_verification.rejected";
-  /**
-   * Time the rejection was recorded.
-   */
-  timestamp: string;
-  data: EventSmsTfnVerificationRejectedData;
-};
-
-/**
- * Payload of the sms.tfn_verification.info_requested event.
- */
-export type EventSmsTfnVerificationInfoRequestedData =
-  EventSmsTfnVerificationBase;
-
-/**
- * The carrier requested more information before deciding a toll-free number verification.
- */
-export type EventSmsTfnVerificationInfoRequested = {
-  /**
-   * Event type.
-   */
-  type: "sms.tfn_verification.info_requested";
-  /**
-   * Time the information request was recorded.
-   */
-  timestamp: string;
-  data: EventSmsTfnVerificationInfoRequestedData;
-};
-
-/**
- * Payload of the sms.tfn_verification.approved event.
- */
-export type EventSmsTfnVerificationApprovedData = EventSmsTfnVerificationBase;
-
-/**
- * The carrier approved a toll-free number verification; the number can now send in its licensed countries.
- */
-export type EventSmsTfnVerificationApproved = {
-  /**
-   * Event type.
-   */
-  type: "sms.tfn_verification.approved";
-  /**
-   * Time the approval was recorded.
-   */
-  timestamp: string;
-  data: EventSmsTfnVerificationApprovedData;
 };
 
 /**
@@ -2131,18 +2010,6 @@ export type WebhookEvent =
   | ({
       type: "sms.sent";
     } & EventSmsSent)
-  | ({
-      type: "sms.tfn_verification.approved";
-    } & EventSmsTfnVerificationApproved)
-  | ({
-      type: "sms.tfn_verification.info_requested";
-    } & EventSmsTfnVerificationInfoRequested)
-  | ({
-      type: "sms.tfn_verification.rejected";
-    } & EventSmsTfnVerificationRejected)
-  | ({
-      type: "sms.tfn_verification.submitted";
-    } & EventSmsTfnVerificationSubmitted)
   | ({
       type: "sms.undelivered";
     } & EventSmsUndelivered)
@@ -5105,7 +4972,7 @@ export type WhatsAppEvent = {
    */
   readonly id: WhatsAppEventId;
   /**
-   * Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. `whatsapp.rejected`: Bird refused the message before sending it, so it was never charged. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.
+   * Lifecycle event type. `whatsapp.accepted`: Bird accepted the request. `whatsapp.sent`: handed to the WhatsApp network. `whatsapp.delivered`: delivery confirmed to the recipient's device. `whatsapp.read`: the recipient opened the message (this does not change the message `status`, which never becomes `read`). `whatsapp.failed`: terminal permanent failure. `whatsapp.rejected`: Bird refused the message before sending it, so it was never charged. `whatsapp.received`: an inbound message arrived from the contact. Open enum: new event types may be added over time, so treat any unrecognized value as a future event rather than an error.
    *
    */
   readonly type: string;
@@ -5119,6 +4986,10 @@ export type WhatsAppEvent = {
   error?: WhatsAppError;
 };
 
+/**
+ * A WhatsApp message to send. Carry exactly one kind of content: a request with none returns a `422` `WhatsAppContentRequired`, and one carrying more than one returns a `422` `WhatsAppContentAmbiguous`. The schema does not express that constraint, because which combinations are available depends on the content types your workspace can send.
+ *
+ */
 export type WhatsAppMessageSendRequest = {
   /**
    * The message recipient: a phone number in E.164 format (for example `+31612345678`), or the recipient's business-scoped user ID (for example `US.13491208655302741918`), which addresses a WhatsApp user whose phone number you do not have. A value that is neither returns a `422` `WhatsAppInvalidRecipient`. One-time-passcode templates require a phone number and return a `422` `WhatsAppRecipientNotSupportedForTemplate` when sent to a business-scoped user ID.
@@ -5126,7 +4997,7 @@ export type WhatsAppMessageSendRequest = {
    */
   to: string;
   /**
-   * The template to send. Bird selects the sender number from the template's category, so there is no sender field on this request. Templates are the only supported content type today: a request without one is rejected with a `422`.
+   * The template to send. For a Bird-managed template, Bird selects the sender number from the template's category, so `from` must be omitted. A template is the only content deliverable outside a customer service window.
    *
    */
   template?: WhatsAppTemplateSend;
@@ -5237,7 +5108,7 @@ export type Money = {
 };
 
 /**
- * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means Bird refused the message before sending it to WhatsApp, because the recipient is on the workspace's suppression list, the wallet had insufficient balance, or the destination is unpriced. A rejected message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (an inbound message, `direction: inbound`, sent to you by a contact).
+ * Delivery status. `accepted` (the initial status of an outbound send) means Bird accepted the request and it is queued for sending. `sent` means it was handed to the WhatsApp network. `delivered` is confirmed delivery to the recipient's device. `failed` is a terminal permanent failure. `rejected` means Bird refused the message before sending it to WhatsApp, because the recipient is on the workspace's suppression list, the wallet had insufficient balance, or the destination is unpriced. A rejected message was not sent and not charged. There is no `read` status: a read receipt is reported as `read_at` and a `whatsapp.read` event, not a status value. The remaining values are reserved and not returned today: `scheduled` (queued to send at a future time), `canceled` (a scheduled message canceled before sending), and `received` (a message a contact sent you).
  *
  */
 export type WhatsAppMessageStatus =
@@ -5894,21 +5765,19 @@ export type AudienceRef = {
   name: string;
 };
 
-/**
- * A channel a contact can be reached on. Open enum: `email` is present when the contact has an email address; more values (`sms`, `whatsapp`, `voice`) are added as contacts gain identifiers for other channels. Treat any unrecognized value as a future channel rather than an error. Slugs match `ChannelSlug`.
- *
- */
-export type ContactChannel = "email" | (string & {});
-
 export type Contact = {
   /**
    * ID of the contact (`con_`-prefixed), accepted by every operation that takes a `contact_id`.
    */
   readonly id: ContactId;
   /**
-   * The contact's email address, stored trimmed and lowercased. Unique within the workspace.
+   * The contact's email address, in its stored form, trimmed and lowercased before uniqueness is checked. Unique within the workspace. Null when the contact has no email address.
    */
-  email: string;
+  email: string | null;
+  /**
+   * The contact's phone number in normalized international form (a leading `+` and four to 15 digits), which may differ from the form it was supplied in. Bird normalizes formatting but does not verify the number against numbering-plan metadata. Unique within the workspace. Carriers recycle disconnected numbers, so a long-stored number can come to belong to someone else; `external_id` is the durable key for your own records. Null when the contact has no phone number.
+   */
+  phone: string | null;
   /**
    * The contact's first name. Available in broadcast templates as the `contact.first_name` variable.
    */
@@ -5928,11 +5797,6 @@ export type Contact = {
   data?: {
     [key: string]: unknown;
   };
-  /**
-   * Channels this contact can be reached on, derived from the identifiers it has. A contact with an email address includes `email`. More values are added as a contact gains identifiers for other channels.
-   *
-   */
-  readonly channels?: Array<ContactChannel>;
 } & Timestamps;
 
 export type AudienceMember = {
@@ -6059,9 +5923,13 @@ export type Audience = {
 
 export type ContactUpdateRequest = {
   /**
-   * New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace. Omit to keep the current address; a contact's email cannot be removed.
+   * New email address for the contact. Trimmed and lowercased before it is stored and checked for uniqueness. Must not be in use by another contact in the workspace. Omit to keep the current address; set to null to remove it, as long as the contact keeps at least one identifier.
    */
-  email?: string;
+  email?: string | null;
+  /**
+   * New phone number for the contact, in E.164 format with the leading `+` and country code. Spaces and punctuation are accepted and stripped. Stored in its canonical form, which may differ from what you send, and unique within the workspace. Omit to keep the current number; set to null to remove it, as long as the contact keeps at least one identifier. An empty string behaves as null.
+   */
+  phone?: string | null;
   /**
    * The contact's first name. Set to null to clear.
    */
@@ -6096,16 +5964,44 @@ export type ContactUpsertError = {
    */
   type: string;
   /**
+   * The specific error code for this entry, from the same catalog as the top-level error `code`: the discriminator within a category. `E04058` (the entry matched two different contacts, a human must decide) and `E04055` (the phone belongs to another contact, retry with different data) are both `conflict_error`; the code tells a sync which one it hit.
+   */
+  code: string;
+  /**
    * Human-readable explanation of why this entry failed.
    */
   message: string;
 };
 
-export type ContactUpsertResultItem = {
+/**
+ * Which identifier matched a batch entry to an existing contact. Null when the entry created a new contact.
+ */
+export type ContactMatchedOn = "email" | "phone" | "external_id" | null;
+
+/**
+ * The identifiers a batch entry supplied, in the normalized form they were matched with, null where the entry carried none. An echo of the request row for correlation, never the contact's current state.
+ */
+export type ContactUpsertEntry = {
   /**
-   * Email address this entry refers to, in the normalized (trimmed and lowercased) form it was matched and stored as.
+   * Email address this entry carried, trimmed and lowercased. Null when the entry carried none.
    */
-  email: string;
+  email: string | null;
+  /**
+   * Phone number this entry carried, in its normalized international form. Null when the entry carried none. A row rejected for an invalid phone echoes the value as sent, trimmed, since no normalized form exists.
+   */
+  phone: string | null;
+  /**
+   * Your own identifier for this entry, when the entry supplied one.
+   */
+  external_id: string | null;
+};
+
+export type ContactUpsertResultItem = {
+  entry: ContactUpsertEntry;
+  /**
+   * Which identifier matched this entry to an existing contact. Null when the entry created a new contact.
+   */
+  matched_on: ContactMatchedOn;
   /**
    * What happened to this contact. `created` means a new contact was created for the address; `updated` means an existing contact with the address was updated; `failed` means the entry was rejected and `error` explains why. A failed entry does not affect the other entries in the request.
    */
@@ -6122,7 +6018,7 @@ export type ContactUpsertResultItem = {
 
 export type ContactUpsertRequest = {
   /**
-   * Contacts to create or update, matched by email address. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. New addresses create contacts.
+   * Contacts to create or update, matched automatically against every identifier an entry supplies. Existing contacts are updated with the fields each entry supplies; omitted fields keep their stored values, so an entry can set fields but never clear them. Unmatched entries create contacts.
    */
   contacts: Array<ContactCreateRequest>;
   /**
@@ -6130,17 +6026,31 @@ export type ContactUpsertRequest = {
    */
   audience_ids?: Array<AudienceId>;
   /**
+   * Optional. Forces every entry to be matched to an existing contact by this one field, which every entry must then carry. When omitted, each entry is matched automatically against every identifier it supplies: no match creates a contact, one match updates it, and an entry whose identifiers belong to more than one contact fails with an error naming each.
+   *
+   */
+  match_on?: ContactMatchKey;
+  /**
    * How a supplied `data` object is applied to an existing contact. `merge` (the default) merges the supplied keys onto the contact's stored custom values, and a key with a `null` value deletes that one key. `replace` overwrites the whole stored `data` map with the supplied one. In both modes a contact that omits `data` keeps its stored values unchanged, so an import that touches one attribute never wipes the others.
    *
    */
   data_mode?: "merge" | "replace";
 };
 
+/**
+ * A contact identifier a batch entry can be matched on.
+ */
+export type ContactMatchKey = "email" | "phone" | "external_id";
+
 export type ContactCreateRequest = {
   /**
-   * The contact's email address. Trimmed and lowercased before it is stored and checked for uniqueness. Unique within the workspace.
+   * The contact's email address. Trimmed and lowercased before it is stored and checked for uniqueness. Unique within the workspace. Supply an email address, a phone number, or both.
    */
-  email: string;
+  email?: string;
+  /**
+   * The contact's phone number in E.164 format, including the leading `+` and country code. Spaces and punctuation are accepted and stripped; the number is stored in its canonical form, which may differ from what you send, and is unique within the workspace. An empty string is treated as if the field were omitted. Supply an email address, a phone number, or both.
+   */
+  phone?: string;
   /**
    * The contact's first name.
    */
@@ -7641,18 +7551,6 @@ export type WebhookEventWritable =
       type: "sms.sent";
     } & EventSmsSent)
   | ({
-      type: "sms.tfn_verification.approved";
-    } & EventSmsTfnVerificationApproved)
-  | ({
-      type: "sms.tfn_verification.info_requested";
-    } & EventSmsTfnVerificationInfoRequested)
-  | ({
-      type: "sms.tfn_verification.rejected";
-    } & EventSmsTfnVerificationRejected)
-  | ({
-      type: "sms.tfn_verification.submitted";
-    } & EventSmsTfnVerificationSubmitted)
-  | ({
       type: "sms.undelivered";
     } & EventSmsUndeliveredWritable)
   | ({
@@ -8534,9 +8432,13 @@ export type AudienceRefWritable = {
 
 export type ContactWritable = {
   /**
-   * The contact's email address, stored trimmed and lowercased. Unique within the workspace.
+   * The contact's email address, in its stored form, trimmed and lowercased before uniqueness is checked. Unique within the workspace. Null when the contact has no email address.
    */
-  email: string;
+  email: string | null;
+  /**
+   * The contact's phone number in normalized international form (a leading `+` and four to 15 digits), which may differ from the form it was supplied in. Bird normalizes formatting but does not verify the number against numbering-plan metadata. Unique within the workspace. Carriers recycle disconnected numbers, so a long-stored number can come to belong to someone else; `external_id` is the durable key for your own records. Null when the contact has no phone number.
+   */
+  phone: string | null;
   /**
    * The contact's first name. Available in broadcast templates as the `contact.first_name` variable.
    */
@@ -9864,15 +9766,19 @@ export type ListContactsData = {
   path?: never;
   query?: {
     /**
-     * Return the contact with exactly this email address (case-insensitive). Email is unique within a workspace, so this matches at most one contact.
+     * Return the contact with exactly this email address (case-insensitive). Email is unique within a workspace, so this matches at most one contact. An empty value is a validation error, never an unfiltered page.
      */
     email?: string;
     /**
-     * Return the contact with exactly this external_id (your own identifier for the contact). Unique within a workspace, so this matches at most one contact.
+     * Return the contact with exactly this phone number in international E.164 form. Encode the leading plus sign as `%2B` (an unencoded `+` arrives as a space and is rejected). Phone numbers are unique within a workspace, so this matches at most one contact. Non-canonical forms of the same number match the contact they canonicalize to; a value that is not a phone number shape, or an empty value, is a validation error, never an unfiltered page.
+     */
+    phone?: string;
+    /**
+     * Return the contact with exactly this external_id (your own identifier for the contact). Unique within a workspace, so this matches at most one contact. An empty value is a validation error, never an unfiltered page.
      */
     external_id?: string;
     /**
-     * Case-insensitive substring match against the contact's email address, first name, or last name.
+     * Case-insensitive substring match against the contact's email address, first name, last name, or phone number. Phone matching is over the digits of the international form, so a full pasted number, a formatted number, or trailing digits all match; a national form with a leading trunk zero does not.
      */
     q?: string;
     /**
@@ -10930,7 +10836,7 @@ export type ListAudienceContactsData = {
   };
   query?: {
     /**
-     * Case-insensitive substring match against the member's email address.
+     * Case-insensitive substring match against the member's email address or phone number (digits of the international form).
      */
     q?: string;
     /**
@@ -11757,6 +11663,11 @@ export type ListWhatsAppMessagesData = {
      * Filter by status. Repeat the parameter to match any of several statuses.
      */
     status?: Array<WhatsAppMessageStatus>;
+    /**
+     * Filter by whether the business sent the message (`outbound`) or received it from the contact (`inbound`).
+     *
+     */
+    direction?: MessageDirection;
     /**
      * Filter by contact phone number (E.164 exact match).
      */

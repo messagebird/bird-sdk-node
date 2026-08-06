@@ -59,6 +59,13 @@ export interface CoreDefaults {
   timeout: number;
   /** Max retry attempts. */
   maxRetries: number;
+  /**
+   * Extra credentials some operations require on top of the API key, keyed by the
+   * security scheme that names them. A generated method names the schemes its
+   * operation declares; the core resolves them, so a credential reaches only
+   * those operations and never an unrelated request.
+   */
+  credentials?: Record<string, { header: string; value?: string; how: string }>;
 }
 
 const BACKOFF_BASE_MS = 500;
@@ -67,6 +74,27 @@ const RETRY_AFTER_CAP_MS = 60_000;
 
 export class BirdHTTPClient {
   constructor(private readonly defaults: CoreDefaults) {}
+
+  /**
+   * Resolve the credential headers an operation's security schemes require.
+   * Throws before the request when one is unconfigured, so a caller gets a named
+   * error instead of a 401.
+   */
+  credentialHeaders(
+    schemes: string[] | undefined,
+    override?: Record<string, string>,
+  ): Record<string, string> {
+    if (!schemes?.length) return {};
+    const out: Record<string, string> = {};
+    for (const scheme of schemes) {
+      const cred = this.defaults.credentials?.[scheme];
+      if (!cred) throw new Error(`Unknown credential scheme "${scheme}"`);
+      const value = override?.[scheme] ?? cred.value;
+      if (!value) throw new Error(`${cred.header} is required for this operation. ${cred.how}`);
+      out[cred.header] = value;
+    }
+    return out;
+  }
 
   /**
    * Run a generated hey-api SDK call through the request lifecycle.

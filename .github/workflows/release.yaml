@@ -49,10 +49,7 @@ jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
-    # Smoke runs per workspace package, each retrying npm for up to ~5 minutes, so
-    # the budget scales with packages/* — keep headroom or a timeout kill preempts
-    # the smoke diagnostics.
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -74,30 +71,47 @@ jobs:
       # whose exact version is already on npm is skipped, so a re-run after a
       # later-step failure never errors on a re-publish, and releasing one package
       # leaves the already-published siblings alone.
+      #
+      # Fault-isolated on purpose. A `run:` block is `bash -e`, so aborting on the
+      # first failure let one package's missing npm trusted publisher withhold
+      # every alphabetically-later sibling for five versions.
       - name: Publish packages
         env:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
+          failed=""
           for dir in packages/*/; do
             [ -f "$dir/package.json" ] || continue
             name="$(node -p "require('./$dir/package.json').name")"
             ver="$(node -p "require('./$dir/package.json').version")"
             if [ "$DRY_RUN" = "true" ]; then
               echo "dry-run: $name@$ver"
-              ( cd "$dir" && npm publish --provenance --access public --dry-run )
+              if ( cd "$dir" && npm publish --provenance --access public --dry-run ); then
+                echo "- dry-run ok \`$name@$ver\`" >> "$GITHUB_STEP_SUMMARY"
+              else
+                failed="$failed $name@$ver"
+                echo "- **dry-run FAILED** \`$name@$ver\`" >> "$GITHUB_STEP_SUMMARY"
+              fi
             elif npm view "$name@$ver" version >/dev/null 2>&1; then
               echo "npm already has $name@$ver — skipping (idempotent)"
+              echo "- already on npm \`$name@$ver\`" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "publishing $name@$ver"
-              ( cd "$dir" && npm publish --provenance --access public )
+              if ( cd "$dir" && npm publish --provenance --access public ); then
+                echo "- published \`$name@$ver\`" >> "$GITHUB_STEP_SUMMARY"
+              else
+                failed="$failed $name@$ver"
+                echo "- **PUBLISH FAILED** \`$name@$ver\`" >> "$GITHUB_STEP_SUMMARY"
+              fi
             fi
           done
+          if [ -n "$failed" ]; then
+            echo "::error::npm publish failed for:$failed"
+            exit 1
+          fi
 
-      # The GitHub Release runs BEFORE the smoke test so a post-publish npm
-      # registry propagation flake in smoke can never drop the release notes for
-      # a version that is already published. --notes-from-tag reuses the annotated
-      # tag's message (the released package's CHANGELOG section, set by
-      # scripts/dev/sdk-release.sh).
+      # --notes-from-tag reuses the annotated tag's message (the released
+      # package's CHANGELOG section, set by scripts/dev/sdk-release.sh).
       - name: GitHub Release
         if: github.event_name == 'push'
         env:
@@ -106,13 +120,34 @@ jobs:
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
             || gh release create "$GITHUB_REF_NAME" --notes-from-tag --verify-tag
 
+  # Smoke is its own job so the Publish job's colour is a true publish signal.
+  # Sharing one job made every release red on npm propagation lag, which taught
+  # everyone to ignore a red Release run.
+  smoke:
+    name: Smoke test (install from npm)
+    needs: publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Each package retries npm for up to ~5 minutes, so the budget scales with
+    # packages/* — keep headroom or a timeout kill preempts the diagnostics.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.19.0
       # Smoke-test each package that ships one (install from npm, import over the
       # real entrypoint). Its version comes from that package's package.json.
-      - name: Smoke test (install from npm)
-        if: github.event_name == 'push'
-        run: |
+      - run: |
+          failed=""
           for dir in packages/*/; do
             [ -f "$dir/scripts/smoke.sh" ] || continue
             ver="$(node -p "require('./$dir/package.json').version")"
-            ( cd "$dir" && ./scripts/smoke.sh "$ver" )
+            ( cd "$dir" && ./scripts/smoke.sh "$ver" ) || failed="$failed $dir@$ver"
           done
+          if [ -n "$failed" ]; then
+            echo "::error::smoke failed for:$failed"
+            exit 1
+          fi

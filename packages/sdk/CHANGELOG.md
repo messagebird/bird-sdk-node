@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.1
+
+- Republish. Versions 0.17.0 through 0.21.0 never reached npm, so 0.16.0 was the newest version installable from the registry; this release carries every change they made, listed in the 0.17.0 through 0.21.0 entries below.
+
 ## 0.21.0
 
 - **Breaking:** three Realtime type names change. A per-call credential override moves onto the request options as `credentials`, keyed by security scheme: `{ credentials: { RealtimeKey, RealtimeSecret } }` replaces `{ key, secret }`, and `RealtimeRequestOptions` is gone with it. `RealtimeBatchPublishParams` is now `RealtimePublishBatchParams`, and `RealtimeChannelsListQuery` is now `RealtimeChannelListQuery`. Client-level `realtime: { key, secret }` and every method signature are unchanged.

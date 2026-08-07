@@ -6914,6 +6914,9 @@ export type RealtimePublish = {
  * Mutable Realtime app fields. Omitted fields are left unchanged. Region is immutable and TLS is always enforced, so neither appears here.
  */
 export type RealtimeAppUpdate = {
+  /**
+   * A label for the app, shown wherever it is listed.
+   */
   name?: string;
   /**
    * Allow clients to trigger events directly (client events).
@@ -6981,6 +6984,9 @@ export type RealtimeApp = Timestamps & {
 };
 
 export type RealtimeAppCreate = RealtimeAppConfig & {
+  /**
+   * A label for the app, shown wherever it is listed.
+   */
   name: string;
   /**
    * The region this app runs in. Unlike other Bird products, a Realtime app can be placed in a region other than the workspace's home region. Immutable after creation.
@@ -7017,6 +7023,12 @@ export type RealtimeAppConfig = {
 export type RealtimeAppList = {
   data: Array<RealtimeApp>;
 } & ListEnvelopeWithTotal;
+
+/**
+ * Field to sort Realtime apps by.
+ *
+ */
+export type RealtimeAppSortField = "created_at" | "name";
 
 export type RealtimeRegionList = {
   /**

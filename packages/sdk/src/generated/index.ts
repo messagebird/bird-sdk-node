@@ -852,6 +852,7 @@ export type {
   RealtimeAppKeyListWritable,
   RealtimeAppList,
   RealtimeAppListWritable,
+  RealtimeAppSortField,
   RealtimeAppUpdate,
   RealtimeAppWritable,
   RealtimeBatchEvent,

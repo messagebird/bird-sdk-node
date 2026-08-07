@@ -12868,6 +12868,10 @@ export const RealtimePublishSchema = {
 } as const;
 
 export const RealtimeAppUpdateSchema = {
+  example: {
+    name: "chat-production",
+    connection_counting: true,
+  },
   description:
     "Mutable Realtime app fields. Omitted fields are left unchanged. Region is immutable and TLS is always enforced, so neither appears here.",
   type: "object",
@@ -12875,6 +12879,7 @@ export const RealtimeAppUpdateSchema = {
   properties: {
     name: {
       type: "string",
+      description: "A label for the app, shown wherever it is listed.",
       minLength: 1,
       maxLength: 100,
       example: "chat-production",
@@ -12946,7 +12951,6 @@ export const RealtimeAppSchema = {
     },
     {
       type: "object",
-      additionalProperties: false,
       required: [
         "id",
         "app_id",
@@ -13018,6 +13022,11 @@ export const RealtimeAppSchema = {
 } as const;
 
 export const RealtimeAppCreateSchema = {
+  example: {
+    name: "chat-production",
+    region: "eu1",
+    connection_counting: true,
+  },
   allOf: [
     {
       $ref: "#/components/schemas/RealtimeAppConfig",
@@ -13029,6 +13038,7 @@ export const RealtimeAppCreateSchema = {
       properties: {
         name: {
           type: "string",
+          description: "A label for the app, shown wherever it is listed.",
           minLength: 1,
           maxLength: 100,
           example: "chat-production",
@@ -13107,6 +13117,13 @@ export const RealtimeAppListSchema = {
       $ref: "#/components/schemas/_ListEnvelopeWithTotal",
     },
   ],
+} as const;
+
+export const RealtimeAppSortFieldSchema = {
+  type: "string",
+  default: "created_at",
+  description: "Field to sort Realtime apps by.\n",
+  enum: ["created_at", "name"],
 } as const;
 
 export const RealtimeRegionListSchema = {
@@ -16084,7 +16101,6 @@ export const RealtimeAppWritableSchema = {
   allOf: [
     {
       type: "object",
-      additionalProperties: false,
       required: [
         "name",
         "region",

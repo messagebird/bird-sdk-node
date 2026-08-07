@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.2
+
+- The Realtime app list's `sort` filter is now a named type, `RealtimeAppSortField` (`created_at` | `name`), instead of a bare string, and the Realtime app `name` field carries a description. No method or signature changes.
+
 ## 0.21.1
 
 - Republish. Versions 0.17.0 through 0.21.0 never reached npm, so 0.16.0 was the newest version installable from the registry; this release carries every change they made, listed in the 0.17.0 through 0.21.0 entries below.

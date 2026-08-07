@@ -11689,6 +11689,10 @@ export type ListWhatsAppMessagesData = {
      */
     bsuid?: string;
     /**
+     * Filter by category.
+     */
+    category?: WhatsAppTemplateCategory;
+    /**
      * Filter by tag. Accepts `name` to match any message carrying that tag name, or `name:value` to match a specific tag pair (e.g. `category:welcome`). Repeat the parameter to AND-combine several tag filters.
      *
      */

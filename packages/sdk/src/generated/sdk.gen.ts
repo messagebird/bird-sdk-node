@@ -1502,7 +1502,7 @@ export const createVerificationCheck = <ThrowOnError extends boolean = false>(
 /**
  * List WhatsApp messages
  *
- * Returns the workspace's WhatsApp messages as a cursor-paginated list, newest first. Filter by direction, status, contact phone number, business-scoped user ID, tag, or creation time; pass the response's `next_cursor` back as `starting_after` to fetch the next page. To follow a single message's delivery, use [Get a WhatsApp message](/docs/api/reference/get-whats-app-message) instead.
+ * Returns the workspace's WhatsApp messages as a cursor-paginated list, newest first. Filter by direction, status, contact phone number, business-scoped user ID, template category, tag, or creation time; pass the response's `next_cursor` back as `starting_after` to fetch the next page. To follow a single message's delivery, use [Get a WhatsApp message](/docs/api/reference/get-whats-app-message) instead.
  *
  */
 export const listWhatsAppMessages = <ThrowOnError extends boolean = false>(
